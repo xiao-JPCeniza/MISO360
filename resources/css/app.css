@@ -169,4 +169,28 @@
     body {
         @apply bg-background text-foreground;
     }
+    [data-sidebar='sidebar'] {
+        --sidebar-background: #0b1b3a;
+        --sidebar-foreground: #e2e8f0;
+        --sidebar-primary: #2563eb;
+        --sidebar-primary-foreground: #ffffff;
+        --sidebar-accent: rgba(37, 99, 235, 0.18);
+        --sidebar-accent-foreground: #ffffff;
+        --sidebar-border: rgba(148, 163, 184, 0.25);
+        --sidebar-ring: #93c5fd;
+        --sidebar: #0b1b3a;
+        background-image: linear-gradient(180deg, #0b1b3a 0%, #0f2a5f 55%, #0b1b3a 100%);
+    }
+    .dark [data-sidebar='sidebar'] {
+        --sidebar-background: #081225;
+        --sidebar-foreground: #f8fafc;
+        --sidebar-primary: #60a5fa;
+        --sidebar-primary-foreground: #0b1b3a;
+        --sidebar-accent: rgba(96, 165, 250, 0.22);
+        --sidebar-accent-foreground: #ffffff;
+        --sidebar-border: rgba(148, 163, 184, 0.2);
+        --sidebar-ring: #93c5fd;
+        --sidebar: #081225;
+        background-image: linear-gradient(180deg, #081225 0%, #0b1f45 55%, #081225 100%);
+    }
 }

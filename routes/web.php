@@ -20,6 +20,14 @@ Route::middleware([
     Route::get('admin/dashboard', function () {
         return Inertia::render('AdminDashboard');
     })->middleware('admin')->name('admin.dashboard');
+
+    Route::get('requests', function () {
+        return Inertia::render('Requests');
+    })->name('requests');
+
+    Route::get('inventory', function () {
+        return Inertia::render('Inventory');
+    })->name('inventory');
 });
 
 require __DIR__.'/settings.php';
