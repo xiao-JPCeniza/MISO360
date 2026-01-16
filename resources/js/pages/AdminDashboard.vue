@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
@@ -10,6 +11,13 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/admin/dashboard',
     },
 ];
+
+const props = defineProps<{
+    totalGenerated: number;
+}>();
+
+const totalGenerated = computed(() => props.totalGenerated ?? 0);
+
 </script>
 
 <template>
@@ -20,12 +28,20 @@ const breadcrumbs: BreadcrumbItem[] = [
             <div class="grid gap-4 xl:grid-cols-4">
                 <div class="rounded-2xl border border-sidebar-border/60 bg-background p-5">
                     <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                        Active Users
+                        QR Code Generator
                     </p>
-                    <p class="mt-4 text-3xl font-semibold">128</p>
+                    <p class="mt-4 text-3xl font-semibold">{{ totalGenerated }}</p>
                     <p class="mt-2 text-sm text-muted-foreground">
-                        Logged in within the last 30 days.
+                        Total QR codes generated across all batches.
                     </p>
+                    <div class="mt-4 flex flex-wrap items-center gap-3">
+                        <Link
+                            href="/admin/qr-generator"
+                            class="rounded-full bg-[#2563eb] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition-colors hover:bg-[#1d4ed8]"
+                        >
+                            Open QR Generator
+                        </Link>
+                    </div>
                 </div>
                 <div class="rounded-2xl border border-sidebar-border/60 bg-background p-5">
                     <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">
@@ -35,6 +51,14 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <p class="mt-2 text-sm text-muted-foreground">
                         Requests needing assignment or review.
                     </p>
+                    <div class="mt-4 flex flex-wrap items-center gap-3">
+                        <Link
+                            href="/admin/enrollments/create"
+                            class="rounded-full border border-[#0f172a]/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#0f172a] transition-colors hover:bg-[#0f172a]/5"
+                        >
+                            Enroll Ticket
+                        </Link>
+                    </div>
                 </div>
                 <div class="rounded-2xl border border-sidebar-border/60 bg-background p-5">
                     <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">
