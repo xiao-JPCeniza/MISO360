@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Models\User;
@@ -20,6 +21,8 @@ class ProfileController extends Controller
     {
         return Inertia::render('settings/Profile', [
             'status' => $request->session()->get('status'),
+            'canManageRoles' => $request->user()?->canManageRoles(),
+            'roleOptions' => Role::options(),
         ]);
     }
 
@@ -28,7 +31,15 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->update(['name' => $request->name]);
+        $user = $request->user();
+        $updateData = ['name' => $request->name];
+
+        // Only allow role updates if the current user can manage roles
+        if ($user->canManageRoles() && $request->has('role')) {
+            $updateData['role'] = $request->role;
+        }
+
+        $user->update($updateData);
 
         return to_route('profile.edit');
     }

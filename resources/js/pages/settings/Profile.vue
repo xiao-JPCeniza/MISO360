@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Form, Head, usePage } from '@inertiajs/vue3';
+import { computed, withDefaults } from 'vue';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 
-import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/DeleteUser.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
@@ -15,9 +15,23 @@ import { type BreadcrumbItem } from '@/types';
 
 interface Props {
     status?: string;
+    canManageRoles?: boolean;
+    roleOptions?: Record<string, string>;
+    errors?: Record<string, string>;
+    auth?: {
+        user: {
+            id: number;
+            name: string;
+            email: string;
+            role: string;
+            [key: string]: any;
+        };
+    };
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    errors: () => ({}),
+});
 
 const breadcrumbItems: BreadcrumbItem[] = [
     {
@@ -27,7 +41,12 @@ const breadcrumbItems: BreadcrumbItem[] = [
 ];
 
 const page = usePage();
-const user = page.props.auth.user;
+const user = computed(() => page.props.auth?.user);
+
+const form = useForm({
+    name: user.value?.name || '',
+    ...(props.canManageRoles && { role: user.value?.role }),
+});
 </script>
 
 <template>
@@ -43,23 +62,22 @@ const user = page.props.auth.user;
                     description="Update your name and email address"
                 />
 
-                <Form
-                    v-bind="ProfileController.update.form()"
+                <form
+                    @submit.prevent="form.patch('/settings/profile')"
                     class="space-y-6"
-                    v-slot="{ errors, processing, recentlySuccessful }"
                 >
                     <div class="grid gap-2">
                         <Label for="name">Name</Label>
                         <Input
                             id="name"
                             class="mt-1 block w-full"
+                            v-model="form.name"
                             name="name"
-                            :default-value="user.name"
                             required
                             autocomplete="name"
                             placeholder="Full name"
                         />
-                        <InputError class="mt-2" :message="errors.name" />
+                        <InputError class="mt-2" :message="form.errors.name" />
                     </div>
 
                     <div class="grid gap-2">
@@ -69,18 +87,37 @@ const user = page.props.auth.user;
                             type="email"
                             class="mt-1 block w-full"
                             name="email"
-                            :default-value="user.email"
+                            :default-value="user?.email"
                             required
                             autocomplete="username"
                             placeholder="Email address"
                             disabled
                         />
-                        <InputError class="mt-2" :message="errors.email" />
+                        <InputError class="mt-2" :message="form.errors.email" />
+                    </div>
+
+                    <div v-if="props.canManageRoles" class="grid gap-2">
+                        <Label for="role">Role</Label>
+                        <select
+                            id="role"
+                            name="role"
+                            v-model="form.role"
+                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <option
+                                v-for="(label, value) in props.roleOptions"
+                                :key="value"
+                                :value="value"
+                            >
+                                {{ label }}
+                            </option>
+                        </select>
+                        <InputError class="mt-2" :message="form.errors.role" />
                     </div>
 
                     <div class="flex items-center gap-4">
                         <Button
-                            :disabled="processing"
+                            :disabled="form.processing"
                             data-test="update-profile-button"
                             >Save</Button
                         >
@@ -92,7 +129,7 @@ const user = page.props.auth.user;
                             leave-to-class="opacity-0"
                         >
                             <p
-                                v-show="recentlySuccessful"
+                                v-show="form.recentlySuccessful"
                                 class="text-sm text-neutral-600"
                             >
                                 Saved.

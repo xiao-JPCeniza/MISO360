@@ -6,6 +6,8 @@ import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 
 import { initializeTheme } from './composables/useAppearance';
+// Import wayfinder to ensure it's loaded
+import './wayfinder';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 

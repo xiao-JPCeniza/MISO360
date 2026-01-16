@@ -57,4 +57,76 @@ class ProfileUpdateTest extends TestCase
         $this->assertGuest();
         $this->assertNull($user->fresh());
     }
+
+    public function test_admin_can_update_own_role()
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this
+            ->actingAs($admin)
+            ->patch('/settings/profile', [
+                'name' => $admin->name,
+                'role' => 'super_admin',
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('profile.edit'));
+
+        $admin->refresh();
+
+        $this->assertSame('super_admin', $admin->role->value);
+    }
+
+    public function test_regular_user_cannot_update_role()
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/settings/profile', [
+                'name' => 'Updated Name',
+                'role' => 'admin',
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('profile.edit'));
+
+        $user->refresh();
+
+        // Role should remain unchanged
+        $this->assertSame('user', $user->role->value);
+    }
+
+    public function test_admin_can_see_role_field_in_profile()
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this
+            ->actingAs($admin)
+            ->get(route('profile.edit'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('canManageRoles')
+            ->where('canManageRoles', true)
+            ->has('roleOptions')
+        );
+    }
+
+    public function test_regular_user_cannot_see_role_field_in_profile()
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('profile.edit'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('canManageRoles')
+            ->where('canManageRoles', false)
+        );
+    }
 }
