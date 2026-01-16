@@ -62,13 +62,20 @@ Route::middleware([
         return Inertia::render('Requests');
     })->name('requests');
 
+    Route::get('submit-request', function () {
+        return Inertia::render('SubmitRequest');
+    })->name('submit-request');
+
     Route::get('inventory', [InventoryController::class, 'index'])
+        ->middleware('admin')
         ->name('inventory');
 
     Route::get('inventory/lookup/{uniqueId}', [InventoryController::class, 'lookup'])
+        ->middleware('admin')
         ->name('inventory.lookup');
 
     Route::get('inventory/{uniqueId}', [InventoryController::class, 'show'])
+        ->middleware('admin')
         ->name('inventory.show');
 
     Route::post('inventory/{uniqueId}/archive', [InventoryController::class, 'archive'])

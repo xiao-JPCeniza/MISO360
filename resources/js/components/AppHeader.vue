@@ -43,23 +43,38 @@ function activeItemClasses(url: NonNullable<InertiaLinkProps['href']>) {
         : 'text-[#0b1b3a] dark:text-white';
 }
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'List of Requests',
-        href: '/requests',
-        icon: ClipboardList,
-    },
-    {
-        title: 'Inventory',
-        href: '/inventory',
-        icon: Package,
-    },
-];
+const mainNavItems = computed(() => {
+    const isAdmin = auth.value?.user?.role === 'admin';
+
+    const baseItems: NavItem[] = [
+        {
+            title: 'Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+        },
+        {
+            title: 'List of Requests',
+            href: '/requests',
+            icon: ClipboardList,
+        },
+        {
+            title: 'Submit a Request Ticket',
+            href: '/submit-request',
+            icon: Package, // Using Package icon for now, can be changed to a more appropriate icon
+        },
+    ];
+
+    // Add admin-only items
+    if (isAdmin) {
+        baseItems.push({
+            title: 'Inventory',
+            href: '/inventory',
+            icon: Package,
+        });
+    }
+
+    return baseItems;
+});
 </script>
 
 <template>
