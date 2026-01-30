@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\NatureOfRequestController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\NatureOfRequestOptionsController;
 use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\ScanController;
 use App\Models\IssuedUid;
@@ -55,6 +57,19 @@ Route::middleware([
         ->middleware('admin')
         ->name('admin.enrollments.create');
 
+    Route::get('admin/nature-of-request', [NatureOfRequestController::class, 'index'])
+        ->middleware('admin')
+        ->name('admin.nature-of-requests.index');
+    Route::post('admin/nature-of-request', [NatureOfRequestController::class, 'store'])
+        ->middleware('admin')
+        ->name('admin.nature-of-requests.store');
+    Route::patch('admin/nature-of-request/{natureOfRequest}', [NatureOfRequestController::class, 'update'])
+        ->middleware('admin')
+        ->name('admin.nature-of-requests.update');
+    Route::delete('admin/nature-of-request/{natureOfRequest}', [NatureOfRequestController::class, 'destroy'])
+        ->middleware('admin')
+        ->name('admin.nature-of-requests.destroy');
+
     Route::get('inventory/{uniqueId}/edit', [EnrollmentController::class, 'edit'])
         ->middleware('admin')
         ->name('inventory.edit');
@@ -85,6 +100,9 @@ Route::middleware([
     Route::get('requests', function () {
         return Inertia::render('Requests');
     })->name('requests');
+
+    Route::get('nature-of-request/options', NatureOfRequestOptionsController::class)
+        ->name('nature-of-request.options');
 
     Route::get('scan', [ScanController::class, 'index'])
         ->name('scan.index');

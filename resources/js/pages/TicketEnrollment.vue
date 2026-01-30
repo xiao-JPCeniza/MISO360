@@ -52,10 +52,16 @@ type EnrollmentPayload = {
     };
 };
 
+type NatureOption = {
+    id: number;
+    name: string;
+};
+
 const props = defineProps<{
     mode: 'create' | 'edit';
     record?: EnrollmentPayload;
     prefillId?: string;
+    natureOfRequests: NatureOption[];
 }>();
 
 const record = computed(() => props.record);
@@ -82,6 +88,8 @@ const scanError = ref('');
 const isScanning = ref(false);
 const scanControls = ref<IScannerControls | null>(null);
 const videoRef = ref<HTMLVideoElement | null>(null);
+const natureOptions = ref<NatureOption[]>(props.natureOfRequests ?? []);
+let natureRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const isEditMode = computed(() => props.mode === 'edit');
 const isReadonlyId = computed(
@@ -144,10 +152,18 @@ onMounted(() => {
     if (enrollmentStep.value === 'scan') {
         startScan();
     }
+
+    refreshNatureOptions();
+    natureRefreshTimer = setInterval(refreshNatureOptions, 30000);
+    window.addEventListener('focus', refreshNatureOptions);
 });
 
 onUnmounted(() => {
     stopScan();
+    if (natureRefreshTimer) {
+        clearInterval(natureRefreshTimer);
+    }
+    window.removeEventListener('focus', refreshNatureOptions);
 });
 
 function normalizeScannedId(rawValue: string) {
@@ -224,6 +240,26 @@ async function startScan() {
     } catch (error) {
         scanError.value =
             'Unable to access the camera. Check permissions and try again.';
+        console.error(error);
+    }
+}
+
+async function refreshNatureOptions() {
+    try {
+        const response = await fetch('/nature-of-request/options', {
+            headers: {
+                Accept: 'application/json',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data = (await response.json()) as NatureOption[];
+        natureOptions.value = data;
+    } catch (error) {
         console.error(error);
     }
 }
@@ -499,6 +535,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
                             :scanned-id="scannedId"
                             :readonly-id="isReadonlyId"
                             :initial="record"
+                            :nature-options="natureOptions"
                             @submit="submitEnrollment"
                         />
                         <div
@@ -521,6 +558,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
                     :scanned-id="scannedId"
                     :readonly-id="isReadonlyId"
                     :initial="record"
+                    :nature-options="natureOptions"
                     @submit="submitEnrollment"
                 />
                 <div

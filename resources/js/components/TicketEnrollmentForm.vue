@@ -46,10 +46,17 @@ type EnrollmentPayload = {
     };
 };
 
+type NatureOption = {
+    id: number;
+    name: string;
+    isLegacy?: boolean;
+};
+
 const props = defineProps<{
     scannedId: string;
     readonlyId?: boolean;
     initial?: Partial<EnrollmentPayload>;
+    natureOptions?: NatureOption[];
 }>();
 
 const emit = defineEmits<{
@@ -102,6 +109,32 @@ const form = reactive<EnrollmentPayload>({
 });
 
 const isReadonlyId = computed(() => Boolean(props.readonlyId && props.scannedId));
+const natureOptionsWithLegacy = computed<NatureOption[]>(() => {
+    const options = (props.natureOptions ?? []).map((option) => ({
+        ...option,
+        isLegacy: false,
+    }));
+    const currentValue = form.requestHistory.natureOfRequest?.trim();
+
+    if (!currentValue) {
+        return options;
+    }
+
+    const exists = options.some((option) => option.name === currentValue);
+
+    if (exists) {
+        return options;
+    }
+
+    return [
+        {
+            id: -1,
+            name: currentValue,
+            isLegacy: true,
+        },
+        ...options,
+    ];
+});
 
 watch(
     () => props.scannedId,
@@ -485,12 +518,23 @@ function submit() {
                     <div class="enroll-grid enroll-grid--tight">
                         <div>
                             <label class="enroll-label">Nature of Request</label>
-                            <input
+                            <select
                                 v-model="form.requestHistory.natureOfRequest"
-                                type="text"
                                 class="enroll-input"
-                                placeholder="Repair, update, replacement"
-                            />
+                            >
+                                <option value="" disabled>Select a request type</option>
+                                <option
+                                    v-for="option in natureOptionsWithLegacy"
+                                    :key="option.isLegacy ? `legacy-${option.name}` : option.id"
+                                    :value="option.name"
+                                >
+                                    {{
+                                        option.isLegacy
+                                            ? `${option.name} (inactive)`
+                                            : option.name
+                                    }}
+                                </option>
+                            </select>
                         </div>
                         <div>
                             <label class="enroll-label">Date</label>

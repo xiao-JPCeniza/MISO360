@@ -8,6 +8,10 @@ import {
     Package,
     UserCog,
     FileText,
+    ShieldCheck,
+    Tag,
+    CheckCircle2,
+    ChevronDown,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -17,6 +21,8 @@ import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -78,20 +84,45 @@ const mainNavItems = computed(() => {
             href: '/inventory',
             icon: Package,
         });
-        baseItems.push({
-            title: 'User Management',
-            href: '/admin/users',
-            icon: UserCog,
-        });
-        baseItems.push({
-            title: 'Audit Logs',
-            href: '/admin/audit-logs',
-            icon: FileText,
-        });
     }
 
     return baseItems;
 });
+
+const adminPanelItems = computed<NavItem[]>(() => {
+    const isAdmin = ['admin', 'super_admin'].includes(auth.value?.user?.role ?? '');
+
+    if (!isAdmin) {
+        return [];
+    }
+
+    return [
+        {
+            title: 'User Management',
+            href: '/admin/users',
+            icon: UserCog,
+        },
+        {
+            title: 'Audit Logs',
+            href: '/admin/audit-logs',
+            icon: FileText,
+        },
+        {
+            title: 'Nature of Request',
+            href: '/admin/nature-of-request',
+            icon: Tag,
+        },
+        {
+            title: 'Status',
+            href: '/admin/status',
+            icon: CheckCircle2,
+        },
+    ];
+});
+
+const isAdminPanelActive = computed(() =>
+    adminPanelItems.value.some((item) => urlIsActive(item.href)),
+);
 </script>
 
 <template>
@@ -156,6 +187,29 @@ const mainNavItems = computed(() => {
                                     />
                                     {{ item.title }}
                                 </Link>
+                                <div v-if="adminPanelItems.length" class="space-y-2 pt-4">
+                                    <p class="px-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
+                                        Admin Panel
+                                    </p>
+                                    <Link
+                                        v-for="item in adminPanelItems"
+                                        :key="item.title"
+                                        :href="item.href"
+                                        class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors"
+                                        :class="[
+                                            urlIsActive(item.href)
+                                                ? 'bg-white/15 text-white'
+                                                : 'text-white/80 hover:bg-white/10 hover:text-white',
+                                        ]"
+                                    >
+                                        <component
+                                            v-if="item.icon"
+                                            :is="item.icon"
+                                            class="h-4 w-4"
+                                        />
+                                        {{ item.title }}
+                                    </Link>
+                                </div>
                             </nav>
                         </SheetContent>
                     </Sheet>
@@ -199,6 +253,45 @@ const mainNavItems = computed(() => {
                             class="ml-1 h-1.5 w-1.5 rounded-full bg-[#2563eb] dark:bg-[#93c5fd]"
                         ></span>
                     </Link>
+                    <DropdownMenu v-if="adminPanelItems.length">
+                        <DropdownMenuTrigger :as-child="true">
+                            <button
+                                type="button"
+                                class="group flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                                :class="[
+                                    isAdminPanelActive
+                                        ? 'text-[#2563eb] dark:text-[#93c5fd] bg-[#2563eb]/10 dark:bg-white/10'
+                                        : 'text-[#0b1b3a] dark:text-white',
+                                    'hover:bg-[#2563eb]/10 dark:hover:bg-white/10',
+                                ]"
+                            >
+                                <ShieldCheck class="h-4 w-4" />
+                                <span>Admin Panel</span>
+                                <ChevronDown class="h-4 w-4 opacity-70" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" class="w-56">
+                            <DropdownMenuGroup>
+                                <DropdownMenuItem
+                                    v-for="item in adminPanelItems"
+                                    :key="item.title"
+                                    :as-child="true"
+                                >
+                                    <Link
+                                        class="flex w-full items-center gap-2"
+                                        :href="item.href"
+                                    >
+                                        <component
+                                            v-if="item.icon"
+                                            :is="item.icon"
+                                            class="h-4 w-4"
+                                        />
+                                        <span>{{ item.title }}</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                            </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </nav>
 
                 <div class="ml-auto flex items-center gap-2">

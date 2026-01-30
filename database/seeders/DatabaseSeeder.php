@@ -43,5 +43,7 @@ class DatabaseSeeder extends Seeder
             'workos_id' => 'local-user-'.Str::uuid(),
             'avatar' => '',
         ]);
+
+        $this->call(NatureOfRequestSeeder::class);
     }
 }
