@@ -21,6 +21,7 @@ Route::get('/', fn () => Inertia::render('Welcome', [
 
 Route::middleware([
     'auth',
+    'verified',
     'active',
 ])->group(function () {
     Route::get('dashboard', function (Request $request) {

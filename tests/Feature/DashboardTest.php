@@ -17,8 +17,18 @@ class DashboardTest extends TestCase
 
     public function test_authenticated_users_can_visit_the_dashboard()
     {
-        $this->actingAs($user = User::factory()->create());
+        /** @var User $user */
+        $user = User::factory()->create();
+
+        $this->actingAs($user);
 
         $this->get('/dashboard')->assertOk();
+    }
+
+    public function test_unverified_users_are_redirected_to_verification_notice()
+    {
+        $this->actingAs(User::factory()->unverified()->create());
+
+        $this->get('/dashboard')->assertRedirect(route('verification.notice'));
     }
 }

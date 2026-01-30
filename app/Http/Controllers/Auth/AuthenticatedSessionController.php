@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\ReferenceValueGroup;
 use App\Http\Controllers\Controller;
+use App\Models\ReferenceValue;
 use App\Services\AuditLogger;
 use App\Services\TwoFactorService;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +21,15 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('auth/Login');
+        $offices = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::OfficeDesignation)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return Inertia::render('auth/Login', [
+            'offices' => $offices,
+        ]);
     }
 
     /**
@@ -70,6 +81,12 @@ class AuthenticatedSessionController extends Controller
             Auth::logout();
 
             return redirect()->route('two-factor.challenge');
+        }
+
+        if ($user instanceof MustVerifyEmail && ! $user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+
+            return redirect()->route('verification.notice');
         }
 
         return redirect()->intended($target);

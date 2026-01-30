@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\TwoFactorService;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -68,8 +70,14 @@ class TwoFactorController extends Controller
 
         if ($request->session()->has('two_factor.pending_user_id')) {
             $request->session()->forget('two_factor.pending_user_id');
-            auth()->loginUsingId($user->id);
+            Auth::login($user);
             $request->session()->regenerate();
+        }
+
+        if ($user instanceof MustVerifyEmail && ! $user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+
+            return redirect()->route('verification.notice');
         }
 
         return redirect()->to($this->resolveIntendedUrl($request));

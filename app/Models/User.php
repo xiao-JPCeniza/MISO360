@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\Role;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
@@ -20,6 +21,8 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'position_title',
+        'office_designation_id',
         'email',
         'password',
         'role',
@@ -109,5 +112,10 @@ class User extends Authenticatable
         }
 
         return $this->two_factor_enabled !== false;
+    }
+
+    public function officeDesignation(): BelongsTo
+    {
+        return $this->belongsTo(ReferenceValue::class, 'office_designation_id');
     }
 }
