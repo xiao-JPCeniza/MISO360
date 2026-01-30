@@ -15,8 +15,6 @@ import { type BreadcrumbItem } from '@/types';
 
 interface Props {
     status?: string;
-    canManageRoles?: boolean;
-    roleOptions?: Record<string, string>;
     errors?: Record<string, string>;
     auth?: {
         user: {
@@ -45,7 +43,6 @@ const user = computed(() => page.props.auth?.user);
 
 const form = useForm({
     name: user.value?.name || '',
-    ...(props.canManageRoles && { role: user.value?.role }),
 });
 </script>
 
@@ -94,25 +91,6 @@ const form = useForm({
                             disabled
                         />
                         <InputError class="mt-2" :message="form.errors.email" />
-                    </div>
-
-                    <div v-if="props.canManageRoles" class="grid gap-2">
-                        <Label for="role">Role</Label>
-                        <select
-                            id="role"
-                            name="role"
-                            v-model="form.role"
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <option
-                                v-for="(label, value) in props.roleOptions"
-                                :key="value"
-                                :value="value"
-                            >
-                                {{ label }}
-                            </option>
-                        </select>
-                        <InputError class="mt-2" :message="form.errors.role" />
                     </div>
 
                     <div class="flex items-center gap-4">

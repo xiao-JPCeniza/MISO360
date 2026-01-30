@@ -27,7 +27,9 @@ class ProfileUpdateTest extends TestCase
 
         $response = $this
             ->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
             ->patch('/settings/profile', [
+                '_token' => 'test-token',
                 'name' => 'Updated Name',
             ]);
 
@@ -46,7 +48,9 @@ class ProfileUpdateTest extends TestCase
 
         $response = $this
             ->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
             ->delete(route('profile.destroy'), [
+                '_token' => 'test-token',
                 'password' => 'password',
             ]);
 
@@ -58,13 +62,15 @@ class ProfileUpdateTest extends TestCase
         $this->assertNull($user->fresh());
     }
 
-    public function test_admin_can_update_own_role()
+    public function test_admin_cannot_update_own_role_from_profile()
     {
         $admin = User::factory()->admin()->create();
 
         $response = $this
             ->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
             ->patch('/settings/profile', [
+                '_token' => 'test-token',
                 'name' => $admin->name,
                 'role' => 'super_admin',
             ]);
@@ -75,7 +81,7 @@ class ProfileUpdateTest extends TestCase
 
         $admin->refresh();
 
-        $this->assertSame('super_admin', $admin->role->value);
+        $this->assertSame('admin', $admin->role->value);
     }
 
     public function test_regular_user_cannot_update_role()
@@ -84,7 +90,9 @@ class ProfileUpdateTest extends TestCase
 
         $response = $this
             ->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
             ->patch('/settings/profile', [
+                '_token' => 'test-token',
                 'name' => 'Updated Name',
                 'role' => 'admin',
             ]);
@@ -99,7 +107,7 @@ class ProfileUpdateTest extends TestCase
         $this->assertSame('user', $user->role->value);
     }
 
-    public function test_admin_can_see_role_field_in_profile()
+    public function test_admin_cannot_see_role_field_in_profile()
     {
         $admin = User::factory()->admin()->create();
 
@@ -109,9 +117,7 @@ class ProfileUpdateTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->has('canManageRoles')
-            ->where('canManageRoles', true)
-            ->has('roleOptions')
+            ->missingAll(['canManageRoles', 'roleOptions'])
         );
     }
 
@@ -125,8 +131,7 @@ class ProfileUpdateTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->has('canManageRoles')
-            ->where('canManageRoles', false)
+            ->missingAll(['canManageRoles', 'roleOptions'])
         );
     }
 }

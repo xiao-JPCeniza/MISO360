@@ -1,8 +1,11 @@
 <?php
 
+use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\QrCodeController;
+use App\Http\Controllers\ScanController;
 use App\Models\IssuedUid;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -14,9 +17,10 @@ Route::get('/', fn () => Inertia::render('Welcome', [
 
 Route::middleware([
     'auth',
+    'active',
 ])->group(function () {
     Route::get('dashboard', function (Request $request) {
-        if ($request->user()?->role === 'admin') {
+        if ($request->user()?->isAdmin()) {
             return redirect()->route('admin.dashboard');
         }
 
@@ -28,6 +32,24 @@ Route::middleware([
             'totalGenerated' => IssuedUid::count(),
         ]);
     })->middleware('admin')->name('admin.dashboard');
+
+    Route::middleware(['admin', 'two-factor-verified:admin'])->group(function () {
+        Route::get('admin/users', [UserManagementController::class, 'index'])
+            ->name('admin.users.index');
+        Route::get('admin/users/{user}', [UserManagementController::class, 'show'])
+            ->name('admin.users.show');
+        Route::patch('admin/users/{user}', [UserManagementController::class, 'update'])
+            ->name('admin.users.update');
+        Route::patch('admin/users/{user}/role', [UserManagementController::class, 'updateRole'])
+            ->name('admin.users.role');
+        Route::patch('admin/users/{user}/status', [UserManagementController::class, 'updateStatus'])
+            ->name('admin.users.status');
+        Route::patch('admin/users/{user}/password', [UserManagementController::class, 'updatePassword'])
+            ->name('admin.users.password');
+
+        Route::get('admin/audit-logs', [AuditLogController::class, 'index'])
+            ->name('admin.audit-logs.index');
+    });
 
     Route::get('admin/enrollments/create', [EnrollmentController::class, 'create'])
         ->middleware('admin')
@@ -63,6 +85,17 @@ Route::middleware([
     Route::get('requests', function () {
         return Inertia::render('Requests');
     })->name('requests');
+
+    Route::get('scan', [ScanController::class, 'index'])
+        ->name('scan.index');
+    Route::get('scan/lookup/{uniqueId}', [ScanController::class, 'lookup'])
+        ->name('scan.lookup');
+    Route::get('scan/{uniqueId}', [ScanController::class, 'show'])
+        ->name('scan.show');
+    Route::post('scan/{uniqueId}/review', [ScanController::class, 'review'])
+        ->name('scan.review');
+    Route::put('scan/{uniqueId}/assign', [ScanController::class, 'assign'])
+        ->name('scan.assign');
 
     Route::get('submit-request', function () {
         return Inertia::render('SubmitRequest');

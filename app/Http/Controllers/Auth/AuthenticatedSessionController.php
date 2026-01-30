@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\AuditLogger;
+use App\Services\TwoFactorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,7 +24,7 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, TwoFactorService $twoFactorService, AuditLogger $auditLogger): RedirectResponse
     {
         $credentials = $request->validate([
             'email' => ['required', 'string', 'email'],
@@ -38,9 +40,37 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = $request->user();
-        $target = $user && $user->role === 'admin'
-            ? route('admin.dashboard')
-            : route('dashboard');
+
+        if ($user && ! $user->isActive()) {
+            Auth::logout();
+
+            return back()->withErrors([
+                'email' => 'Your account is inactive. Please contact an administrator.',
+            ])->onlyInput('email');
+        }
+
+        $target = $this->resolveRedirectTarget($user);
+
+        if ($user && $user->requiresTwoFactor()) {
+            $request->session()->put('two_factor.pending_user_id', $user->id);
+            $request->session()->put('two_factor.purpose', 'login');
+            $request->session()->put('two_factor.intended_url', $target);
+
+            $twoFactorService->createChallenge(
+                user: $user,
+                purpose: 'login',
+                ipAddress: $request->ip(),
+                userAgent: $request->userAgent(),
+            );
+
+            $auditLogger->log($request, 'two_factor.challenge.sent', $user, [
+                'purpose' => 'login',
+            ]);
+
+            Auth::logout();
+
+            return redirect()->route('two-factor.challenge');
+        }
 
         return redirect()->intended($target);
     }
@@ -56,5 +86,14 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    private function resolveRedirectTarget(?object $user): string
+    {
+        if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
+            return route('admin.dashboard');
+        }
+
+        return route('dashboard');
     }
 }

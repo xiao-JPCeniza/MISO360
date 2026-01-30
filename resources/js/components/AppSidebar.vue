@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { ClipboardList, LayoutGrid, Package, ShieldCheck } from 'lucide-vue-next';
+import {
+    ClipboardList,
+    LayoutGrid,
+    Package,
+    ShieldCheck,
+    UserCog,
+    FileText,
+} from 'lucide-vue-next';
 
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -18,7 +25,9 @@ import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 
 const page = usePage();
-const isAdmin = computed(() => page.props.auth.user?.role === 'admin');
+const isAdmin = computed(() =>
+    ['admin', 'super_admin'].includes(page.props.auth.user?.role ?? ''),
+);
 
 const mainNavItems = computed<NavItem[]>(() => {
     const items: NavItem[] = [
@@ -44,6 +53,16 @@ const mainNavItems = computed<NavItem[]>(() => {
             title: 'Admin Dashboard',
             href: '/admin/dashboard',
             icon: ShieldCheck,
+        });
+        items.push({
+            title: 'User Management',
+            href: '/admin/users',
+            icon: UserCog,
+        });
+        items.push({
+            title: 'Audit Logs',
+            href: '/admin/audit-logs',
+            icon: FileText,
         });
     }
 

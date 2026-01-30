@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TicketEnrollment extends Model
 {
@@ -35,6 +36,10 @@ class TicketEnrollment extends Model
         'request_remarks',
         'maintenance_date',
         'maintenance_remarks',
+        'repair_status',
+        'repair_comments',
+        'accepted_for_repair_at',
+        'assigned_admin_id',
     ];
 
     protected $casts = [
@@ -44,5 +49,11 @@ class TicketEnrollment extends Model
         'request_date' => 'date',
         'maintenance_date' => 'date',
         'equipment_images' => 'array',
+        'accepted_for_repair_at' => 'datetime',
     ];
+
+    public function assignedAdmin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_admin_id');
+    }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -11,3 +12,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });
+
+Route::get('two-factor/challenge', [TwoFactorController::class, 'create'])->name('two-factor.challenge');
+Route::post('two-factor/challenge', [TwoFactorController::class, 'store'])->name('two-factor.store');
+Route::post('two-factor/resend', [TwoFactorController::class, 'resend'])->name('two-factor.resend');

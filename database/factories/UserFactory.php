@@ -24,6 +24,8 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => bcrypt('password'),
             'role' => Role::USER,
+            'is_active' => true,
+            'two_factor_enabled' => true,
             'workos_id' => 'fake-'.Str::random(10),
             'remember_token' => Str::random(10),
             'avatar' => '',

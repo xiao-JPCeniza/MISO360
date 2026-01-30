@@ -27,6 +27,15 @@ class DatabaseSeeder extends Seeder
         ]);
 
         User::factory()->create([
+            'name' => 'Super Admin',
+            'email' => 'superadmin@miso.gov.ph',
+            'password' => Hash::make('password'),
+            'role' => 'super_admin',
+            'workos_id' => 'local-super-admin-'.Str::uuid(),
+            'avatar' => '',
+        ]);
+
+        User::factory()->create([
             'name' => 'Standard User',
             'email' => 'user@miso.gov.ph',
             'password' => Hash::make('password'),

@@ -23,6 +23,10 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'phone',
+        'is_active',
+        'two_factor_enabled',
+        'two_factor_confirmed_at',
         'workos_id',
         'avatar',
     ];
@@ -48,6 +52,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
+            'two_factor_enabled' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
             'role' => Role::class,
         ];
@@ -83,5 +89,25 @@ class User extends Authenticatable
     public function canManageRoles(): bool
     {
         return $this->role->canManageRoles();
+    }
+
+    /**
+     * Check if the user is active.
+     */
+    public function isActive(): bool
+    {
+        return $this->is_active ?? true;
+    }
+
+    /**
+     * Check if two-factor authentication is required for this user.
+     */
+    public function requiresTwoFactor(): bool
+    {
+        if ($this->isAdmin()) {
+            return false;
+        }
+
+        return $this->two_factor_enabled !== false;
     }
 }

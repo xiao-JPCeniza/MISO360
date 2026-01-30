@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import type { InertiaLinkProps } from '@inertiajs/vue3';
 import { Link, usePage } from '@inertiajs/vue3';
-import { ClipboardList, LayoutGrid, Menu, Package } from 'lucide-vue-next';
+import {
+    ClipboardList,
+    LayoutGrid,
+    Menu,
+    Package,
+    UserCog,
+    FileText,
+} from 'lucide-vue-next';
 import { computed } from 'vue';
 
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -44,7 +51,7 @@ function activeItemClasses(url: NonNullable<InertiaLinkProps['href']>) {
 }
 
 const mainNavItems = computed(() => {
-    const isAdmin = auth.value?.user?.role === 'admin';
+    const isAdmin = ['admin', 'super_admin'].includes(auth.value?.user?.role ?? '');
 
     const baseItems: NavItem[] = [
         {
@@ -70,6 +77,16 @@ const mainNavItems = computed(() => {
             title: 'Inventory',
             href: '/inventory',
             icon: Package,
+        });
+        baseItems.push({
+            title: 'User Management',
+            href: '/admin/users',
+            icon: UserCog,
+        });
+        baseItems.push({
+            title: 'Audit Logs',
+            href: '/admin/audit-logs',
+            icon: FileText,
         });
     }
 
