@@ -57,11 +57,24 @@ type NatureOption = {
     name: string;
 };
 
+type ReferenceOption = {
+    id: number;
+    name: string;
+};
+
+type ReferenceOptions = {
+    status: ReferenceOption[];
+    category: ReferenceOption[];
+    officeDesignation: ReferenceOption[];
+    remarks: ReferenceOption[];
+};
+
 const props = defineProps<{
     mode: 'create' | 'edit';
     record?: EnrollmentPayload;
     prefillId?: string;
     natureOfRequests: NatureOption[];
+    referenceOptions: ReferenceOptions;
 }>();
 
 const record = computed(() => props.record);
@@ -89,7 +102,14 @@ const isScanning = ref(false);
 const scanControls = ref<IScannerControls | null>(null);
 const videoRef = ref<HTMLVideoElement | null>(null);
 const natureOptions = ref<NatureOption[]>(props.natureOfRequests ?? []);
+const referenceOptions = ref<ReferenceOptions>(props.referenceOptions ?? {
+    status: [],
+    category: [],
+    officeDesignation: [],
+    remarks: [],
+});
 let natureRefreshTimer: ReturnType<typeof setInterval> | null = null;
+let referenceRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const isEditMode = computed(() => props.mode === 'edit');
 const isReadonlyId = computed(
@@ -156,6 +176,10 @@ onMounted(() => {
     refreshNatureOptions();
     natureRefreshTimer = setInterval(refreshNatureOptions, 30000);
     window.addEventListener('focus', refreshNatureOptions);
+
+    refreshReferenceOptions();
+    referenceRefreshTimer = setInterval(refreshReferenceOptions, 30000);
+    window.addEventListener('focus', refreshReferenceOptions);
 });
 
 onUnmounted(() => {
@@ -163,7 +187,11 @@ onUnmounted(() => {
     if (natureRefreshTimer) {
         clearInterval(natureRefreshTimer);
     }
+    if (referenceRefreshTimer) {
+        clearInterval(referenceRefreshTimer);
+    }
     window.removeEventListener('focus', refreshNatureOptions);
+    window.removeEventListener('focus', refreshReferenceOptions);
 });
 
 function normalizeScannedId(rawValue: string) {
@@ -259,6 +287,26 @@ async function refreshNatureOptions() {
 
         const data = (await response.json()) as NatureOption[];
         natureOptions.value = data;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+async function refreshReferenceOptions() {
+    try {
+        const response = await fetch('/reference-values/options', {
+            headers: {
+                Accept: 'application/json',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data = (await response.json()) as ReferenceOptions;
+        referenceOptions.value = data;
     } catch (error) {
         console.error(error);
     }
@@ -536,6 +584,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
                             :readonly-id="isReadonlyId"
                             :initial="record"
                             :nature-options="natureOptions"
+                            :reference-options="referenceOptions"
                             @submit="submitEnrollment"
                         />
                         <div
@@ -559,6 +608,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
                     :readonly-id="isReadonlyId"
                     :initial="record"
                     :nature-options="natureOptions"
+                    :reference-options="referenceOptions"
                     @submit="submitEnrollment"
                 />
                 <div

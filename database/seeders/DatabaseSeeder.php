@@ -45,5 +45,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(NatureOfRequestSeeder::class);
+        $this->call(ReferenceValueSeeder::class);
+        $this->call(OfficeDesignationSeeder::class);
     }
 }

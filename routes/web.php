@@ -2,11 +2,13 @@
 
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\NatureOfRequestController;
+use App\Http\Controllers\Admin\StatusManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\NatureOfRequestOptionsController;
 use App\Http\Controllers\QrCodeController;
+use App\Http\Controllers\ReferenceValueOptionsController;
 use App\Http\Controllers\ScanController;
 use App\Models\IssuedUid;
 use Illuminate\Http\Request;
@@ -70,6 +72,19 @@ Route::middleware([
         ->middleware('admin')
         ->name('admin.nature-of-requests.destroy');
 
+    Route::get('admin/status', [StatusManagementController::class, 'index'])
+        ->middleware('admin')
+        ->name('admin.status.index');
+    Route::post('admin/status', [StatusManagementController::class, 'store'])
+        ->middleware('admin')
+        ->name('admin.status.store');
+    Route::patch('admin/status/{referenceValue}', [StatusManagementController::class, 'update'])
+        ->middleware('admin')
+        ->name('admin.status.update');
+    Route::delete('admin/status/{referenceValue}', [StatusManagementController::class, 'destroy'])
+        ->middleware('admin')
+        ->name('admin.status.destroy');
+
     Route::get('inventory/{uniqueId}/edit', [EnrollmentController::class, 'edit'])
         ->middleware('admin')
         ->name('inventory.edit');
@@ -103,6 +118,8 @@ Route::middleware([
 
     Route::get('nature-of-request/options', NatureOfRequestOptionsController::class)
         ->name('nature-of-request.options');
+    Route::get('reference-values/options', ReferenceValueOptionsController::class)
+        ->name('reference-values.options');
 
     Route::get('scan', [ScanController::class, 'index'])
         ->name('scan.index');

@@ -52,11 +52,25 @@ type NatureOption = {
     isLegacy?: boolean;
 };
 
+type ReferenceOption = {
+    id: number;
+    name: string;
+    isLegacy?: boolean;
+};
+
+type ReferenceOptions = {
+    status?: ReferenceOption[];
+    category?: ReferenceOption[];
+    officeDesignation?: ReferenceOption[];
+    remarks?: ReferenceOption[];
+};
+
 const props = defineProps<{
     scannedId: string;
     readonlyId?: boolean;
     initial?: Partial<EnrollmentPayload>;
     natureOptions?: NatureOption[];
+    referenceOptions?: ReferenceOptions;
 }>();
 
 const emit = defineEmits<{
@@ -135,6 +149,60 @@ const natureOptionsWithLegacy = computed<NatureOption[]>(() => {
         ...options,
     ];
 });
+
+function withLegacyOption<T extends ReferenceOption>(options: T[], currentValue: string) {
+    const normalizedValue = currentValue?.trim();
+
+    if (!normalizedValue) {
+        return options.map((option) => ({
+            ...option,
+            isLegacy: false,
+        }));
+    }
+
+    const exists = options.some((option) => option.name === normalizedValue);
+
+    if (exists) {
+        return options.map((option) => ({
+            ...option,
+            isLegacy: false,
+        }));
+    }
+
+    return [
+        {
+            id: -1,
+            name: normalizedValue,
+            isLegacy: true,
+        },
+        ...options.map((option) => ({
+            ...option,
+            isLegacy: false,
+        })),
+    ];
+}
+
+const categoryOptionsWithLegacy = computed(() =>
+    withLegacyOption(props.referenceOptions?.category ?? [], form.equipmentType),
+);
+
+const statusOptionsWithLegacy = computed(() =>
+    withLegacyOption(props.referenceOptions?.status ?? [], form.warrantyStatus),
+);
+
+const officeOptionsWithLegacy = computed(() =>
+    withLegacyOption(
+        props.referenceOptions?.officeDesignation ?? [],
+        form.locationAssignment.officeDivision,
+    ),
+);
+
+const remarkOptionsWithLegacy = computed(() =>
+    withLegacyOption(
+        props.referenceOptions?.remarks ?? [],
+        form.requestHistory.remarks,
+    ),
+);
 
 watch(
     () => props.scannedId,
@@ -260,13 +328,24 @@ function submit() {
                     <label class="enroll-label">
                         Equipment Type <span class="enroll-required">*</span>
                     </label>
-                    <input
+                    <select
                         v-model="form.equipmentType"
-                        type="text"
                         required
                         class="enroll-input"
-                        placeholder="Asset category"
-                    />
+                    >
+                        <option value="" disabled>Select a category</option>
+                        <option
+                            v-for="option in categoryOptionsWithLegacy"
+                            :key="option.isLegacy ? `legacy-${option.name}` : option.id"
+                            :value="option.name"
+                        >
+                            {{
+                                option.isLegacy
+                                    ? `${option.name} (inactive)`
+                                    : option.name
+                            }}
+                        </option>
+                    </select>
                 </div>
                 <div>
                     <label class="enroll-label">
@@ -329,12 +408,20 @@ function submit() {
                 </div>
                 <div>
                     <label class="enroll-label">Warranty Status</label>
-                    <input
-                        v-model="form.warrantyStatus"
-                        type="text"
-                        class="enroll-input"
-                        placeholder="Active, expired, extended"
-                    />
+                    <select v-model="form.warrantyStatus" class="enroll-input">
+                        <option value="">Select a status</option>
+                        <option
+                            v-for="option in statusOptionsWithLegacy"
+                            :key="option.isLegacy ? `legacy-${option.name}` : option.id"
+                            :value="option.name"
+                        >
+                            {{
+                                option.isLegacy
+                                    ? `${option.name} (inactive)`
+                                    : option.name
+                            }}
+                        </option>
+                    </select>
                 </div>
                 <div class="sm:col-span-2 xl:col-span-4">
                     <label class="enroll-label">Equipment Images/Pictures</label>
@@ -490,12 +577,23 @@ function submit() {
                         </div>
                         <div>
                             <label class="enroll-label">Office/Division</label>
-                            <input
+                            <select
                                 v-model="form.locationAssignment.officeDivision"
-                                type="text"
                                 class="enroll-input"
-                                placeholder="Unit or team"
-                            />
+                            >
+                                <option value="">Select an office</option>
+                                <option
+                                    v-for="option in officeOptionsWithLegacy"
+                                    :key="option.isLegacy ? `legacy-${option.name}` : option.id"
+                                    :value="option.name"
+                                >
+                                    {{
+                                        option.isLegacy
+                                            ? `${option.name} (inactive)`
+                                            : option.name
+                                    }}
+                                </option>
+                            </select>
                         </div>
                         <div>
                             <label class="enroll-label">Date Issued</label>
@@ -564,12 +662,23 @@ function submit() {
                         </div>
                         <div class="sm:col-span-2 lg:col-span-3">
                             <label class="enroll-label">Remarks/Recommendation</label>
-                            <input
+                            <select
                                 v-model="form.requestHistory.remarks"
-                                type="text"
                                 class="enroll-input"
-                                placeholder="Notes"
-                            />
+                            >
+                                <option value="">Select a remark</option>
+                                <option
+                                    v-for="option in remarkOptionsWithLegacy"
+                                    :key="option.isLegacy ? `legacy-${option.name}` : option.id"
+                                    :value="option.name"
+                                >
+                                    {{
+                                        option.isLegacy
+                                            ? `${option.name} (inactive)`
+                                            : option.name
+                                    }}
+                                </option>
+                            </select>
                         </div>
                     </div>
                 </section>

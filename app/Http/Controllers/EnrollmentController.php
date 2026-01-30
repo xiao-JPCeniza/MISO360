@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ReferenceValueGroup;
 use App\Models\NatureOfRequest;
+use App\Models\ReferenceValue;
 use App\Models\TicketArchive;
 use App\Models\TicketEnrollment;
 use Illuminate\Http\Request;
@@ -18,6 +20,7 @@ class EnrollmentController extends Controller
             'mode' => 'create',
             'prefillId' => $request->string('unique_id')->upper()->toString(),
             'natureOfRequests' => $this->getNatureOfRequestOptions(),
+            'referenceOptions' => $this->getReferenceOptions(),
         ]);
     }
 
@@ -32,6 +35,7 @@ class EnrollmentController extends Controller
             'mode' => 'edit',
             'record' => $this->mapToPayload($enrollment),
             'natureOfRequests' => $this->getNatureOfRequestOptions(),
+            'referenceOptions' => $this->getReferenceOptions(),
         ]);
     }
 
@@ -65,6 +69,10 @@ class EnrollmentController extends Controller
             false,
             $enrollment->id,
             $enrollment->request_nature,
+            $enrollment->equipment_type,
+            $enrollment->warranty_status,
+            $enrollment->location_office_division,
+            $enrollment->request_remarks,
         );
         $payload = $this->mapToModelData($validated, $request);
 
@@ -78,6 +86,10 @@ class EnrollmentController extends Controller
         bool $isCreate,
         ?int $ignoreId = null,
         ?string $existingRequestNature = null,
+        ?string $existingCategory = null,
+        ?string $existingStatus = null,
+        ?string $existingOffice = null,
+        ?string $existingRemarks = null,
     ): array {
         $uniqueRule = $isCreate
             ? Rule::unique('ticket_enrollments', 'unique_id')
@@ -149,6 +161,36 @@ class EnrollmentController extends Controller
             }
         }
 
+        $category = $validated['equipmentType'] ?? null;
+        $status = $validated['warrantyStatus'] ?? null;
+        $office = data_get($validated, 'locationAssignment.officeDivision');
+        $remarks = data_get($validated, 'requestHistory.remarks');
+
+        $this->ensureActiveReferenceValue(
+            $category,
+            ReferenceValueGroup::Category,
+            $existingCategory,
+            'equipmentType',
+        );
+        $this->ensureActiveReferenceValue(
+            $status,
+            ReferenceValueGroup::Status,
+            $existingStatus,
+            'warrantyStatus',
+        );
+        $this->ensureActiveReferenceValue(
+            $office,
+            ReferenceValueGroup::OfficeDesignation,
+            $existingOffice,
+            'locationAssignment.officeDivision',
+        );
+        $this->ensureActiveReferenceValue(
+            $remarks,
+            ReferenceValueGroup::Remarks,
+            $existingRemarks,
+            'requestHistory.remarks',
+        );
+
         return $validated;
     }
 
@@ -164,6 +206,64 @@ class EnrollmentController extends Controller
             ])
             ->values()
             ->toArray();
+    }
+
+    private function getReferenceOptions(): array
+    {
+        return [
+            'status' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::Status),
+            'category' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::Category),
+            'officeDesignation' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::OfficeDesignation),
+            'remarks' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::Remarks),
+        ];
+    }
+
+    private function getReferenceOptionsForGroup(ReferenceValueGroup $group): array
+    {
+        return ReferenceValue::query()
+            ->active()
+            ->forGroup($group)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ReferenceValue $value) => [
+                'id' => $value->id,
+                'name' => $value->name,
+            ])
+            ->values()
+            ->toArray();
+    }
+
+    private function ensureActiveReferenceValue(
+        ?string $value,
+        ReferenceValueGroup $group,
+        ?string $currentValue,
+        string $field,
+    ): void {
+        if (! $value) {
+            return;
+        }
+
+        $isCurrentValue = $currentValue && $value === $currentValue;
+        $isValid = ReferenceValue::query()
+            ->active()
+            ->forGroup($group)
+            ->where('name', $value)
+            ->exists();
+
+        if ($isCurrentValue || $isValid) {
+            return;
+        }
+
+        $message = match ($group) {
+            ReferenceValueGroup::Status => 'Please select a valid status.',
+            ReferenceValueGroup::OfficeDesignation => 'Please select a valid office designation.',
+            ReferenceValueGroup::Category => 'Please select a valid category.',
+            ReferenceValueGroup::Remarks => 'Please select a valid remark.',
+        };
+
+        throw ValidationException::withMessages([
+            $field => $message,
+        ]);
     }
 
     private function mapToModelData(array $data, Request $request): array
