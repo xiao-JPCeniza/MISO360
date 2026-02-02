@@ -97,6 +97,28 @@ class OfficeDesignationSeeder extends Seeder
             'Provincial Capitol',
             'Special Education Fund Division',
             'Sports Development Division',
+            'BRGY - Agusan Canyon',
+            'BRGY - Alae',
+            'BRGY - Dahilayan',
+            'BRGY - Dalirig',
+            'BRGY - Damilag',
+            'BRGY - Diclum',
+            'BRGY - Guilang-guilang',
+            'BRGY - Kalugmanan',
+            'BRGY - Lindaban',
+            'BRGY - Lingion',
+            'BRGY - Lunocan',
+            'BRGY - Maluko',
+            'BRGY - Mambatangan',
+            'BRGY - Mampayag',
+            'BRGY - Mantibugao',
+            'BRGY - Minsuro',
+            'BRGY - San Miguel',
+            'BRGY - Sankanan',
+            'BRGY - Santiago',
+            'BRGY - Santo Niño',
+            'BRGY - Tankulan',
+           
         ];
 
         // Optional: ensure uniqueness at runtime (extra safety)

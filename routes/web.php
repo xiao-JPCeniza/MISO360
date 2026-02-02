@@ -114,9 +114,8 @@ Route::middleware([
         ->middleware('admin')
         ->name('admin.qr-generator.validate');
 
-    Route::get('requests', function () {
-        return Inertia::render('Requests');
-    })->name('requests');
+    Route::get('requests', [TicketRequestController::class, 'index'])
+        ->name('requests');
 
     Route::get('nature-of-request/options', NatureOfRequestOptionsController::class)
         ->name('nature-of-request.options');

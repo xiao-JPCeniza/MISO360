@@ -11,9 +11,49 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class TicketRequestController extends Controller
 {
+    public function index(Request $request): Response
+    {
+        $user = $request->user();
+        $isAdmin = $user?->isAdmin() ?? false;
+
+        $ticketRequests = TicketRequest::query()
+            ->with([
+                'natureOfRequest:id,name',
+                'officeDesignation:id,name',
+                'requestedForUser:id,name,position_title',
+                'user:id,name,position_title',
+            ])
+            ->when(! $isAdmin && $user, fn ($query) => $query->where('user_id', $user->id))
+            ->latest()
+            ->get()
+            ->map(fn (TicketRequest $ticketRequest) => [
+                'id' => $ticketRequest->id,
+                'controlTicketNumber' => $ticketRequest->control_ticket_number,
+                'requestedBy' => $ticketRequest->requestedForUser?->name ?? $ticketRequest->user?->name,
+                'positionTitle' => $ticketRequest->requestedForUser?->position_title
+                    ?? $ticketRequest->user?->position_title,
+                'office' => $ticketRequest->officeDesignation?->name,
+                'dateFiled' => $ticketRequest->created_at?->toDateString(),
+                'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
+                'requestDescription' => $ticketRequest->description,
+                'remarks' => null,
+                'assignedStaff' => null,
+                'status' => null,
+                'category' => null,
+                'estimatedCompletionDate' => null,
+                'showUrl' => route('requests.show', $ticketRequest),
+            ]);
+
+        return Inertia::render('Requests', [
+            'requests' => $ticketRequests,
+            'isAdmin' => $isAdmin,
+        ]);
+    }
+
     public function create()
     {
         $user = request()->user();
