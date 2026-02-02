@@ -23,6 +23,7 @@ class RegisteredUserController extends Controller
             'office_designation_id' => $data['office_designation_id'],
             'email' => $data['email'],
             'password' => $data['password'],
+            'email_verified_at' => now(),
             'role' => Role::USER,
             'is_active' => true,
             'two_factor_enabled' => true,
@@ -34,6 +35,6 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect()->route('verification.notice');
+        return redirect()->route('dashboard');
     }
 }

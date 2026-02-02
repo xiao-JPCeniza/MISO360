@@ -21,7 +21,9 @@ class DatabaseSeeder extends Seeder
             'name' => 'Admin User',
             'email' => 'admin@miso.gov.ph',
             'password' => Hash::make('password'),
+            'email_verified_at' => now(),
             'role' => 'admin',
+            'two_factor_enabled' => false,
             'workos_id' => 'local-admin-'.Str::uuid(),
             'avatar' => '',
         ]);
@@ -30,7 +32,9 @@ class DatabaseSeeder extends Seeder
             'name' => 'Super Admin',
             'email' => 'superadmin@miso.gov.ph',
             'password' => Hash::make('password'),
+            'email_verified_at' => now(),
             'role' => 'super_admin',
+            'two_factor_enabled' => false,
             'workos_id' => 'local-super-admin-'.Str::uuid(),
             'avatar' => '',
         ]);
@@ -39,7 +43,9 @@ class DatabaseSeeder extends Seeder
             'name' => 'Standard User',
             'email' => 'user@miso.gov.ph',
             'password' => Hash::make('password'),
+            'email_verified_at' => now(),
             'role' => 'user',
+            'two_factor_enabled' => false,
             'workos_id' => 'local-user-'.Str::uuid(),
             'avatar' => '',
         ]);

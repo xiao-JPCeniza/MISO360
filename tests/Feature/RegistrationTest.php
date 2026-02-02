@@ -15,7 +15,7 @@ class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_users_can_register_and_receive_verification_email(): void
+    public function test_users_can_register_and_go_to_dashboard_without_verification_email(): void
     {
         Notification::fake();
         $this->withoutMiddleware();
@@ -35,15 +35,15 @@ class RegistrationTest extends TestCase
 
         $response = $this->post('/register', $payload);
 
-        $response->assertRedirect(route('verification.notice'));
+        $response->assertRedirect(route('dashboard'));
 
         $user = User::where('email', $payload['email'])->first();
 
         $this->assertNotNull($user);
         $this->assertSame($office->id, $user->office_designation_id);
         $this->assertTrue(Hash::check($payload['password'], $user->password));
-        $this->assertNull($user->email_verified_at);
+        $this->assertNotNull($user->email_verified_at);
 
-        Notification::assertSentTo($user, VerifyEmail::class);
+        Notification::assertNotSentTo($user, VerifyEmail::class);
     }
 }

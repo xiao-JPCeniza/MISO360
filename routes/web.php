@@ -10,6 +10,7 @@ use App\Http\Controllers\NatureOfRequestOptionsController;
 use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\ReferenceValueOptionsController;
 use App\Http\Controllers\ScanController;
+use App\Http\Controllers\TicketRequestController;
 use App\Models\IssuedUid;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -133,9 +134,12 @@ Route::middleware([
     Route::put('scan/{uniqueId}/assign', [ScanController::class, 'assign'])
         ->name('scan.assign');
 
-    Route::get('submit-request', function () {
-        return Inertia::render('SubmitRequest');
-    })->name('submit-request');
+    Route::get('submit-request', [TicketRequestController::class, 'create'])
+        ->name('submit-request');
+    Route::post('submit-request', [TicketRequestController::class, 'store'])
+        ->name('submit-request.store');
+    Route::get('requests/{ticketRequest}', [TicketRequestController::class, 'show'])
+        ->name('requests.show');
 
     Route::get('inventory', [InventoryController::class, 'index'])
         ->middleware('admin')
