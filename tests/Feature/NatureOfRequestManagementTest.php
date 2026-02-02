@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\NatureOfRequest;
 use App\Models\User;
+use Database\Seeders\NatureOfRequestSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -111,5 +112,22 @@ class NatureOfRequestManagementTest extends TestCase
             ->assertOk()
             ->assertJsonFragment(['name' => 'CCTV maintenance'])
             ->assertJsonMissing(['name' => 'Inactive request']);
+    }
+
+    public function test_nature_of_request_seeder_creates_expected_entries(): void
+    {
+        $this->seed(NatureOfRequestSeeder::class);
+
+        $this->assertDatabaseHas('nature_of_requests', [
+            'name' => 'System account creation',
+            'is_active' => true,
+        ]);
+
+        $this->assertDatabaseHas('nature_of_requests', [
+            'name' => 'Data Recovery',
+            'is_active' => true,
+        ]);
+
+        $this->assertDatabaseCount('nature_of_requests', 22);
     }
 }
