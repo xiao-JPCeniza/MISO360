@@ -152,7 +152,7 @@ const isAdminPanelActive = computed(() =>
                             <SheetHeader class="flex justify-start text-left">
                                 <div class="flex items-center gap-3">
                                     <img
-                                        src="/favicon.svg"
+                                        src="/storage/logos/MISO360_LOGO.gif"
                                         alt="System logo"
                                         class="h-10 w-10 rounded-full bg-white p-1"
                                     />
@@ -217,7 +217,7 @@ const isAdminPanelActive = computed(() =>
 
                 <Link :href="dashboard()" class="flex items-center gap-3">
                     <img
-                        src="/favicon.svg"
+                        src="/storage/logos/MISO360_LOGO.gif"
                         alt="System logo"
                         class="h-10 w-10 rounded-full bg-white p-1"
                     />

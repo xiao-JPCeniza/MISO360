@@ -18,7 +18,7 @@ class ScanController extends Controller
 {
     public function index(): Response
     {
-        return Inertia::render('ScanQr');
+        return Inertia::render('scan/ScanQr');
     }
 
     public function lookup(string $uniqueId): JsonResponse
@@ -62,7 +62,7 @@ class ScanController extends Controller
             $canReview = Gate::allows('review', $enrollment);
             $canAssign = Gate::allows('assign', $enrollment);
 
-            return Inertia::render('ScanResult', [
+            return Inertia::render('scan/ScanResult', [
                 'item' => $this->mapDetail($enrollment, 'active'),
                 'status' => 'active',
                 'canReview' => $canReview,
@@ -75,7 +75,7 @@ class ScanController extends Controller
             ->orderByDesc('archived_at')
             ->firstOrFail();
 
-        return Inertia::render('ScanResult', [
+        return Inertia::render('scan/ScanResult', [
             'item' => $this->mapDetail($archived, 'archived'),
             'status' => 'archived',
             'canReview' => false,

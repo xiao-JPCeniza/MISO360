@@ -16,7 +16,7 @@ class EnrollmentController extends Controller
 {
     public function create(Request $request)
     {
-        return Inertia::render('TicketEnrollment', [
+        return Inertia::render('enrollment/TicketEnrollment', [
             'mode' => 'create',
             'prefillId' => $request->string('unique_id')->upper()->toString(),
             'natureOfRequests' => $this->getNatureOfRequestOptions(),
@@ -31,7 +31,7 @@ class EnrollmentController extends Controller
             strtoupper(trim($uniqueId)),
         )->firstOrFail();
 
-        return Inertia::render('TicketEnrollment', [
+        return Inertia::render('enrollment/TicketEnrollment', [
             'mode' => 'edit',
             'record' => $this->mapToPayload($enrollment),
             'natureOfRequests' => $this->getNatureOfRequestOptions(),

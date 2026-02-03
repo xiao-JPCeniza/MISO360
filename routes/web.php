@@ -16,7 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', fn () => Inertia::render('Welcome', [
+Route::get('/', fn () => Inertia::render('public/Welcome', [
     'canRegister' => false, // Registration is disabled for this application
 ]));
 
@@ -30,11 +30,11 @@ Route::middleware([
             return redirect()->route('admin.dashboard');
         }
 
-        return Inertia::render('Dashboard');
+        return Inertia::render('dashboard/Dashboard');
     })->name('dashboard');
 
     Route::get('admin/dashboard', function () {
-        return Inertia::render('AdminDashboard', [
+        return Inertia::render('admin/AdminDashboard', [
             'totalGenerated' => IssuedUid::count(),
         ]);
     })->middleware('admin')->name('admin.dashboard');
@@ -102,7 +102,7 @@ Route::middleware([
     Route::get('admin/qr-generator', function () {
         $nextStart = (IssuedUid::max('sequence') ?? 0) + 1;
 
-        return Inertia::render('AdminQrGenerator', [
+        return Inertia::render('admin/AdminQrGenerator', [
             'nextStart' => $nextStart,
             'totalGenerated' => IssuedUid::count(),
         ]);
@@ -116,6 +116,18 @@ Route::middleware([
 
     Route::get('requests', [TicketRequestController::class, 'index'])
         ->name('requests');
+    Route::get('requests/it-governance', fn () => Inertia::render('requests/ItGovernanceRequest'))
+        ->name('requests.it-governance');
+    Route::get('requests/{ticketRequest}/it-governance', [TicketRequestController::class, 'itGovernance'])
+        ->name('requests.it-governance.show');
+    Route::patch('requests/{ticketRequest}/it-governance', [TicketRequestController::class, 'updateItGovernance'])
+        ->name('requests.it-governance.update');
+    Route::get('requests/equipment-and-network', fn () => redirect()->route('requests'))
+        ->name('requests.equipment-network');
+    Route::get('requests/{ticketRequest}/equipment-and-network', [TicketRequestController::class, 'equipmentAndNetwork'])
+        ->name('requests.equipment-network.show');
+    Route::patch('requests/{ticketRequest}/equipment-and-network', [TicketRequestController::class, 'updateEquipmentAndNetwork'])
+        ->name('requests.equipment-network.update');
 
     Route::get('nature-of-request/options', NatureOfRequestOptionsController::class)
         ->name('nature-of-request.options');

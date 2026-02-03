@@ -48,7 +48,7 @@ class TicketRequestController extends Controller
                 'showUrl' => route('requests.show', $ticketRequest),
             ]);
 
-        return Inertia::render('Requests', [
+        return Inertia::render('requests/Requests', [
             'requests' => $ticketRequests,
             'isAdmin' => $isAdmin,
         ]);
@@ -60,7 +60,7 @@ class TicketRequestController extends Controller
         $isAdmin = $user?->isAdmin() ?? false;
         $user?->load('officeDesignation');
 
-        return Inertia::render('SubmitRequest', [
+        return Inertia::render('requests/SubmitRequest', [
             'controlTicketNumber' => $this->generateControlTicketNumber(),
             'natureOfRequests' => NatureOfRequest::query()
                 ->where('is_active', true)
@@ -143,7 +143,7 @@ class TicketRequestController extends Controller
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
 
-        return Inertia::render('TicketRequestConfirmation', [
+        return Inertia::render('requests/TicketRequestConfirmation', [
             'ticket' => [
                 'controlTicketNumber' => $ticketRequest->control_ticket_number,
                 'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
@@ -162,6 +162,220 @@ class TicketRequestController extends Controller
                     ->values(),
             ],
         ]);
+    }
+
+    public function itGovernance(Request $request, TicketRequest $ticketRequest)
+    {
+        if (! $request->user()->isAdmin()) {
+            abort(403);
+        }
+
+        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'requestedForUser', 'user']);
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('public');
+
+        $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
+
+        $ticket = [
+            'controlTicketNumber' => $ticketRequest->control_ticket_number,
+            'requestedBy' => $requestedByUser?->name,
+            'positionTitle' => $requestedByUser?->position_title,
+            'office' => $ticketRequest->officeDesignation?->name,
+            'dateFiled' => $ticketRequest->created_at?->toDateString(),
+            'email' => $requestedByUser?->email,
+            'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
+            'requestDescription' => $ticketRequest->description,
+            'attachments' => collect($ticketRequest->attachments ?? [])
+                ->map(fn (array $attachment) => [
+                    'name' => $attachment['name'] ?? basename($attachment['path'] ?? ''),
+                    'url' => isset($attachment['path']) ? $disk->url($attachment['path']) : null,
+                ])
+                ->values()
+                ->all(),
+            'remarksId' => null,
+            'assignedStaffId' => null,
+            'dateReceived' => null,
+            'dateStarted' => null,
+            'estimatedCompletionDate' => null,
+            'actionTaken' => null,
+            'categoryId' => null,
+            'statusId' => null,
+        ];
+
+        $staffOptions = User::query()
+            ->where('is_active', true)
+            ->whereIn('role', [\App\Enums\Role::ADMIN, \App\Enums\Role::SUPER_ADMIN])
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])
+            ->values()
+            ->all();
+
+        $remarksOptions = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Remarks)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ReferenceValue $rv) => ['id' => $rv->id, 'name' => $rv->name])
+            ->values()
+            ->all();
+
+        $categoryOptions = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Category)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ReferenceValue $rv) => ['id' => $rv->id, 'name' => $rv->name])
+            ->values()
+            ->all();
+
+        $statusOptions = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Status)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ReferenceValue $rv) => ['id' => $rv->id, 'name' => $rv->name])
+            ->values()
+            ->all();
+
+        return Inertia::render('requests/ItGovernanceRequest', [
+            'ticket' => $ticket,
+            'updateUrl' => route('requests.it-governance.update', $ticketRequest),
+            'staffOptions' => $staffOptions,
+            'remarksOptions' => $remarksOptions,
+            'categoryOptions' => $categoryOptions,
+            'statusOptions' => $statusOptions,
+            'canEdit' => true,
+        ]);
+    }
+
+    public function updateItGovernance(Request $request, TicketRequest $ticketRequest)
+    {
+        if (! $request->user()->isAdmin()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'remarksId' => ['nullable', 'string'],
+            'assignedStaffId' => ['nullable', 'string'],
+            'dateReceived' => ['nullable', 'date'],
+            'dateStarted' => ['nullable', 'date'],
+            'estimatedCompletionDate' => ['nullable', 'date'],
+            'actionTaken' => ['nullable', 'string', 'max:500'],
+            'categoryId' => ['nullable', 'string'],
+            'statusId' => ['nullable', 'string'],
+        ]);
+
+        return redirect()->route('requests.it-governance.show', $ticketRequest)
+            ->with('success', 'IT Governance request updated successfully.');
+    }
+
+    public function equipmentAndNetwork(Request $request, TicketRequest $ticketRequest)
+    {
+        if (! $request->user()->isAdmin()) {
+            abort(403);
+        }
+
+        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'requestedForUser', 'user']);
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('public');
+
+        $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
+
+        $ticket = [
+            'controlTicketNumber' => $ticketRequest->control_ticket_number,
+            'requestedBy' => $requestedByUser?->name,
+            'positionTitle' => $requestedByUser?->position_title,
+            'office' => $ticketRequest->officeDesignation?->name,
+            'dateFiled' => $ticketRequest->created_at?->toDateString(),
+            'email' => $requestedByUser?->email,
+            'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
+            'requestDescription' => $ticketRequest->description,
+            'attachments' => collect($ticketRequest->attachments ?? [])
+                ->map(fn (array $attachment) => [
+                    'name' => $attachment['name'] ?? basename($attachment['path'] ?? ''),
+                    'url' => isset($attachment['path']) ? $disk->url($attachment['path']) : null,
+                ])
+                ->values()
+                ->all(),
+            'remarksId' => null,
+            'assignedStaffId' => null,
+            'dateReceived' => null,
+            'dateStarted' => null,
+            'estimatedCompletionDate' => null,
+            'actionTaken' => null,
+            'categoryId' => null,
+            'statusId' => null,
+        ];
+
+        $staffOptions = User::query()
+            ->where('is_active', true)
+            ->whereIn('role', [\App\Enums\Role::ADMIN, \App\Enums\Role::SUPER_ADMIN])
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])
+            ->values()
+            ->all();
+
+        $remarksOptions = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Remarks)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ReferenceValue $rv) => ['id' => $rv->id, 'name' => $rv->name])
+            ->values()
+            ->all();
+
+        $categoryOptions = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Category)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ReferenceValue $rv) => ['id' => $rv->id, 'name' => $rv->name])
+            ->values()
+            ->all();
+
+        $statusOptions = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Status)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ReferenceValue $rv) => ['id' => $rv->id, 'name' => $rv->name])
+            ->values()
+            ->all();
+
+        return Inertia::render('requests/EquipmentAndNetwork', [
+            'ticket' => $ticket,
+            'updateUrl' => route('requests.equipment-network.update', $ticketRequest),
+            'staffOptions' => $staffOptions,
+            'remarksOptions' => $remarksOptions,
+            'categoryOptions' => $categoryOptions,
+            'statusOptions' => $statusOptions,
+            'canEdit' => true,
+        ]);
+    }
+
+    public function updateEquipmentAndNetwork(Request $request, TicketRequest $ticketRequest)
+    {
+        if (! $request->user()->isAdmin()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'remarksId' => ['nullable', 'string'],
+            'assignedStaffId' => ['nullable', 'string'],
+            'dateReceived' => ['nullable', 'date'],
+            'dateStarted' => ['nullable', 'date'],
+            'estimatedCompletionDate' => ['nullable', 'date'],
+            'actionTaken' => ['nullable', 'string', 'max:500'],
+            'categoryId' => ['nullable', 'string'],
+            'statusId' => ['nullable', 'string'],
+        ]);
+
+        return redirect()->route('requests.equipment-network.show', $ticketRequest)
+            ->with('success', 'Equipment and network request updated successfully.');
     }
 
     private function generateControlTicketNumber(): string

@@ -40,7 +40,7 @@ class InventoryController extends Controller
             ->merge($archivedItems->map(fn ($item) => $this->mapItem($item, 'archived')))
             ->values();
 
-        return Inertia::render('Inventory', [
+        return Inertia::render('inventory/Inventory', [
             'items' => $items,
             'filters' => [
                 'search' => $search,
@@ -59,7 +59,7 @@ class InventoryController extends Controller
 
         $enrollment = TicketEnrollment::where('unique_id', $uniqueId)->first();
         if ($enrollment) {
-            return Inertia::render('InventoryItem', [
+            return Inertia::render('inventory/InventoryItem', [
                 'item' => $this->mapDetail($enrollment, 'active'),
                 'status' => 'active',
             ]);
@@ -69,7 +69,7 @@ class InventoryController extends Controller
             ->orderByDesc('archived_at')
             ->firstOrFail();
 
-        return Inertia::render('InventoryItem', [
+        return Inertia::render('inventory/InventoryItem', [
             'item' => $this->mapDetail($archived, 'archived'),
             'status' => 'archived',
         ]);

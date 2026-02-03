@@ -140,6 +140,56 @@ const displayText = (value: string | null, fallback = '—'): string =>
 const displayBadge = (value: string | null, fallback = 'Not set'): string =>
     value && value.trim().length > 0 ? value : fallback;
 
+const itGovernanceTypes = [
+    'system account creation',
+    'system modification',
+    'password reset or account recovery (gov mail)',
+    'system error / bug report',
+    'request for new system module or enhancement',
+    'system development',
+];
+
+const equipmentAndNetworkTypes = [
+    'software license or activation request',
+    'computer repair',
+    'laptop repair',
+    'printer repair',
+    'cctv issue/repair',
+    'end-user equipment installation, setup, and configuration (connection of computers, monitors, printers, peripherals, and workstation relocation)',
+    'request for new it equipment (e.g., pc, printer, ups)',
+    'install/reformat operating system',
+    'installation of application software',
+    'network connectivity installation, repair, and maintenance services (lan and fiber optic cabling, network and wireless setup, repairs, upgrades, and network equipment deployment)',
+    'end-user devices component replacement',
+    'assess extent of hardware/software failure',
+    'system reinstallation/troubleshooting (toims, gaams, ecpac)',
+    'inspect unit',
+    'borrow unit',
+    'data recovery',
+];
+
+const isItGovernanceRequest = (value: string | null): boolean => {
+    const normalized = normalizeValue(value);
+    return itGovernanceTypes.some((type) => normalized === type);
+};
+
+const isEquipmentAndNetworkRequest = (value: string | null): boolean => {
+    const normalized = normalizeValue(value);
+    return equipmentAndNetworkTypes.some((type) => normalized === type);
+};
+
+const resolveActionUrl = (request: TicketRequestRow): string | null => {
+    if (isItGovernanceRequest(request.natureOfRequest)) {
+        return `/requests/${request.id}/it-governance`;
+    }
+
+    if (isEquipmentAndNetworkRequest(request.natureOfRequest)) {
+        return `/requests/${request.id}/equipment-and-network`;
+    }
+
+    return request.showUrl;
+};
+
 const filteredRequests = computed(() => {
     const normalized = normalizeValue(searchQuery.value.trim());
 
@@ -266,8 +316,8 @@ const filteredRequests = computed(() => {
                                 </td>
                                 <td class="px-3 py-2">
                                     <Link
-                                        v-if="request.showUrl"
-                                        :href="request.showUrl"
+                                        v-if="resolveActionUrl(request)"
+                                        :href="resolveActionUrl(request) || ''"
                                         class="inline-flex h-6 w-6 items-center justify-center rounded border border-emerald-200 text-emerald-700 transition hover:bg-emerald-100/70"
                                         title="View request"
                                     >

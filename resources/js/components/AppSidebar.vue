@@ -42,6 +42,16 @@ const mainNavItems = computed<NavItem[]>(() => {
             icon: ClipboardList,
         },
         {
+            title: 'IT Governance Request',
+            href: '/requests/it-governance',
+            icon: FileText,
+        },
+        {
+            title: 'Equipment and Network',
+            href: '/requests/equipment-and-network',
+            icon: FileText,
+        },
+        {
             title: 'Inventory',
             href: '/inventory',
             icon: Package,
@@ -84,7 +94,7 @@ const homeRoute = computed(() => (isAdmin.value ? '/admin/dashboard' : dashboard
                     >
                         <Link :href="homeRoute" class="flex items-center gap-3">
                             <img
-                                src="/favicon.svg"
+                                src="/storage/logos/MISO360_LOGO.gif"
                                 alt="System logo"
                                 class="h-11 w-11 rounded-full bg-white/90 p-1 shadow-sm shadow-black/20"
                             />
