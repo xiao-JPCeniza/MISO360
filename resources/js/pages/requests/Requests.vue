@@ -234,7 +234,7 @@ const filteredRequests = computed(() => {
     <Head :title="pageTitle" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div v-if="props.isAdmin" class="flex flex-1 flex-col bg-[#0b2e59] p-5 sm:p-6">
+        <div v-if="props.isAdmin" class="flex flex-1 flex-col bg-background p-5 sm:p-6">
             <div class="flex flex-col gap-2">
                 <label class="relative w-full max-w-xs">
                     <span class="sr-only">Search Request Here</span>
@@ -242,28 +242,28 @@ const filteredRequests = computed(() => {
                         v-model="searchQuery"
                         type="search"
                         placeholder="Search Request Here"
-                        class="h-9 w-full rounded-md border border-white/30 bg-white/95 px-3 pr-9 text-xs text-slate-900 shadow-sm transition focus:border-white/70 focus:outline-none focus:ring-2 focus:ring-white/25"
+                        class="h-9 w-full rounded-md border border-input bg-background px-3 pr-9 text-xs text-foreground shadow-sm transition placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/50"
                     />
                     <Icon
                         name="search"
-                        class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                        class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                     />
                 </label>
-                <p class="text-[11px] text-white/70">
+                <p class="text-[11px] text-muted-foreground">
                     Showing {{ filteredRequests.length }} of {{ props.requests.length }} requests
                 </p>
             </div>
 
-            <div class="mt-3 rounded-md border border-emerald-200/70 bg-background shadow-sm">
+            <div class="mt-3 rounded-md border border-border bg-card shadow-sm dark:border-white/10">
                 <div class="max-h-[560px] overflow-auto">
                     <table class="w-full min-w-[980px] text-[11px] text-foreground">
-                        <thead class="border-b border-emerald-200/70 bg-emerald-50/70 text-[11px] uppercase">
+                        <thead class="border-b border-border bg-muted/50 text-[11px] uppercase text-foreground dark:border-white/10 dark:bg-white/5">
                             <tr>
-                                <th colspan="8" class="px-3 py-2 text-center text-xs font-semibold text-emerald-900">
+                                <th colspan="8" class="px-3 py-2 text-center text-xs font-semibold">
                                     REQUEST FORM
                                 </th>
                             </tr>
-                            <tr class="border-t border-emerald-200/70 text-emerald-900/90">
+                            <tr class="border-t border-border dark:border-white/10">
                                 <th class="px-3 py-2 text-left font-semibold">Control Ticket No.</th>
                                 <th class="px-3 py-2 text-left font-semibold">Requested By</th>
                                 <th class="px-3 py-2 text-left font-semibold">Position/Designation</th>
@@ -274,11 +274,11 @@ const filteredRequests = computed(() => {
                                 <th class="px-3 py-2 text-left font-semibold">Action</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-emerald-100 text-xs text-slate-900">
+                        <tbody class="divide-y divide-border text-xs text-foreground dark:divide-white/10">
                             <tr
                                 v-for="request in filteredRequests"
                                 :key="request.id"
-                                class="odd:bg-white even:bg-emerald-50/30"
+                                class="odd:bg-background even:bg-muted/20 hover:bg-muted/40 dark:even:bg-white/5 dark:hover:bg-white/10"
                             >
                                 <td class="px-3 py-2 font-medium">
                                     {{ request.controlTicketNumber }}
@@ -298,7 +298,7 @@ const filteredRequests = computed(() => {
                                         {{ displayText(request.office) }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-2 text-slate-600">
+                                <td class="px-3 py-2 text-muted-foreground">
                                     {{ formatDate(request.dateFiled) }}
                                 </td>
                                 <td class="px-3 py-2">
@@ -318,21 +318,21 @@ const filteredRequests = computed(() => {
                                     <Link
                                         v-if="resolveActionUrl(request)"
                                         :href="resolveActionUrl(request) || ''"
-                                        class="inline-flex h-6 w-6 items-center justify-center rounded border border-emerald-200 text-emerald-700 transition hover:bg-emerald-100/70"
+                                        class="inline-flex h-6 w-6 items-center justify-center rounded border border-border text-primary transition hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring dark:border-white/20 dark:hover:bg-white/10"
                                         title="View request"
                                     >
                                         <Icon name="moreHorizontal" class="h-3.5 w-3.5" />
                                     </Link>
                                     <span
                                         v-else
-                                        class="inline-flex h-6 w-6 items-center justify-center rounded border border-emerald-200 text-emerald-400"
+                                        class="inline-flex h-6 w-6 items-center justify-center rounded border border-border text-muted-foreground dark:border-white/20"
                                     >
                                         <Icon name="moreHorizontal" class="h-3.5 w-3.5" />
                                     </span>
                                 </td>
                             </tr>
                             <tr v-if="filteredRequests.length === 0">
-                                <td colspan="8" class="px-4 py-10 text-center text-xs text-slate-600">
+                                <td colspan="8" class="px-4 py-10 text-center text-xs text-muted-foreground">
                                     No requests match your search yet.
                                 </td>
                             </tr>

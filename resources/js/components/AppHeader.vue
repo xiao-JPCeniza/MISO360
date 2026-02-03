@@ -160,10 +160,10 @@ const isAdminPanelActive = computed(() =>
                                         <p
                                             class="text-xs uppercase tracking-[0.2em] text-[#93c5fd]"
                                         >
-                                            MSO 360
+                                            MISO 360
                                         </p>
                                         <p class="text-sm font-semibold">
-                                            Management Services Office
+                                            Management Information Systems Office
                                         </p>
                                     </div>
                                 </div>
@@ -223,10 +223,10 @@ const isAdminPanelActive = computed(() =>
                     />
                     <div class="leading-tight">
                         <p class="text-xs uppercase tracking-[0.2em] text-[#2563eb]">
-                            MSO 360
+                            MISO 360
                         </p>
                         <p class="text-sm font-semibold">
-                            Management Services Office
+                            Management Information Systems Office
                         </p>
                     </div>
                 </Link>

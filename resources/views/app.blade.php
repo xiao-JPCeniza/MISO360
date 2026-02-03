@@ -5,37 +5,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        {{-- Inline script to detect system dark mode preference and apply it immediately --}}
+        {{-- Inline script: apply theme from cookie or device preference before first paint to avoid flash --}}
         <script>
             (function() {
                 const appearance = '{{ $appearance ?? "system" }}';
 
                 if (appearance === 'system') {
                     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-                    if (prefersDark) {
-                        document.documentElement.classList.add('dark');
-                    }
+                    document.documentElement.classList.toggle('dark', prefersDark);
                 }
+                // When appearance is 'light' or 'dark', the server already set the class via @class below.
             })();
         </script>
 
-        {{-- Inline style to set the HTML background color based on our theme in app.css --}}
+        {{-- Initial background to match theme (deep blue/charcoal in dark, light gray in light) --}}
         <style>
             html {
-                background-color: oklch(1 0 0);
+                background-color: #f1f5f9;
             }
-
             html.dark {
-                background-color: oklch(0.145 0 0);
+                background-color: #0f172a;
             }
         </style>
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" href="/storage/logos/MISO360_LOGO.gif" type="image/gif">
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        <link rel="icon" href="{{ asset('storage/logos/IT Logo.png') }}" type="image/png" sizes="any">
+        <link rel="apple-touch-icon" href="{{ asset('storage/logos/IT Logo.png') }}">
 
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />

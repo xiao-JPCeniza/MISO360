@@ -11,10 +11,10 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
         </div>
         <div class="grid flex-1 text-left text-sm leading-tight">
             <span class="text-xs uppercase tracking-[0.2em] text-[#93c5fd]">
-                MSO 360
+                MISO 360
             </span>
             <span class="text-sm font-semibold text-sidebar-foreground">
-                Management Services Office
+                Management Information Systems Office
             </span>
         </div>
     </div>

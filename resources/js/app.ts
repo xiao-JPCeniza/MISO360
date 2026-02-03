@@ -9,6 +9,8 @@ import { initializeTheme } from './composables/useAppearance';
 // Import wayfinder to ensure it's loaded
 import './wayfinder';
 
+initializeTheme();
+
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
@@ -27,6 +29,3 @@ createInertiaApp({
         color: '#4B5563',
     },
 });
-
-// This will set light / dark mode on page load...
-initializeTheme();

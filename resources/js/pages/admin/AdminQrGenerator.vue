@@ -3,7 +3,6 @@ import { Head, Link } from '@inertiajs/vue3';
 import QRCode from 'qrcode';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
-import AppLayout from '@/layouts/AppLayout.vue';
 import {
     Dialog,
     DialogClose,
@@ -12,6 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 type QrItem = {
     id: string;
@@ -29,8 +29,8 @@ type StoredBatch = {
 
 const perPage = 20;
 const storageKeys = {
-    lastBatch: 'mso.qr.lastBatch',
-    batchHistory: 'mso.qr.batchHistory',
+    lastBatch: 'miso.qr.lastBatch',
+    batchHistory: 'miso.qr.batchHistory',
 };
 
 const props = defineProps<{
@@ -292,7 +292,7 @@ async function downloadPdf() {
     await html2pdf()
         .set({
             margin: 0,
-            filename: 'mso-qr-batch.pdf',
+            filename: 'miso-qr-batch.pdf',
             image: { type: 'png', quality: 1 },
             html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },

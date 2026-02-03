@@ -117,8 +117,9 @@ const breadcrumbs: BreadcrumbItem[] = [
                                 : 'border-sidebar-border/60 text-muted-foreground hover:bg-muted/40',
                             !link.url ? 'pointer-events-none opacity-50' : '',
                         ]"
-                        v-html="link.label"
-                    />
+                    >
+                        <span v-html="link.label" />
+                    </Link>
                 </div>
             </section>
         </div>

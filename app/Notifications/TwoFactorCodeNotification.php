@@ -36,7 +36,7 @@ class TwoFactorCodeNotification extends Notification
             : 'verify a sensitive action';
 
         return (new MailMessage)
-            ->subject('Your MSO 360 verification code')
+            ->subject('Your MISO 360 verification code')
             ->line("Use this code to {$purposeLabel}:")
             ->line($this->code)
             ->line('This code expires at '.$this->expiresAt->format('g:i A T').'.')

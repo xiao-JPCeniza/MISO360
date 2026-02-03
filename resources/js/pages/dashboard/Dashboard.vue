@@ -70,7 +70,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <h2 class="text-lg font-semibold">Your queue</h2>
                     <ul class="mt-4 space-y-3 text-sm text-muted-foreground">
                         <li class="rounded-xl bg-muted/40 px-4 py-3">
-                            Update request summary for MSO-145
+                            Update request summary for MISO-360
                         </li>
                         <li class="rounded-xl bg-muted/40 px-4 py-3">
                             Upload revised staffing worksheet

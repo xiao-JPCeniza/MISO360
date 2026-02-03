@@ -7,7 +7,7 @@ interface OfficeOption {
     name: string;
 }
 
-defineProps<{
+const props = defineProps<{
     offices: OfficeOption[];
 }>();
 
@@ -25,35 +25,18 @@ const registerForm = useForm({
     office_designation_id: null as number | null,
     email: '',
     password: '',
-    password_confirmation: '',
 });
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const emailValid = computed(() => emailPattern.test(registerForm.email));
-const passwordChecks = computed(() => [
-    { label: 'At least 8 characters', met: registerForm.password.length >= 8 },
-    { label: 'Uppercase letter', met: /[A-Z]/.test(registerForm.password) },
-    { label: 'Lowercase letter', met: /[a-z]/.test(registerForm.password) },
-    { label: 'Number', met: /\d/.test(registerForm.password) },
-    { label: 'Symbol', met: /[^A-Za-z0-9]/.test(registerForm.password) },
-]);
-const passwordStrong = computed(() =>
-    passwordChecks.value.every((check) => check.met),
-);
-const passwordsMatch = computed(
-    () =>
-        registerForm.password_confirmation.length > 0 &&
-        registerForm.password === registerForm.password_confirmation,
-);
 const registerReady = computed(() => {
     return (
         registerForm.name.trim().length > 0 &&
         registerForm.position_title.trim().length > 0 &&
         registerForm.office_designation_id !== null &&
         emailValid.value &&
-        passwordStrong.value &&
-        passwordsMatch.value
+        registerForm.password.length > 0
     );
 });
 
@@ -80,10 +63,10 @@ onMounted(() => {
             <div class="grid w-full gap-10 lg:grid-cols-[1fr_460px]">
                 <div class="flex flex-col gap-6">
                     <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
-                        MSO 360 Access
+                        MISO 360 Access
                     </p>
                     <h1 class="text-4xl font-semibold leading-tight">
-                        Secure access for every MSO account
+                        Secure access for every MISO account
                     </h1>
                     <p class="max-w-xl text-base text-slate-300">
                         Sign in to keep operations moving, or create your account in
@@ -262,7 +245,7 @@ onMounted(() => {
                                     <option :value="null" disabled>
                                         Select your office
                                     </option>
-                                    <option v-for="office in offices" :key="office.id" :value="office.id">
+                                    <option v-for="office in (props.offices ?? [])" :key="office.id" :value="office.id">
                                         {{ office.name }}
                                     </option>
                                 </select>
@@ -316,52 +299,13 @@ onMounted(() => {
                                 type="password"
                                 autocomplete="new-password"
                                 class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
-                                placeholder="Create a secure password"
+                                placeholder="Create a password"
                             />
-                            <div class="mt-3 flex flex-col gap-2 text-xs text-slate-400">
-                                <span
-                                    v-for="check in passwordChecks"
-                                    :key="check.label"
-                                    :class="check.met ? 'text-emerald-400' : 'text-slate-400'"
-                                >
-                                    {{ check.label }}
-                                </span>
-                            </div>
                             <p
                                 v-if="registerForm.errors.password"
                                 class="mt-2 text-sm text-rose-400"
                             >
                                 {{ registerForm.errors.password }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label
-                                for="register-confirm-password"
-                                class="text-xs font-semibold uppercase tracking-wide text-slate-400"
-                            >
-                                Confirm password
-                            </label>
-                            <input
-                                id="register-confirm-password"
-                                v-model="registerForm.password_confirmation"
-                                type="password"
-                                autocomplete="new-password"
-                                class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
-                                placeholder="Re-enter your password"
-                            />
-                            <div
-                                v-if="registerForm.password_confirmation.length"
-                                class="mt-2 text-sm"
-                                :class="passwordsMatch ? 'text-emerald-400' : 'text-rose-400'"
-                            >
-                                {{ passwordsMatch ? 'Passwords match.' : 'Passwords do not match.' }}
-                            </div>
-                            <p
-                                v-if="registerForm.errors.password_confirmation"
-                                class="mt-2 text-sm text-rose-400"
-                            >
-                                {{ registerForm.errors.password_confirmation }}
                             </p>
                         </div>
 

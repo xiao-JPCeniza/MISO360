@@ -272,45 +272,45 @@ function submitTicket() {
     <Head title="Submit a Ticket Request" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="-mx-6 -mt-20 min-h-screen bg-[#0b2a4a] text-white">
+        <div class="-mx-6 -mt-20 min-h-screen bg-background text-foreground">
             <div class="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 pb-12 pt-12">
                 <div class="space-y-2">
-                    <h1 class="text-3xl font-bold md:text-4xl">
+                    <h1 class="text-3xl font-bold text-foreground md:text-4xl">
                         Submit a Ticket Request
                     </h1>
-                    <p class="text-sm text-white/70">
+                    <p class="text-sm text-muted-foreground">
                         Complete the form below and submit your request.
                     </p>
                 </div>
 
                 <form
-                    class="rounded-2xl border border-white/10 bg-white/10 p-5 text-white shadow-xl shadow-black/20 md:p-6"
+                    class="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-lg md:p-6 dark:border-white/10 dark:shadow-black/20"
                     @submit.prevent="submitTicket"
                 >
                     <div class="grid gap-4">
                         <div class="grid gap-3">
-                            <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                            <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                 Control Ticket Number
                             </label>
                             <input
                                 v-model="form.controlTicketNumber"
                                 type="text"
                                 readonly
-                                class="h-9 w-full rounded-md border border-white/20 bg-white/10 px-3 text-sm font-semibold text-white placeholder:text-white/60"
+                                class="h-9 w-full rounded-md border border-input bg-input px-3 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                             />
                         </div>
 
                         <div
                             v-if="isAdmin"
-                            class="grid gap-4 rounded-xl border border-white/10 bg-white/5 p-4 md:grid-cols-2"
+                            class="grid gap-4 rounded-xl border border-border bg-muted/30 p-4 md:grid-cols-2 dark:border-white/10 dark:bg-white/5"
                         >
                             <div class="grid gap-3">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Office Designation
                                 </label>
                                 <select
                                     v-model="form.officeDesignationId"
-                                    class="h-9 w-full rounded-md border border-white/20 bg-white px-3 text-sm text-slate-900"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                                     required
                                 >
                                     <option disabled value="">Select an office</option>
@@ -322,18 +322,18 @@ function submitTicket() {
                                         {{ option.name }}
                                     </option>
                                 </select>
-                                <p v-if="form.errors.officeDesignationId || officeError" class="text-xs text-red-200">
+                                <p v-if="form.errors.officeDesignationId || officeError" class="text-xs text-destructive">
                                     {{ form.errors.officeDesignationId || officeError }}
                                 </p>
                             </div>
 
                             <div class="grid gap-3">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Requesting For
                                 </label>
                                 <select
                                     v-model="form.requestedForUserId"
-                                    class="h-9 w-full rounded-md border border-white/20 bg-white px-3 text-sm text-slate-900 disabled:bg-white/70"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                                     :disabled="!form.officeDesignationId"
                                     required
                                 >
@@ -346,10 +346,10 @@ function submitTicket() {
                                         {{ user.name }}
                                     </option>
                                 </select>
-                                <p v-if="form.errors.requestedForUserId || requestedUserError" class="text-xs text-red-200">
+                                <p v-if="form.errors.requestedForUserId || requestedUserError" class="text-xs text-destructive">
                                     {{ form.errors.requestedForUserId || requestedUserError }}
                                 </p>
-                                <p v-if="form.officeDesignationId && !filteredOfficeUsers.length" class="text-xs text-white/70">
+                                <p v-if="form.officeDesignationId && !filteredOfficeUsers.length" class="text-xs text-muted-foreground">
                                     No active users found for this office.
                                 </p>
                             </div>
@@ -357,12 +357,12 @@ function submitTicket() {
 
                         <div class="grid gap-4 md:grid-cols-2">
                             <div class="grid gap-3">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Nature of Request
                                 </label>
                                 <select
                                     v-model="form.natureOfRequestId"
-                                    class="h-9 w-full rounded-md border border-white/20 bg-white px-3 text-sm text-slate-900"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                                     required
                                 >
                                     <option disabled value="">Select a request category</option>
@@ -374,41 +374,41 @@ function submitTicket() {
                                         {{ option.name }}
                                     </option>
                                 </select>
-                                <p v-if="form.errors.natureOfRequestId || natureError" class="text-xs text-red-200">
+                                <p v-if="form.errors.natureOfRequestId || natureError" class="text-xs text-destructive">
                                     {{ form.errors.natureOfRequestId || natureError }}
                                 </p>
                             </div>
 
-                            <div class="grid gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
+                            <div class="grid gap-3 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5">
                                 <div class="flex items-center justify-between">
                                     <div>
-                                        <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                                        <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                             QR Code for Unit
                                         </p>
-                                        <p class="text-xs text-white/70">Optional asset tag</p>
+                                        <p class="text-xs text-muted-foreground">Optional asset tag</p>
                                     </div>
-                                    <label class="relative inline-flex cursor-pointer items-center">
+                                    <label class="relative inline-flex cursor-pointer items-center focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring rounded">
                                         <input
                                             v-model="form.hasQrCode"
                                             type="checkbox"
                                             class="peer sr-only"
                                         />
-                                        <div class="h-5 w-9 rounded-full bg-white/20 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-blue-400 peer-checked:after:translate-x-4"></div>
+                                        <div class="h-5 w-9 rounded-full bg-muted after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-background after:border after:border-input after:transition-all peer-checked:bg-primary peer-checked:after:translate-x-4 peer-checked:after:border-0 dark:bg-white/20 dark:after:bg-white"></div>
                                     </label>
                                 </div>
 
                                 <div v-if="form.hasQrCode" class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                         QR Code Number
                                     </label>
                                     <input
                                         v-model="form.qrCodeNumber"
                                         type="text"
-                                        class="h-9 w-full rounded-md border border-white/20 bg-white px-3 text-sm text-slate-900"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                                         placeholder="MIS-UID-00001"
                                         :pattern="qrCodePattern"
                                     />
-                                    <p v-if="form.errors.qrCodeNumber" class="text-xs text-red-200">
+                                    <p v-if="form.errors.qrCodeNumber" class="text-xs text-destructive">
                                         {{ form.errors.qrCodeNumber }}
                                     </p>
                                 </div>
@@ -417,52 +417,52 @@ function submitTicket() {
 
                         <div class="grid gap-3">
                             <div class="flex items-center justify-between">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Description of Request
                                 </label>
-                                <span class="text-xs text-white/60">
+                                <span class="text-xs text-muted-foreground">
                                     {{ descriptionLength }}/1000
                                 </span>
                             </div>
                             <textarea
                                 v-model="form.description"
                                 rows="4"
-                                class="w-full resize-y rounded-md border border-white/20 bg-white px-3 py-2 text-sm text-slate-900"
+                                class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                                 placeholder="Briefly describe your request..."
                                 @blur="descriptionTouched = true"
                             />
-                            <p v-if="descriptionError || serverDescriptionError" class="text-xs text-red-200">
+                            <p v-if="descriptionError || serverDescriptionError" class="text-xs text-destructive">
                                 {{ descriptionError || serverDescriptionError }}
                             </p>
-                            <p v-else class="text-xs text-white/70">
+                            <p v-else class="text-xs text-muted-foreground">
                                 Minimum 10 characters. Maximum 1000 characters.
                             </p>
                         </div>
 
                         <div class="grid gap-3">
                             <div class="flex items-center justify-between">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Upload Photo/Videos Here (optional)
                                 </label>
-                                <span class="text-xs text-white/60">
+                                <span class="text-xs text-muted-foreground">
                                     {{ attachmentEntries.length }}/{{ maxAttachments }} files
                                 </span>
                             </div>
                             <div
-                                class="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/40 bg-white px-4 py-4 text-center transition"
-                                :class="isDragging ? 'border-blue-300 bg-blue-50' : ''"
+                                class="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/40 px-4 py-4 text-center transition dark:border-white/20 dark:bg-white/5"
+                                :class="isDragging ? 'border-primary/50 bg-primary/10' : ''"
                                 @dragover="onDragOver"
                                 @dragleave="onDragLeave"
                                 @drop="onDrop"
                             >
                                 <div>
-                                    <p class="text-sm font-semibold text-slate-600">
+                                    <p class="text-sm font-semibold text-foreground">
                                         Drag and Drop Files Here
                                     </p>
-                                    <p class="text-xs text-slate-500">or</p>
+                                    <p class="text-xs text-muted-foreground">or</p>
                                 </div>
                                 <label
-                                    class="cursor-pointer rounded-full border border-blue-400 bg-white px-4 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50"
+                                    class="cursor-pointer rounded-full border border-primary bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                                 >
                                     Browse Files
                                     <input
@@ -474,13 +474,13 @@ function submitTicket() {
                                         @change="onFileChange"
                                     />
                                 </label>
-                                <p class="text-xs text-slate-500">
+                                <p class="text-xs text-muted-foreground">
                                     JPG, PNG, WEBP, MP4, MOV up to {{ maxAttachmentSizeMb }}MB each
                                 </p>
-                                <p v-if="uploadError" class="text-xs text-red-200">
+                                <p v-if="uploadError" class="text-xs text-destructive">
                                     {{ uploadError }}
                                 </p>
-                                <p v-if="form.errors.attachments" class="text-xs text-red-200">
+                                <p v-if="form.errors.attachments" class="text-xs text-destructive">
                                     {{ form.errors.attachments }}
                                 </p>
                             </div>
@@ -489,19 +489,19 @@ function submitTicket() {
                                 <div
                                     v-for="(entry, index) in attachmentEntries"
                                     :key="entry.key"
-                                    class="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white"
+                                    class="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-foreground dark:border-white/20 dark:bg-white/5"
                                 >
                                     <div>
                                             <p class="font-semibold">{{ entry.file.name }}</p>
-                                            <p class="text-xs text-white/70">
+                                            <p class="text-xs text-muted-foreground">
                                             {{ formatSize(entry.file.size) }}
                                         </p>
                                         <div
                                             v-if="form.progress"
-                                                class="mt-2 h-1.5 w-48 rounded-full bg-white/20"
+                                                class="mt-2 h-1.5 w-48 rounded-full bg-muted"
                                         >
                                             <div
-                                                    class="h-1.5 rounded-full bg-blue-400 transition-all"
+                                                    class="h-1.5 rounded-full bg-primary transition-all"
                                                 :style="{
                                                     width: `${form.progress?.percentage ?? 0}%`,
                                                 }"
@@ -510,7 +510,7 @@ function submitTicket() {
                                     </div>
                                     <button
                                         type="button"
-                                            class="text-xs font-semibold uppercase tracking-[0.2em] text-red-200 hover:text-red-100"
+                                            class="text-xs font-semibold uppercase tracking-[0.2em] text-destructive hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                                         @click="removeAttachment(index)"
                                     >
                                         Remove
@@ -522,7 +522,7 @@ function submitTicket() {
                         <div class="flex justify-center pt-2">
                             <button
                                 type="submit"
-                                class="rounded-md bg-blue-500 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/30 transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-300"
+                                class="rounded-md bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground shadow-lg transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60"
                                 :disabled="form.processing"
                             >
                                 {{ form.processing ? 'Submitting...' : 'Submit Ticket' }}

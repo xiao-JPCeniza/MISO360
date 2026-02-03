@@ -1,15 +1,72 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 
 import { dashboard, login } from '@/routes';
 
-withDefaults(
+type ProfileSlide = {
+    id: number;
+    imageUrl: string | null;
+    title: string;
+    subtitle: string | null;
+    textPosition: string;
+};
+
+const props = withDefaults(
     defineProps<{
         canRegister: boolean;
+        profileSlides?: ProfileSlide[];
     }>(),
     {
         canRegister: true,
+        profileSlides: () => [],
+    },
+);
+
+const currentSlideIndex = ref(0);
+const slideInterval = ref<ReturnType<typeof setInterval> | null>(null);
+const AUTO_PLAY_MS = 6000;
+
+const slides = computed(() => props.profileSlides ?? []);
+
+function goToSlide(index: number, reset: boolean = false) {
+    if (slides.value.length === 0) return;
+    currentSlideIndex.value = ((index % slides.value.length) + slides.value.length) % slides.value.length;
+    if (reset) resetAutoPlay();
+}
+
+function nextSlide() {
+    goToSlide(currentSlideIndex.value + 1, true);
+}
+
+function prevSlide() {
+    goToSlide(currentSlideIndex.value - 1, true);
+}
+
+function startAutoPlay() {
+    if (slideInterval.value) clearInterval(slideInterval.value);
+    if (slides.value.length <= 1) return;
+    slideInterval.value = setInterval(() => {
+        currentSlideIndex.value = (currentSlideIndex.value + 1) % slides.value.length;
+    }, AUTO_PLAY_MS);
+}
+
+function resetAutoPlay() {
+    startAutoPlay();
+}
+
+onMounted(() => {
+    if (slides.value.length > 0) startAutoPlay();
+});
+
+onUnmounted(() => {
+    if (slideInterval.value) clearInterval(slideInterval.value);
+});
+
+watch(
+    () => slides.value.length,
+    (len) => {
+        if (len > 0 && !slideInterval.value) startAutoPlay();
     },
 );
 
@@ -163,7 +220,7 @@ function getFilteredServicesForDivision(division: Division) {
 <template>
     <Head title="Welcome">
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
         <link
             href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap"
             rel="stylesheet"
@@ -171,11 +228,11 @@ function getFilteredServicesForDivision(division: Division) {
     </Head>
 
     <div
-        class="min-h-screen scroll-smooth bg-gradient-to-b from-[#0b1b3a] via-[#0f2a5f] to-[#0b1b3a] text-white"
+        class="min-h-screen scroll-smooth bg-linear-to-b from-slate-50 via-white to-slate-50 text-foreground dark:from-[#0b1b3a] dark:via-[#0f2a5f] dark:to-[#0b1b3a] dark:text-white"
         style="font-family: 'Sora', ui-sans-serif, system-ui;"
     >
         <header
-            class="sticky top-0 z-50 w-full border-b border-white/10 bg-white/95 text-[#0b1b3a] shadow-sm shadow-black/10 backdrop-blur"
+            class="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 text-foreground shadow-sm shadow-black/5 backdrop-blur dark:border-white/10 dark:bg-[#0b1b3a]/95 dark:text-white dark:shadow-black/10"
         >
             <div class="mx-auto w-full max-w-6xl px-6 py-4">
                 <div class="flex items-center justify-between">
@@ -183,49 +240,49 @@ function getFilteredServicesForDivision(division: Division) {
                         <img
                             src="/storage/logos/MISO360_LOGO.gif"
                             alt="System logo"
-                            class="h-10 w-10 rounded-full bg-white p-1"
+                            class="h-10 w-10 rounded-full bg-white p-1 dark:bg-white"
                         />
                         <div>
-                            <p class="text-sm uppercase tracking-[0.2em] text-[#2563eb]">
-                                MSO 360
+                            <p class="text-sm uppercase tracking-[0.2em] text-primary">
+                                MISO 360
                             </p>
                             <p class="text-lg font-semibold leading-tight">
-                                Management Services Office
+                                Management Information Systems Office
                             </p>
                         </div>
                     </div>
                     <nav class="hidden items-center gap-6 text-sm font-semibold md:flex">
                         <a
                             href="#profile"
-                            class="transition-colors hover:text-[#2563eb]"
+                            class="transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
                         >
-                            MSO Profile
+                            MS  O Profile
                         </a>
                         <a
                             href="#team"
-                            class="transition-colors hover:text-[#2563eb]"
+                            class="transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
                         >
                             Our Team
                         </a>
                         <a
                             href="#services"
-                            class="transition-colors hover:text-[#2563eb]"
+                            class="transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
                         >
                             Services
                         </a>
                         <Link
                             v-if="$page.props.auth.user"
                             :href="dashboard()"
-                            class="rounded-full border border-[#2563eb] bg-[#2563eb] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8]"
+                            class="rounded-full border border-primary bg-primary px-4 py-2 text-primary-foreground transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         >
                             Dashboard
                         </Link>
                         <Link
                             v-else
                             :href="login()"
-                            class="rounded-full border border-[#2563eb] px-4 py-2 text-[#2563eb] transition-colors hover:bg-[#2563eb]/10"
+                            class="rounded-full border border-primary px-4 py-2 text-primary transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         >
-                            Log in
+                            Book a Service
                         </Link>
                     </nav>
                 </div>
@@ -234,104 +291,121 @@ function getFilteredServicesForDivision(division: Division) {
                 >
                     <a
                         href="#profile"
-                        class="rounded-full border border-[#2563eb]/30 px-3 py-1.5 text-[#0b1b3a] transition-colors hover:bg-[#2563eb]/10"
+                        class="rounded-full border border-primary/30 px-3 py-1.5 text-foreground transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
-                        MSO Profile
+                        MISO Profile
                     </a>
                     <a
                         href="#team"
-                        class="rounded-full border border-[#2563eb]/30 px-3 py-1.5 text-[#0b1b3a] transition-colors hover:bg-[#2563eb]/10"
+                        class="rounded-full border border-primary/30 px-3 py-1.5 text-foreground transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
                         Our Team
                     </a>
                     <a
                         href="#services"
-                        class="rounded-full border border-[#2563eb]/30 px-3 py-1.5 text-[#0b1b3a] transition-colors hover:bg-[#2563eb]/10"
+                        class="rounded-full border border-primary/30 px-3 py-1.5 text-foreground transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
                         Services
                     </a>
                     <Link
                         v-if="$page.props.auth.user"
                         :href="dashboard()"
-                        class="rounded-full border border-[#2563eb] bg-[#2563eb] px-3 py-1.5 text-white transition-colors hover:bg-[#1d4ed8]"
+                        class="rounded-full border border-primary bg-primary px-3 py-1.5 text-primary-foreground transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
                         Dashboard
                     </Link>
                     <Link
                         v-else
                         :href="login()"
-                        class="rounded-full border border-[#2563eb] px-3 py-1.5 text-[#2563eb] transition-colors hover:bg-[#2563eb]/10"
+                        class="rounded-full border border-primary px-3 py-1.5 text-primary transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
-                        Log in
+                        Book a Service
                     </Link>
                 </nav>
             </div>
         </header>
 
         <main class="mx-auto w-full max-w-6xl px-6 pb-20 pt-14 lg:pt-20">
-            <section
-                id="profile"
-                class="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]"
-            >
-                <div class="space-y-6">
-                    <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#93c5fd]">
-                        MSO Profile
-                    </p>
-                    <h1 class="text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
-                        Building responsive, people-first management services.
-                    </h1>
-                    <p class="text-base text-white/80 sm:text-lg">
-                        The Management Services Office (MSO) partners with every unit
-                        to simplify processes, align resources, and deliver support
-                        that keeps operations efficient and transparent.
-                    </p>
-                    <div class="flex flex-wrap gap-3">
-                        <a
-                            href="#services"
-                            class="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#0b1b3a] transition-transform hover:-translate-y-0.5"
+            <section id="profile" class="flex flex-col gap-10">
+                <!-- Profile Slides carousel: immersive, full-width feel with animated text -->
+                <div
+                    v-if="slides.length > 0"
+                    class="profile-slider relative w-full overflow-hidden rounded-2xl border border-border bg-muted shadow-xl shadow-black/10 dark:border-white/10 dark:shadow-black/20"
+                    style="aspect-ratio: 21/9; min-height: 220px;"
+                >
+                    <div
+                        v-for="(slide, index) in slides"
+                        :key="slide.id"
+                        class="absolute inset-0 transition-opacity duration-500 ease-out"
+                        :class="index === currentSlideIndex ? 'z-10 opacity-100' : 'z-0 opacity-0 pointer-events-none'"
+                    >
+                        <img
+                            v-if="slide.imageUrl"
+                            :src="slide.imageUrl"
+                            :alt="slide.title"
+                            class="absolute inset-0 h-full w-full object-contain object-center"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <div
+                            v-else
+                            class="absolute inset-0 bg-muted"
+                        />
+                        <div
+                            class="absolute inset-0"
+                            :style="slide.textPosition === 'right'
+                                ? { background: 'linear-gradient(to left, rgba(0,0,0,0.82), rgba(0,0,0,0.5), transparent 55%)' }
+                                : { background: 'linear-gradient(to right, rgba(0,0,0,0.82), rgba(0,0,0,0.5), transparent 55%)' }"
+                        />
+                        <div
+                            :key="`${slide.id}-${currentSlideIndex}`"
+                            class="profile-slide-text absolute inset-y-0 flex flex-col justify-center px-8 py-8 sm:px-14 md:px-20"
+                            :class="[
+                                slide.textPosition === 'right' ? 'right-0 items-end text-right' : 'left-0 items-start text-left',
+                                slide.textPosition === 'right' ? 'profile-slide-in-right' : 'profile-slide-in-left',
+                            ]"
                         >
-                            Explore services
-                        </a>
-                        <a
-                            href="#team"
-                            class="rounded-full border border-white/30 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-                        >
-                            Meet the team
-                        </a>
+                            <p
+                                v-if="slide.subtitle"
+                                class="text-sm font-medium tracking-[0.15em] text-white/95 sm:text-base"
+                            >
+                                {{ slide.subtitle }}
+                            </p>
+                            <h2 class="mt-2 text-2xl font-bold uppercase leading-tight tracking-tight text-white drop-shadow-sm sm:text-4xl md:text-5xl lg:text-6xl">
+                                {{ slide.title }}
+                            </h2>
+                        </div>
                     </div>
-                </div>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div
-                        class="rounded-2xl bg-white/10 p-6 shadow-lg shadow-black/20 backdrop-blur"
+                    <button
+                        type="button"
+                        class="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/15 p-2.5 text-white backdrop-blur-md transition-all duration-200 hover:bg-white/30 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/50 sm:left-4"
+                        aria-label="Previous slide"
+                        @click="prevSlide"
                     >
-                        <p class="text-3xl font-semibold">24/7</p>
-                        <p class="mt-2 text-sm text-white/70">
-                            Service support availability
-                        </p>
-                    </div>
-                    <div
-                        class="rounded-2xl bg-white/10 p-6 shadow-lg shadow-black/20 backdrop-blur"
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <button
+                        type="button"
+                        class="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/15 p-2.5 text-white backdrop-blur-md transition-all duration-200 hover:bg-white/30 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/50 sm:right-4"
+                        aria-label="Next slide"
+                        @click="nextSlide"
                     >
-                        <p class="text-3xl font-semibold">120+</p>
-                        <p class="mt-2 text-sm text-white/70">
-                            Active process improvements
-                        </p>
-                    </div>
-                    <div
-                        class="rounded-2xl bg-white/10 p-6 shadow-lg shadow-black/20 backdrop-blur"
-                    >
-                        <p class="text-3xl font-semibold">98%</p>
-                        <p class="mt-2 text-sm text-white/70">
-                            Internal client satisfaction
-                        </p>
-                    </div>
-                    <div
-                        class="rounded-2xl bg-white/10 p-6 shadow-lg shadow-black/20 backdrop-blur"
-                    >
-                        <p class="text-3xl font-semibold">36</p>
-                        <p class="mt-2 text-sm text-white/70">
-                            Cross-functional partners
-                        </p>
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                    <div class="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3">
+                        <button
+                            v-for="(_, dotIndex) in slides"
+                            :key="dotIndex"
+                            type="button"
+                            class="h-2 w-2 rounded-full transition-all duration-300"
+                            :class="dotIndex === currentSlideIndex ? 'w-6 bg-white' : 'bg-white/50 hover:bg-white/80 hover:scale-125'"
+                            :aria-label="`Go to slide ${dotIndex + 1}`"
+                            @click="goToSlide(dotIndex, true)"
+                        />
                     </div>
                 </div>
             </section>
@@ -339,50 +413,50 @@ function getFilteredServicesForDivision(division: Division) {
             <section id="team" class="mt-16 scroll-mt-24">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#93c5fd]">
+                        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary dark:text-[#93c5fd]">
                             Our Team
                         </p>
-                        <h2 class="text-3xl font-semibold sm:text-4xl">
-                            The people behind MSO 360
+                        <h2 class="text-3xl font-semibold text-foreground sm:text-4xl dark:text-white">
+                            The people behind MISO 360
                         </h2>
                     </div>
-                    <p class="max-w-md text-sm text-white/70">
+                    <p class="max-w-md text-sm text-muted-foreground dark:text-white/70">
                         A dedicated group of analysts, coordinators, and service
                         leaders focused on clarity, accountability, and care.
                     </p>
                 </div>
                 <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div
-                        class="rounded-2xl bg-white/10 p-4 shadow-lg shadow-black/20 transition-transform hover:-translate-y-1"
+                        class="rounded-2xl border border-border bg-card p-4 shadow-lg shadow-black/5 transition-transform hover:-translate-y-1 dark:border-white/10 dark:bg-white/10 dark:shadow-black/20"
                     >
                         <div
-                            class="h-40 rounded-xl bg-gradient-to-br from-white/30 to-white/5"
+                            class="h-40 rounded-xl bg-linear-to-br from-muted to-muted/50 dark:from-white/30 dark:to-white/5"
                         ></div>
                         <div class="mt-4">
-                            <p class="text-base font-semibold">Operations Team</p>
-                            <p class="text-sm text-white/70">Process support and audit</p>
+                            <p class="text-base font-semibold text-foreground dark:text-white">Operations Team</p>
+                            <p class="text-sm text-muted-foreground dark:text-white/70">Process support and audit</p>
                         </div>
                     </div>
                     <div
-                        class="rounded-2xl bg-white/10 p-4 shadow-lg shadow-black/20 transition-transform hover:-translate-y-1"
+                        class="rounded-2xl border border-border bg-card p-4 shadow-lg shadow-black/5 transition-transform hover:-translate-y-1 dark:border-white/10 dark:bg-white/10 dark:shadow-black/20"
                     >
                         <div
-                            class="h-40 rounded-xl bg-gradient-to-br from-white/30 to-white/5"
+                            class="h-40 rounded-xl bg-linear-to-br from-muted to-muted/50 dark:from-white/30 dark:to-white/5"
                         ></div>
                         <div class="mt-4">
-                            <p class="text-base font-semibold">Client Services</p>
-                            <p class="text-sm text-white/70">Frontline assistance</p>
+                            <p class="text-base font-semibold text-foreground dark:text-white">Client Services</p>
+                            <p class="text-sm text-muted-foreground dark:text-white/70">Frontline assistance</p>
                         </div>
                     </div>
                     <div
-                        class="rounded-2xl bg-white/10 p-4 shadow-lg shadow-black/20 transition-transform hover:-translate-y-1"
+                        class="rounded-2xl border border-border bg-card p-4 shadow-lg shadow-black/5 transition-transform hover:-translate-y-1 dark:border-white/10 dark:bg-white/10 dark:shadow-black/20"
                     >
                         <div
-                            class="h-40 rounded-xl bg-gradient-to-br from-white/30 to-white/5"
+                            class="h-40 rounded-xl bg-linear-to-br from-muted to-muted/50 dark:from-white/30 dark:to-white/5"
                         ></div>
                         <div class="mt-4">
-                            <p class="text-base font-semibold">Service Design</p>
-                            <p class="text-sm text-white/70">Continuous improvements</p>
+                            <p class="text-base font-semibold text-foreground dark:text-white">Service Design</p>
+                            <p class="text-sm text-muted-foreground dark:text-white/70">Continuous improvements</p>
                         </div>
                     </div>
                 </div>
@@ -390,28 +464,28 @@ function getFilteredServicesForDivision(division: Division) {
 
             <section
                 id="services"
-                class="relative mt-16 overflow-hidden rounded-3xl scroll-mt-24 border border-white/10 bg-[#0a0f1a] shadow-2xl"
+                class="relative mt-16 overflow-hidden rounded-3xl scroll-mt-24 border border-neutral-200 bg-neutral-50 shadow-2xl dark:border-white/10 dark:bg-[#0a0f1a]"
             >
                 <!-- Tech background: grid + gradient -->
                 <div
-                    class="pointer-events-none absolute inset-0 opacity-[0.15]"
+                    class="pointer-events-none absolute inset-0 opacity-[0.12] dark:opacity-[0.15]"
                     aria-hidden="true"
                 >
                     <div
-                        class="absolute inset-0 bg-[linear-gradient(to_right,#334155_1px,transparent_1px),linear-gradient(to_bottom,#334155_1px,transparent_1px)] bg-size-[2rem_2rem]"
+                        class="absolute inset-0 bg-[linear-gradient(to_right,#94a3b8_1px,transparent_1px),linear-gradient(to_bottom,#94a3b8_1px,transparent_1px)] bg-size-[2rem_2rem] dark:bg-[linear-gradient(to_right,#334155_1px,transparent_1px),linear-gradient(to_bottom,#334155_1px,transparent_1px)]"
                     />
                     <div
-                        class="absolute -inset-full bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(59,130,246,0.25),transparent)]"
+                        class="absolute -inset-full bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(59,130,246,0.12),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(59,130,246,0.25),transparent)]"
                     />
                 </div>
 
                 <div class="relative px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
                     <!-- Hero header -->
                     <div class="text-center">
-                        <h2 class="text-2xl font-bold tracking-tight text-white sm:text-3xl lg:text-4xl">
+                        <h2 class="text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl lg:text-4xl dark:text-white">
                             MISO360 Services Hub
                         </h2>
-                        <p class="mt-2 max-w-xl mx-auto text-sm text-white/70 sm:text-base">
+                        <p class="mt-2 max-w-xl mx-auto text-sm text-neutral-600 sm:text-base dark:text-white/70">
                             Explore ICT services across divisions in one unified platform.
                         </p>
                     </div>
@@ -422,10 +496,10 @@ function getFilteredServicesForDivision(division: Division) {
                             Search services by keyword, division, or service name
                         </label>
                         <div
-                            class="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 shadow-inner backdrop-blur transition-[border-color,box-shadow] duration-200 focus-within:border-[#3b82f6]/50 focus-within:ring-2 focus-within:ring-[#3b82f6]/20"
+                            class="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 shadow-inner backdrop-blur transition-[border-color,box-shadow] duration-200 focus-within:border-[#2563eb]/50 focus-within:ring-2 focus-within:ring-[#2563eb]/20 dark:border-white/15 dark:bg-white/5 focus-within:dark:border-[#3b82f6]/50 focus-within:dark:ring-[#3b82f6]/20"
                         >
                             <svg
-                                class="h-4 w-4 shrink-0 text-white/40"
+                                class="h-4 w-4 shrink-0 text-neutral-400 dark:text-white/40"
                                 fill="none"
                                 stroke="currentColor"
                                 stroke-width="2"
@@ -444,7 +518,7 @@ function getFilteredServicesForDivision(division: Division) {
                                 type="search"
                                 autocomplete="off"
                                 placeholder="Search by keyword, division, or service..."
-                                class="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none"
+                                class="min-w-0 flex-1 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-white dark:placeholder:text-white/40"
                             />
                         </div>
                     </div>
@@ -462,13 +536,13 @@ function getFilteredServicesForDivision(division: Division) {
                             <article
                                 v-for="division in filteredDivisions"
                                 :key="division.id"
-                                class="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-[#3b82f6]/30 hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.2)] sm:p-6"
+                                class="flex flex-col rounded-2xl border border-neutral-200 bg-white/90 p-5 shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-[#2563eb]/30 hover:shadow-[0_0_30px_-5px_rgba(37,99,235,0.15)] sm:p-6 dark:border-white/10 dark:bg-white/5 dark:hover:border-[#3b82f6]/30 dark:hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.2)]"
                                 role="listitem"
                             >
                                 <!-- Division name + icon -->
                                 <div class="flex items-start gap-3">
                                     <div
-                                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#3b82f6]/20 text-[#93c5fd] ring-1 ring-[#3b82f6]/30"
+                                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2563eb]/15 text-[#2563eb] ring-1 ring-[#2563eb]/25 dark:bg-[#3b82f6]/20 dark:text-[#93c5fd] dark:ring-[#3b82f6]/30"
                                         aria-hidden="true"
                                     >
                                         <!-- Network icon -->
@@ -518,10 +592,10 @@ function getFilteredServicesForDivision(division: Division) {
                                         </svg>
                                     </div>
                                     <div class="min-w-0 flex-1">
-                                        <h3 class="text-base font-semibold text-white sm:text-lg">
+                                        <h3 class="text-base font-semibold text-neutral-900 sm:text-lg dark:text-white">
                                             {{ division.name }}
                                         </h3>
-                                        <p class="mt-1 text-xs text-white/70 sm:text-sm">
+                                        <p class="mt-1 text-xs text-neutral-600 sm:text-sm dark:text-white/70">
                                             {{ division.description }}
                                         </p>
                                     </div>
@@ -545,7 +619,7 @@ function getFilteredServicesForDivision(division: Division) {
                                         >
                                             <span
                                                 v-if="(group as { group?: string }).group"
-                                                class="text-[11px] font-medium uppercase tracking-wider text-white/50"
+                                                class="text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-white/50"
                                             >
                                                 {{ (group as { group: string }).group }}
                                             </span>
@@ -555,7 +629,7 @@ function getFilteredServicesForDivision(division: Division) {
                                                 <span
                                                     v-for="item in (group as { items: string[] }).items"
                                                     :key="item"
-                                                    class="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-white/90 transition-colors duration-200 hover:border-[#3b82f6]/25 hover:bg-white/10"
+                                                    class="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10"
                                                 >
                                                     {{ item }}
                                                 </span>
@@ -576,12 +650,12 @@ function getFilteredServicesForDivision(division: Division) {
                                             <span
                                                 v-for="s in getFilteredServicesForDivision(division)"
                                                 :key="(s as { name: string }).name"
-                                                class="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-white/90 transition-colors duration-200 hover:border-[#3b82f6]/25 hover:bg-white/10"
+                                                class="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10"
                                             >
                                                 {{ (s as { name: string }).name }}
                                                 <span
                                                     v-if="(s as { formRequired: boolean }).formRequired"
-                                                    class="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300/90"
+                                                    class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-500/20 dark:text-amber-300/90"
                                                 >
                                                     Form Required
                                                 </span>
@@ -602,7 +676,7 @@ function getFilteredServicesForDivision(division: Division) {
                                             <span
                                                 v-for="item in getFilteredServicesForDivision(division)"
                                                 :key="item as string"
-                                                class="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-white/90 transition-colors duration-200 hover:border-[#3b82f6]/25 hover:bg-white/10"
+                                                class="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10"
                                             >
                                                 {{ item }}
                                             </span>
@@ -612,7 +686,7 @@ function getFilteredServicesForDivision(division: Division) {
                                     <!-- No results within division when searching -->
                                     <p
                                         v-else
-                                        class="text-xs text-white/50"
+                                        class="text-xs text-neutral-500 dark:text-white/50"
                                     >
                                         No matching services for this division.
                                     </p>
@@ -624,7 +698,7 @@ function getFilteredServicesForDivision(division: Division) {
                     <!-- Empty state when search matches nothing -->
                     <p
                         v-if="filteredDivisions.length === 0"
-                        class="mt-6 text-center text-sm text-white/50"
+                        class="mt-6 text-center text-sm text-neutral-500 dark:text-white/50"
                     >
                         No divisions or services match your search. Try a different keyword.
                     </p>
@@ -635,6 +709,33 @@ function getFilteredServicesForDivision(division: Division) {
 </template>
 
 <style scoped>
+@keyframes profile-slide-in-left {
+    from {
+        opacity: 0;
+        transform: translateX(-18%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+@keyframes profile-slide-in-right {
+    from {
+        opacity: 0;
+        transform: translateX(18%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+.profile-slide-in-left {
+    animation: profile-slide-in-left 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.profile-slide-in-right {
+    animation: profile-slide-in-right 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 .services-card-enter-active,
 .services-card-leave-active {
     transition: opacity 0.25s ease, transform 0.25s ease;

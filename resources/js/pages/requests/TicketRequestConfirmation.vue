@@ -12,7 +12,7 @@ type Attachment = {
     mime?: string | null;
 };
 
-const props = defineProps<{
+defineProps<{
     ticket: {
         controlTicketNumber: string;
         natureOfRequest: string | null;

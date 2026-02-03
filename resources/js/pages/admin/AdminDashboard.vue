@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
+
+const page = usePage();
+const isSuperAdmin = computed(() => (page.props.auth?.user as { role?: string } | undefined)?.role === 'super_admin');
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -77,6 +80,25 @@ const totalGenerated = computed(() => props.totalGenerated ?? 0);
                     <p class="mt-2 text-sm text-muted-foreground">
                         Items waiting on admin sign-off.
                     </p>
+                </div>
+                <div
+                    v-if="isSuperAdmin"
+                    class="rounded-2xl border border-sidebar-border/60 bg-background p-5"
+                >
+                    <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                        Post Management
+                    </p>
+                    <p class="mt-4 text-sm text-muted-foreground">
+                        Manage profile slides on the public homepage.
+                    </p>
+                    <div class="mt-4 flex flex-wrap items-center gap-3">
+                        <Link
+                            href="/admin/posts"
+                            class="rounded-full bg-[#2563eb] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition-colors hover:bg-[#1d4ed8]"
+                        >
+                            Open Post Management
+                        </Link>
+                    </div>
                 </div>
             </div>
 

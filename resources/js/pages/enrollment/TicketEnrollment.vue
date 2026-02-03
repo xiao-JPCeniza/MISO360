@@ -3,8 +3,8 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { BrowserQRCodeReader, type IScannerControls } from '@zxing/browser';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-import AppLayout from '@/layouts/AppLayout.vue';
 import TicketEnrollmentForm from '@/components/TicketEnrollmentForm.vue';
+import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 
 type EnrollmentPayload = {

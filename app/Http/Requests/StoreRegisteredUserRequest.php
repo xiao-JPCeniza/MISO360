@@ -5,7 +5,6 @@ namespace App\Http\Requests;
 use App\Enums\ReferenceValueGroup;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 
 class StoreRegisteredUserRequest extends FormRequest
 {
@@ -35,11 +34,7 @@ class StoreRegisteredUserRequest extends FormRequest
                     ->where('is_active', true),
             ],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => [
-                'required',
-                'confirmed',
-                Password::min(8)->mixedCase()->numbers()->symbols(),
-            ],
+            'password' => ['required', 'string'],
         ];
     }
 
@@ -57,7 +52,6 @@ class StoreRegisteredUserRequest extends FormRequest
             'email.email' => 'Please enter a valid email address.',
             'email.unique' => 'This email address is already registered.',
             'password.required' => 'Please create a password.',
-            'password.confirmed' => 'Passwords do not match.',
         ];
     }
 }

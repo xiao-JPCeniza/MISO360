@@ -16,13 +16,13 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
+import { confirm } from '@/routes/two-factor';
 
 import {
     PinInput,
     PinInputGroup,
     PinInputSlot,
 } from '@/components/ui/pin-input';
-import { confirm } from '@/routes/two-factor';
 
 interface Props {
     requiresConfirmation: boolean;

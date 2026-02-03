@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, withDefaults } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { computed, withDefaults } from 'vue';
 
 import DeleteUser from '@/components/DeleteUser.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
@@ -27,7 +27,7 @@ interface Props {
     };
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
     errors: () => ({}),
 });
 

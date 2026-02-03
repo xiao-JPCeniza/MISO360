@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\NatureOfRequestController;
+use App\Http\Controllers\Admin\ProfileSlideController;
 use App\Http\Controllers\Admin\StatusManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\EnrollmentController;
@@ -12,13 +13,36 @@ use App\Http\Controllers\ReferenceValueOptionsController;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\TicketRequestController;
 use App\Models\IssuedUid;
+use App\Models\ProfileSlide;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
-Route::get('/', fn () => Inertia::render('public/Welcome', [
-    'canRegister' => false, // Registration is disabled for this application
-]));
+Route::get('/', function () {
+    $profileSlides = ProfileSlide::query()
+        ->active()
+        ->ordered()
+        ->get()
+        ->map(function (ProfileSlide $slide) {
+            $disk = Storage::disk('public');
+
+            return [
+                'id' => $slide->id,
+                'imageUrl' => $disk->exists($slide->image_path) ? '/storage/'.$slide->image_path : null,
+                'title' => $slide->title,
+                'subtitle' => $slide->subtitle,
+                'textPosition' => $slide->text_position->value,
+            ];
+        })
+        ->values()
+        ->all();
+
+    return Inertia::render('public/Welcome', [
+        'canRegister' => false, // Registration is disabled for this application
+        'profileSlides' => $profileSlides,
+    ]);
+});
 
 Route::middleware([
     'auth',
@@ -98,6 +122,15 @@ Route::middleware([
     Route::put('admin/enrollments/{uniqueId}', [EnrollmentController::class, 'update'])
         ->middleware('admin')
         ->name('admin.enrollments.update');
+
+    Route::middleware(['super_admin'])->prefix('admin/posts')->name('admin.posts.')->group(function () {
+        Route::get('/', [ProfileSlideController::class, 'index'])->name('index');
+        Route::get('/create', [ProfileSlideController::class, 'create'])->name('create');
+        Route::post('/', [ProfileSlideController::class, 'store'])->name('store');
+        Route::get('/{profileSlide}/edit', [ProfileSlideController::class, 'edit'])->name('edit');
+        Route::patch('/{profileSlide}', [ProfileSlideController::class, 'update'])->name('update');
+        Route::delete('/{profileSlide}', [ProfileSlideController::class, 'destroy'])->name('destroy');
+    });
 
     Route::get('admin/qr-generator', function () {
         $nextStart = (IssuedUid::max('sequence') ?? 0) + 1;

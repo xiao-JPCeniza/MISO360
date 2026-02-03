@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     ClipboardList,
@@ -8,7 +7,9 @@ import {
     ShieldCheck,
     UserCog,
     FileText,
+    ImageIcon,
 } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -28,6 +29,7 @@ const page = usePage();
 const isAdmin = computed(() =>
     ['admin', 'super_admin'].includes(page.props.auth.user?.role ?? ''),
 );
+const isSuperAdmin = computed(() => (page.props.auth.user?.role ?? '') === 'super_admin');
 
 const mainNavItems = computed<NavItem[]>(() => {
     const items: NavItem[] = [
@@ -74,6 +76,13 @@ const mainNavItems = computed<NavItem[]>(() => {
             href: '/admin/audit-logs',
             icon: FileText,
         });
+        if (isSuperAdmin.value) {
+            items.push({
+                title: 'Post Management',
+                href: '/admin/posts',
+                icon: ImageIcon,
+            });
+        }
     }
 
     return items;
@@ -104,10 +113,10 @@ const homeRoute = computed(() => (isAdmin.value ? '/admin/dashboard' : dashboard
                                 <span
                                     class="text-xs uppercase tracking-[0.2em] text-[#93c5fd]"
                                 >
-                                    MSO 360
+                                    MISO 360
                                 </span>
                                 <span class="text-sm font-semibold text-white">
-                                    Management Services Office
+                                    Management Information Systems Office
                                 </span>
                             </div>
                         </Link>
