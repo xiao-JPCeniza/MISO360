@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 
 import { dashboard, login } from '@/routes';
+
+function goToSubmitRequest(serviceName: string): void {
+    router.visit(
+        `/submit-request?service=${encodeURIComponent(serviceName)}`,
+        { preserveState: false },
+    );
+}
 
 type ProfileSlide = {
     id: number;
@@ -876,13 +883,15 @@ function getFilteredServicesForDivision(division: Division) {
                                             <div
                                                 class="flex flex-wrap gap-2"
                                             >
-                                                <span
+                                                <button
                                                     v-for="item in (group as { items: string[] }).items"
                                                     :key="item"
-                                                    class="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10"
+                                                    type="button"
+                                                    class="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6] cursor-pointer"
+                                                    @click="goToSubmitRequest(item)"
                                                 >
                                                     {{ item }}
-                                                </span>
+                                                </button>
                                             </div>
                                         </div>
                                     </template>
@@ -897,10 +906,12 @@ function getFilteredServicesForDivision(division: Division) {
                                         "
                                     >
                                         <div class="flex flex-wrap gap-2">
-                                            <span
+                                            <button
                                                 v-for="s in getFilteredServicesForDivision(division)"
                                                 :key="(s as { name: string }).name"
-                                                class="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10"
+                                                type="button"
+                                                class="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6] cursor-pointer"
+                                                @click="goToSubmitRequest((s as { name: string }).name)"
                                             >
                                                 {{ (s as { name: string }).name }}
                                                 <span
@@ -909,7 +920,7 @@ function getFilteredServicesForDivision(division: Division) {
                                                 >
                                                     Form Required
                                                 </span>
-                                            </span>
+                                            </button>
                                         </div>
                                     </template>
 
@@ -923,13 +934,15 @@ function getFilteredServicesForDivision(division: Division) {
                                         "
                                     >
                                         <div class="flex flex-wrap gap-2">
-                                            <span
+                                            <button
                                                 v-for="item in getFilteredServicesForDivision(division)"
                                                 :key="item as string"
-                                                class="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10"
+                                                type="button"
+                                                class="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6] cursor-pointer"
+                                                @click="goToSubmitRequest(item as string)"
                                             >
                                                 {{ item }}
-                                            </span>
+                                            </button>
                                         </div>
                                     </template>
 

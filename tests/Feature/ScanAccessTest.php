@@ -96,4 +96,28 @@ class ScanAccessTest extends TestCase
             'assigned_admin_id' => $assignee->id,
         ]);
     }
+
+    public function test_admin_scan_auto_assigns_unassigned_ticket_and_logs(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $enrollment = TicketEnrollment::create([
+            'unique_id' => 'MIS-UID-11111',
+            'equipment_name' => 'Test Device',
+        ]);
+        $this->assertNull($enrollment->assigned_admin_id);
+
+        $this->actingAs($admin)
+            ->get("/scan/{$enrollment->unique_id}")
+            ->assertOk();
+
+        $enrollment->refresh();
+        $this->assertSame($admin->id, $enrollment->assigned_admin_id);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $admin->id,
+            'action' => 'scan.ticket.auto_assigned',
+            'target_type' => 'App\Models\TicketEnrollment',
+            'target_id' => $enrollment->id,
+        ]);
+    }
 }

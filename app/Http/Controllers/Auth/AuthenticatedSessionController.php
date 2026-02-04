@@ -59,7 +59,8 @@ class AuthenticatedSessionController extends Controller
             ])->onlyInput('email');
         }
 
-        $target = $this->resolveRedirectTarget($user);
+        $intended = $request->session()->pull('url.intended');
+        $target = $intended ?: $this->resolveRedirectTarget($user);
 
         if ($user && $user->requiresTwoFactor()) {
             $request->session()->put('two_factor.pending_user_id', $user->id);
@@ -82,7 +83,7 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('two-factor.challenge');
         }
 
-        return redirect()->intended($target);
+        return redirect()->to($target);
     }
 
     /**

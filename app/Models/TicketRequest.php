@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,8 @@ class TicketRequest extends Model
         'user_id',
         'requested_for_user_id',
         'office_designation_id',
+        'status_id',
+        'category_id',
     ];
 
     protected $casts = [
@@ -46,5 +49,29 @@ class TicketRequest extends Model
     public function officeDesignation(): BelongsTo
     {
         return $this->belongsTo(ReferenceValue::class, 'office_designation_id');
+    }
+
+    public function status(): BelongsTo
+    {
+        return $this->belongsTo(ReferenceValue::class, 'status_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(ReferenceValue::class, 'category_id');
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereHas('status', function (Builder $q) {
+            $q->where('name', '!=', 'Completed');
+        })->orWhereNull('status_id');
+    }
+
+    public function scopeCompleted(Builder $query): Builder
+    {
+        return $query->whereHas('status', function (Builder $q) {
+            $q->where('name', 'Completed');
+        });
     }
 }

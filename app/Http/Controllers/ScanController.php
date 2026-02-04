@@ -8,6 +8,7 @@ use App\Http\Requests\ScanReviewRequest;
 use App\Models\TicketArchive;
 use App\Models\TicketEnrollment;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -48,7 +49,7 @@ class ScanController extends Controller
         ]);
     }
 
-    public function show(Request $request, string $uniqueId): Response
+    public function show(Request $request, string $uniqueId, AuditLogger $auditLogger): Response
     {
         $uniqueId = strtoupper(trim($uniqueId));
 
@@ -59,15 +60,36 @@ class ScanController extends Controller
         if ($enrollment) {
             $this->authorize('view', $enrollment);
 
+            $user = $request->user();
+            $assignmentNotice = null;
+
+            if ($user?->isAdmin()) {
+                if ($enrollment->assigned_admin_id === null) {
+                    $enrollment->forceFill(['assigned_admin_id' => $user->id])->save();
+                    $auditLogger->log($request, 'scan.ticket.auto_assigned', $enrollment, [
+                        'ticket_uid' => $enrollment->unique_id,
+                        'assigned_to_id' => $user->id,
+                        'assigned_to_name' => $user->name,
+                        'assignment_result' => 'assigned',
+                    ]);
+                    session()->flash('success', 'This ticket has been automatically assigned to you.');
+                } elseif ($enrollment->assigned_admin_id !== $user->id) {
+                    $assignmentNotice = $user->isSuperAdmin()
+                        ? null
+                        : 'This ticket is already assigned to another staff member. Only a Super Admin can reassign it.';
+                }
+            }
+
             $canReview = Gate::allows('review', $enrollment);
             $canAssign = Gate::allows('assign', $enrollment);
 
             return Inertia::render('scan/ScanResult', [
-                'item' => $this->mapDetail($enrollment, 'active'),
+                'item' => $this->mapDetail($enrollment->fresh('assignedAdmin'), 'active'),
                 'status' => 'active',
                 'canReview' => $canReview,
                 'canAssign' => $canAssign,
                 'availableAdmins' => $canAssign ? $this->adminOptions() : [],
+                'assignmentNotice' => $assignmentNotice,
             ]);
         }
 
@@ -176,7 +198,7 @@ class ScanController extends Controller
     private function adminOptions(): array
     {
         return User::query()
-            ->where('role', Role::ADMIN->value)
+            ->whereIn('role', [Role::ADMIN->value, Role::SUPER_ADMIN->value])
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'email'])

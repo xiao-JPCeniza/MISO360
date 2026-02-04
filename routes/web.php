@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\NatureOfRequestController;
 use App\Http\Controllers\Admin\ProfileSlideController;
 use App\Http\Controllers\Admin\StatusManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\NatureOfRequestOptionsController;
@@ -14,7 +15,6 @@ use App\Http\Controllers\ScanController;
 use App\Http\Controllers\TicketRequestController;
 use App\Models\IssuedUid;
 use App\Models\ProfileSlide;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -49,19 +49,11 @@ Route::middleware([
     'verified',
     'active',
 ])->group(function () {
-    Route::get('dashboard', function (Request $request) {
-        if ($request->user()?->isAdmin()) {
-            return redirect()->route('admin.dashboard');
-        }
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-        return Inertia::render('dashboard/Dashboard');
-    })->name('dashboard');
-
-    Route::get('admin/dashboard', function () {
-        return Inertia::render('admin/AdminDashboard', [
-            'totalGenerated' => IssuedUid::count(),
-        ]);
-    })->middleware('admin')->name('admin.dashboard');
+    Route::get('admin/dashboard', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])
+        ->middleware('admin')
+        ->name('admin.dashboard');
 
     Route::middleware(['admin', 'two-factor-verified:admin'])->group(function () {
         Route::get('admin/users', [UserManagementController::class, 'index'])

@@ -27,16 +27,20 @@ type AttachmentEntry = {
     key: string;
 };
 
-const props = defineProps<{
-    controlTicketNumber: string;
-    natureOfRequests: NatureOption[];
-    isAdmin: boolean;
-    officeOptions: OfficeOption[];
-    officeUsers: OfficeUser[];
-    maxAttachments: number;
-    maxAttachmentSizeMb: number;
-    qrCodePattern: string;
-}>();
+const props = withDefaults(
+    defineProps<{
+        controlTicketNumber: string;
+        natureOfRequests: NatureOption[];
+        preSelectedNatureId?: number | null;
+        isAdmin: boolean;
+        officeOptions: OfficeOption[];
+        officeUsers: OfficeUser[];
+        maxAttachments: number;
+        maxAttachmentSizeMb: number;
+        qrCodePattern: string;
+    }>(),
+    { preSelectedNatureId: null },
+);
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -49,9 +53,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+const validPreSelectedId =
+    props.preSelectedNatureId != null &&
+    props.natureOfRequests.some((n) => n.id === props.preSelectedNatureId)
+        ? String(props.preSelectedNatureId)
+        : '';
+
 const form = useForm({
     controlTicketNumber: props.controlTicketNumber,
-    natureOfRequestId: '',
+    natureOfRequestId: validPreSelectedId,
     officeDesignationId: '',
     requestedForUserId: '',
     description: '',

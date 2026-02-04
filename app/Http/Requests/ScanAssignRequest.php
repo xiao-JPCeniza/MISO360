@@ -20,7 +20,7 @@ class ScanAssignRequest extends FormRequest
                 'nullable',
                 'integer',
                 Rule::exists('users', 'id')->where(function ($query) {
-                    $query->where('role', Role::ADMIN->value)
+                    $query->whereIn('role', [Role::ADMIN->value, Role::SUPER_ADMIN->value])
                         ->where('is_active', true);
                 }),
             ],

@@ -142,4 +142,40 @@ class TicketRequestSubmissionTest extends TestCase
             ])
             ->assertSessionHasErrors(['description']);
     }
+
+    public function test_submit_request_create_prefills_nature_when_service_param_matches(): void
+    {
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer repair',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get('/submit-request?service='.urlencode('Computer repair'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('requests/SubmitRequest')
+            ->has('preSelectedNatureId')
+            ->where('preSelectedNatureId', $natureOfRequest->id)
+        );
+    }
+
+    public function test_submit_request_create_resolves_service_case_insensitive(): void
+    {
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'System Development',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get('/submit-request?service='.urlencode('system development'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('preSelectedNatureId', $natureOfRequest->id)
+        );
+    }
 }

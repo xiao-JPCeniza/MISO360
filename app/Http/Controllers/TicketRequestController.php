@@ -24,6 +24,8 @@ class TicketRequestController extends Controller
             ->with([
                 'natureOfRequest:id,name',
                 'officeDesignation:id,name',
+                'status:id,name',
+                'category:id,name',
                 'requestedForUser:id,name,position_title',
                 'user:id,name,position_title',
             ])
@@ -42,8 +44,8 @@ class TicketRequestController extends Controller
                 'requestDescription' => $ticketRequest->description,
                 'remarks' => null,
                 'assignedStaff' => null,
-                'status' => null,
-                'category' => null,
+                'status' => $ticketRequest->status?->name,
+                'category' => $ticketRequest->category?->name,
                 'estimatedCompletionDate' => null,
                 'showUrl' => route('requests.show', $ticketRequest),
             ]);
@@ -54,18 +56,26 @@ class TicketRequestController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $user = request()->user();
+        $user = $request->user();
         $isAdmin = $user?->isAdmin() ?? false;
         $user?->load('officeDesignation');
 
+        $natureOfRequests = NatureOfRequest::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $preSelectedNatureId = $this->resolveServiceToNatureId(
+            $request->string('service')->trim()->toString(),
+            $natureOfRequests,
+        );
+
         return Inertia::render('requests/SubmitRequest', [
             'controlTicketNumber' => $this->generateControlTicketNumber(),
-            'natureOfRequests' => NatureOfRequest::query()
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'name']),
+            'natureOfRequests' => $natureOfRequests,
+            'preSelectedNatureId' => $preSelectedNatureId,
             'isAdmin' => $isAdmin,
             'officeOptions' => $isAdmin
                 ? ReferenceValue::query()
@@ -85,6 +95,27 @@ class TicketRequestController extends Controller
             'maxAttachmentSizeMb' => 10,
             'qrCodePattern' => '^MIS-UID-\\d{5}$',
         ]);
+    }
+
+    /**
+     * Resolve a service name (from Services Hub) to an active nature-of-request ID.
+     * Uses case-insensitive match so hub labels and DB names can differ slightly.
+     */
+    private function resolveServiceToNatureId(string $serviceName, \Illuminate\Support\Collection $natureOfRequests): ?int
+    {
+        if ($serviceName === '') {
+            return null;
+        }
+
+        $normalized = strtolower(trim($serviceName));
+
+        foreach ($natureOfRequests as $nature) {
+            if (strtolower(trim($nature->name)) === $normalized) {
+                return $nature->id;
+            }
+        }
+
+        return null;
     }
 
     public function store(StoreTicketRequestRequest $request)
@@ -170,7 +201,7 @@ class TicketRequestController extends Controller
             abort(403);
         }
 
-        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'requestedForUser', 'user']);
+        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'requestedForUser', 'user']);
 
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
@@ -199,8 +230,8 @@ class TicketRequestController extends Controller
             'dateStarted' => null,
             'estimatedCompletionDate' => null,
             'actionTaken' => null,
-            'categoryId' => null,
-            'statusId' => null,
+            'categoryId' => $ticketRequest->category_id,
+            'statusId' => $ticketRequest->status_id,
         ];
 
         $staffOptions = User::query()
@@ -256,15 +287,20 @@ class TicketRequestController extends Controller
             abort(403);
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'remarksId' => ['nullable', 'string'],
             'assignedStaffId' => ['nullable', 'string'],
             'dateReceived' => ['nullable', 'date'],
             'dateStarted' => ['nullable', 'date'],
             'estimatedCompletionDate' => ['nullable', 'date'],
             'actionTaken' => ['nullable', 'string', 'max:500'],
-            'categoryId' => ['nullable', 'string'],
-            'statusId' => ['nullable', 'string'],
+            'categoryId' => ['nullable', 'integer'],
+            'statusId' => ['nullable', 'integer'],
+        ]);
+
+        $ticketRequest->update([
+            'status_id' => $validated['statusId'] ?? null,
+            'category_id' => $validated['categoryId'] ?? null,
         ]);
 
         return redirect()->route('requests.it-governance.show', $ticketRequest)
@@ -277,7 +313,7 @@ class TicketRequestController extends Controller
             abort(403);
         }
 
-        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'requestedForUser', 'user']);
+        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'requestedForUser', 'user']);
 
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
@@ -306,8 +342,8 @@ class TicketRequestController extends Controller
             'dateStarted' => null,
             'estimatedCompletionDate' => null,
             'actionTaken' => null,
-            'categoryId' => null,
-            'statusId' => null,
+            'categoryId' => $ticketRequest->category_id,
+            'statusId' => $ticketRequest->status_id,
         ];
 
         $staffOptions = User::query()
@@ -363,15 +399,20 @@ class TicketRequestController extends Controller
             abort(403);
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'remarksId' => ['nullable', 'string'],
             'assignedStaffId' => ['nullable', 'string'],
             'dateReceived' => ['nullable', 'date'],
             'dateStarted' => ['nullable', 'date'],
             'estimatedCompletionDate' => ['nullable', 'date'],
             'actionTaken' => ['nullable', 'string', 'max:500'],
-            'categoryId' => ['nullable', 'string'],
-            'statusId' => ['nullable', 'string'],
+            'categoryId' => ['nullable', 'integer'],
+            'statusId' => ['nullable', 'integer'],
+        ]);
+
+        $ticketRequest->update([
+            'status_id' => $validated['statusId'] ?? null,
+            'category_id' => $validated['categoryId'] ?? null,
         ]);
 
         return redirect()->route('requests.equipment-network.show', $ticketRequest)

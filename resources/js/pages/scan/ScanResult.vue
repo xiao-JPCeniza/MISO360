@@ -56,6 +56,7 @@ const props = defineProps<{
     canReview: boolean;
     canAssign: boolean;
     availableAdmins: { id: number; name: string; email: string }[];
+    assignmentNotice?: string | null;
 }>();
 
 const imageUrls = computed(() =>
@@ -130,6 +131,12 @@ function submitAssignment() {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-6">
             <section class="rounded-3xl border border-sidebar-border/60 bg-background p-6">
+                <div
+                    v-if="assignmentNotice"
+                    class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200"
+                >
+                    {{ assignmentNotice }}
+                </div>
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div class="space-y-2">
                         <p class="text-xs uppercase tracking-[0.3em] text-muted-foreground">
