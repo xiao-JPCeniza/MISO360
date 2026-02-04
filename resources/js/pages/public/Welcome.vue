@@ -72,6 +72,161 @@ watch(
 
 const servicesSearchQuery = ref('');
 
+const TEAM_PROFILE_BASE = '/storage/MISO_Profile_ID';
+
+type TeamMember = {
+    id: string;
+    fullName: string;
+    shortName: string;
+    fullDesignation: string;
+    shortDesignation: string;
+    imageSlug: string;
+    roleLabel?: string;
+};
+
+const teamMembers: TeamMember[] = [
+    {
+        id: 'jimenez',
+        fullName: 'Junel Jig G. Jimenez',
+        shortName: 'Junel Jig G. Jimenez',
+        fullDesignation: 'MGADH-I / MISO OIC',
+        shortDesignation: 'MISO OIC',
+        imageSlug: 'JIMENEZ-MISO',
+        roleLabel: 'MISO OIC',
+    },
+    {
+        id: 'meniano',
+        fullName: 'Ronald Jay M. Meniano',
+        shortName: 'Ronald Jay M. Meniano',
+        fullDesignation: 'Senior Administrative Assistant II (Computer Operator IV)',
+        shortDesignation: 'Senior Admin Assistant II',
+        imageSlug: 'MENIANO-MISO',
+    },
+    {
+        id: 'laid',
+        fullName: 'Limwell E. Laid',
+        shortName: 'Limwell E. Laid',
+        fullDesignation: 'Information Systems Researcher I',
+        shortDesignation: 'Information Systems Researcher I',
+        imageSlug: 'LAID-MISO',
+    },
+    {
+        id: 'baluma',
+        fullName: 'Emmanuel R. Baluma',
+        shortName: 'Emmanuel R. Baluma',
+        fullDesignation: 'Administrative Aide VI (Clerk III)',
+        shortDesignation: 'Administrative Aide VI',
+        imageSlug: 'BALUMA-MISO',
+    },
+    {
+        id: 'chavez',
+        fullName: 'Randy B. Chavez',
+        shortName: 'Randy B. Chavez',
+        fullDesignation: 'Administrative Aide VI (Utility Foreman)',
+        shortDesignation: 'Administrative Aide VI',
+        imageSlug: 'CHAVEZ-MISO',
+    },
+    {
+        id: 'dasilao',
+        fullName: 'Ivan Kristoffer J. Dasilao',
+        shortName: 'Ivan Kristoffer J. Dasilao',
+        fullDesignation: 'Computer Programmer I',
+        shortDesignation: 'Computer Programmer I',
+        imageSlug: 'DASILAO-MISO',
+    },
+    {
+        id: 'balendez',
+        fullName: 'Rex Amiel L. Balendez',
+        shortName: 'Rex Amiel L. Balendez',
+        fullDesignation: 'Information Systems Analyst I',
+        shortDesignation: 'Information Systems Analyst I',
+        imageSlug: 'BALENDEZ-MISO',
+    },
+    {
+        id: 'rambonanza',
+        fullName: 'Mary Antonette S. Rambonanza',
+        shortName: 'Mary Antonette S. Rambonanza',
+        fullDesignation: 'Information Systems Researcher I',
+        shortDesignation: 'Information Systems Researcher I',
+        imageSlug: 'RAMBONANZA-MISO',
+    },
+    {
+        id: 'ceniza',
+        fullName: 'John Paul P. Ceniza',
+        shortName: 'John Paul P. Ceniza',
+        fullDesignation: 'Administrative Aide IV (Clerk II)',
+        shortDesignation: 'Administrative Aide IV',
+        imageSlug: 'CENIZA-MISO',
+    },
+    {
+        id: 'jala',
+        fullName: 'Kenn Cedric Jala',
+        shortName: 'Kenn Cedric Jala',
+        fullDesignation: 'Administrative Aide VI (Clerk III)',
+        shortDesignation: 'Administrative Aide VI',
+        imageSlug: 'JALA-MISO',
+    },
+];
+
+const teamLead = computed(() => teamMembers.find((m) => m.id === 'jimenez')!);
+
+type TeamGroup = {
+    id: string;
+    name: string;
+    memberIds: string[];
+};
+
+const teamGroups: TeamGroup[] = [
+    {
+        id: 'equipment',
+        name: 'Equipment & Network Administration',
+        memberIds: ['meniano', 'chavez', 'baluma', 'laid'],
+    },
+    {
+        id: 'system',
+        name: 'System & Database Administration',
+        memberIds: ['dasilao', 'balendez', 'ceniza', 'jala'],
+    },
+    {
+        id: 'governance',
+        name: 'Information Technology Governance',
+        memberIds: ['rambonanza'],
+    },
+];
+
+const membersById = computed(() => {
+    const map: Record<string, TeamMember> = {};
+    teamMembers.forEach((m) => { map[m.id] = m; });
+    return map;
+});
+
+function getMember(id: string): TeamMember | undefined {
+    return membersById.value[id];
+}
+
+const flippedCardId = ref<string | null>(null);
+const imageLoadFailed = ref<Record<string, boolean>>({});
+
+function toggleFlip(id: string) {
+    flippedCardId.value = flippedCardId.value === id ? null : id;
+}
+
+function isFlipped(id: string) {
+    return flippedCardId.value === id;
+}
+
+function setImageFailed(id: string) {
+    imageLoadFailed.value = { ...imageLoadFailed.value, [id]: true };
+}
+
+function imageFailed(id: string) {
+    return imageLoadFailed.value[id] === true;
+}
+
+function memberInitial(member: TeamMember) {
+    return member.shortName.trim().charAt(0).toUpperCase() || '?';
+}
+
 type Division = {
     id: string;
     name: string;
@@ -131,7 +286,7 @@ const divisions: Division[] = [
     },
     {
         id: 'system',
-        name: 'System and Database Administration',
+        name: 'System & Database Administration',
         description:
             'Oversees system development, database management, and user support services.',
         icon: 'database',
@@ -410,53 +565,148 @@ function getFilteredServicesForDivision(division: Division) {
                 </div>
             </section>
 
-            <section id="team" class="mt-16 scroll-mt-24">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <section id="team" class="mt-14 scroll-mt-24">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary dark:text-[#93c5fd]">
-                            Our Team
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary dark:text-[#93c5fd]">
+                            Meet the Team
                         </p>
-                        <h2 class="text-3xl font-semibold text-foreground sm:text-4xl dark:text-white">
+                        <h2 class="text-2xl font-semibold text-foreground sm:text-3xl dark:text-white">
                             The people behind MISO 360
                         </h2>
                     </div>
                     <p class="max-w-md text-sm text-muted-foreground dark:text-white/70">
-                        A dedicated group of analysts, coordinators, and service
-                        leaders focused on clarity, accountability, and care.
+                        A dedicated group focused on clarity, accountability, and care.
                     </p>
                 </div>
-                <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    <div
-                        class="rounded-2xl border border-border bg-card p-4 shadow-lg shadow-black/5 transition-transform hover:-translate-y-1 dark:border-white/10 dark:bg-white/10 dark:shadow-black/20"
-                    >
+
+                <!-- Compact org chart: lead → labels → leads → members -->
+                <div class="mt-6 flex flex-col items-center gap-5">
+                    <!-- Lead card -->
+                    <div class="flex flex-col items-center gap-3">
                         <div
-                            class="h-40 rounded-xl bg-linear-to-br from-muted to-muted/50 dark:from-white/30 dark:to-white/5"
-                        ></div>
-                        <div class="mt-4">
-                            <p class="text-base font-semibold text-foreground dark:text-white">Operations Team</p>
-                            <p class="text-sm text-muted-foreground dark:text-white/70">Process support and audit</p>
+                            class="team-flip-card team-flip-card-lead"
+                            :class="{ 'team-flip-card-flipped': isFlipped(teamLead.id) }"
+                            role="button"
+                            tabindex="0"
+                            :aria-label="`${teamLead.shortName}. Click to flip for details.`"
+                            @click="toggleFlip(teamLead.id)"
+                            @keydown.enter="toggleFlip(teamLead.id)"
+                            @keydown.space.prevent="toggleFlip(teamLead.id)"
+                        >
+                            <div class="team-flip-inner">
+                                <div class="team-flip-front team-flip-face">
+                                    <div class="team-avatar team-avatar-lead">
+                                        <span v-show="imageFailed(teamLead.id)" class="team-avatar-fallback" aria-hidden="true">{{ memberInitial(teamLead) }}</span>
+                                        <img
+                                            v-show="!imageFailed(teamLead.id)"
+                                            :src="`${TEAM_PROFILE_BASE}/${teamLead.imageSlug}.jpg`"
+                                            :alt="teamLead.shortName"
+                                            loading="lazy"
+                                            @error="setImageFailed(teamLead.id)"
+                                        >
+                                    </div>
+                                    <p class="team-name team-name-lead">{{ teamLead.shortName }}</p>
+                                </div>
+                                <div class="team-flip-back team-flip-face team-flip-face-back">
+                                    <p class="team-back-name">{{ teamLead.fullName }}</p>
+                                    <p class="team-back-designation">{{ teamLead.fullDesignation }}</p>
+                                    <p v-if="teamLead.roleLabel" class="team-back-role">{{ teamLead.roleLabel }}</p>
+                                    <button type="button" class="team-back-close" @click.stop="toggleFlip(teamLead.id)">Tap to flip back</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="h-4 w-px shrink-0 bg-border dark:bg-white/20" aria-hidden="true" />
+                    </div>
+
+                    <!-- Department labels: same-size cards, compact & bold -->
+                    <div class="grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div v-for="group in teamGroups" :key="`label-${group.id}`" class="flex flex-col items-center">
+                            <div class="team-dept-label">
+                                <span class="team-dept-label-text">{{ group.name }}</span>
+                            </div>
+                            <div class="mt-2 h-3 w-px shrink-0 bg-border dark:bg-white/20" aria-hidden="true" />
                         </div>
                     </div>
-                    <div
-                        class="rounded-2xl border border-border bg-card p-4 shadow-lg shadow-black/5 transition-transform hover:-translate-y-1 dark:border-white/10 dark:bg-white/10 dark:shadow-black/20"
-                    >
-                        <div
-                            class="h-40 rounded-xl bg-linear-to-br from-muted to-muted/50 dark:from-white/30 dark:to-white/5"
-                        ></div>
-                        <div class="mt-4">
-                            <p class="text-base font-semibold text-foreground dark:text-white">Client Services</p>
-                            <p class="text-sm text-muted-foreground dark:text-white/70">Frontline assistance</p>
+
+                    <!-- Department leads -->
+                    <div class="grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
+                        <div v-for="group in teamGroups" :key="`lead-${group.id}`" class="flex flex-col items-center gap-2">
+                            <template v-if="getMember(group.memberIds[0])">
+                                <div
+                                    class="team-flip-card team-flip-card-member"
+                                    :class="{ 'team-flip-card-flipped': isFlipped(getMember(group.memberIds[0])!.id) }"
+                                    role="button"
+                                    tabindex="0"
+                                    :aria-label="`${getMember(group.memberIds[0])!.shortName}. Click to flip for details.`"
+                                    @click="toggleFlip(getMember(group.memberIds[0])!.id)"
+                                    @keydown.enter="toggleFlip(getMember(group.memberIds[0])!.id)"
+                                    @keydown.space.prevent="toggleFlip(getMember(group.memberIds[0])!.id)"
+                                >
+                                    <div class="team-flip-inner">
+                                        <div class="team-flip-front team-flip-face">
+                                            <div class="team-avatar">
+                                                <span v-show="imageFailed(getMember(group.memberIds[0])!.id)" class="team-avatar-fallback" aria-hidden="true">{{ memberInitial(getMember(group.memberIds[0])!) }}</span>
+                                                <img
+                                                    v-show="!imageFailed(getMember(group.memberIds[0])!.id)"
+                                                    :src="`${TEAM_PROFILE_BASE}/${getMember(group.memberIds[0])!.imageSlug}.jpg`"
+                                                    :alt="getMember(group.memberIds[0])!.shortName"
+                                                    loading="lazy"
+                                                    @error="setImageFailed(getMember(group.memberIds[0])!.id)"
+                                                >
+                                            </div>
+                                            <p class="team-name">{{ getMember(group.memberIds[0])!.shortName }}</p>
+                                        </div>
+                                        <div class="team-flip-back team-flip-face team-flip-face-back">
+                                            <p class="team-back-name team-back-name-sm">{{ getMember(group.memberIds[0])!.fullName }}</p>
+                                            <p class="team-back-designation team-back-designation-sm">{{ getMember(group.memberIds[0])!.fullDesignation }}</p>
+                                            <button type="button" class="team-back-close team-back-close-sm" @click.stop="toggleFlip(getMember(group.memberIds[0])!.id)">Tap to flip back</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-if="group.memberIds.length > 1" class="h-3 w-px shrink-0 bg-border dark:bg-white/20" aria-hidden="true" />
+                            </template>
                         </div>
                     </div>
-                    <div
-                        class="rounded-2xl border border-border bg-card p-4 shadow-lg shadow-black/5 transition-transform hover:-translate-y-1 dark:border-white/10 dark:bg-white/10 dark:shadow-black/20"
-                    >
-                        <div
-                            class="h-40 rounded-xl bg-linear-to-br from-muted to-muted/50 dark:from-white/30 dark:to-white/5"
-                        ></div>
-                        <div class="mt-4">
-                            <p class="text-base font-semibold text-foreground dark:text-white">Service Design</p>
-                            <p class="text-sm text-muted-foreground dark:text-white/70">Continuous improvements</p>
+
+                    <!-- Team members grid -->
+                    <div class="grid w-full max-w-4xl grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+                        <div v-for="group in teamGroups" :key="`members-${group.id}`" class="flex flex-wrap justify-center gap-3">
+                            <template v-for="memberId in group.memberIds.slice(1)" :key="memberId">
+                                <div v-if="getMember(memberId)" class="flex justify-center">
+                                    <div
+                                        class="team-flip-card team-flip-card-member"
+                                        :class="{ 'team-flip-card-flipped': isFlipped(memberId) }"
+                                        role="button"
+                                        tabindex="0"
+                                        :aria-label="`${getMember(memberId)!.shortName}. Click to flip for details.`"
+                                        @click="toggleFlip(memberId)"
+                                        @keydown.enter="toggleFlip(memberId)"
+                                        @keydown.space.prevent="toggleFlip(memberId)"
+                                    >
+                                        <div class="team-flip-inner">
+                                            <div class="team-flip-front team-flip-face">
+                                                <div class="team-avatar">
+                                                    <span v-show="imageFailed(memberId)" class="team-avatar-fallback" aria-hidden="true">{{ getMember(memberId) ? memberInitial(getMember(memberId)!) : '' }}</span>
+                                                    <img
+                                                        v-show="!imageFailed(memberId)"
+                                                        :src="`${TEAM_PROFILE_BASE}/${getMember(memberId)!.imageSlug}.jpg`"
+                                                        :alt="getMember(memberId)!.shortName"
+                                                        loading="lazy"
+                                                        @error="setImageFailed(memberId)"
+                                                    >
+                                                </div>
+                                                <p class="team-name team-name-sm">{{ getMember(memberId)!.shortName }}</p>
+                                            </div>
+                                            <div class="team-flip-back team-flip-face team-flip-face-back">
+                                                <p class="team-back-name team-back-name-xs">{{ getMember(memberId)!.fullName }}</p>
+                                                <p class="team-back-designation team-back-designation-xs">{{ getMember(memberId)!.fullDesignation }}</p>
+                                                <button type="button" class="team-back-close team-back-close-xs" @click.stop="toggleFlip(memberId)">Tap to flip back</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -747,5 +997,244 @@ function getFilteredServicesForDivision(division: Division) {
 }
 .services-card-move {
     transition: transform 0.35s ease;
+}
+
+/* Team flip cards: compact, consistent, front = name only, back = full details */
+.team-flip-card {
+    position: relative;
+    perspective: 1000px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.team-flip-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.18);
+}
+.dark .team-flip-card:hover {
+    box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.4);
+}
+.team-flip-card:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+}
+.team-flip-card-lead {
+    height: 220px;
+    width: 180px;
+    border-radius: 1rem;
+    overflow: hidden;
+}
+.team-flip-card-member {
+    height: 200px;
+    width: 160px;
+    border-radius: 0.875rem;
+    overflow: hidden;
+}
+.team-flip-inner {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+}
+.team-flip-card-flipped .team-flip-inner {
+    transform: rotateY(180deg);
+}
+.team-flip-face {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border-radius: inherit;
+    border: 1px solid var(--color-border);
+    background: var(--color-card);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+.dark .team-flip-face {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+}
+.team-flip-face-back {
+    transform: rotateY(180deg);
+    justify-content: center;
+    gap: 0.375rem;
+    overflow: auto;
+}
+.team-avatar {
+    position: relative;
+    flex-shrink: 0;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--color-muted);
+    border: 2px solid var(--color-primary);
+    opacity: 0.9;
+}
+.team-avatar-lead {
+    width: 5rem;
+    height: 5rem;
+    border-width: 2px;
+}
+.team-avatar img,
+.team-avatar-fallback {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    object-fit: cover;
+}
+.team-avatar-fallback {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-muted-foreground);
+    background: var(--color-muted);
+}
+.team-avatar-lead .team-avatar-fallback {
+    font-size: 1.5rem;
+}
+.team-name {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    line-height: 1.25;
+    color: var(--color-foreground);
+    line-clamp: 2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.team-name-lead {
+    font-size: 1rem;
+}
+.team-name-sm {
+    font-size: 0.75rem;
+    margin-top: 0.375rem;
+}
+/* Department label cards: same size, compact, bold */
+.team-dept-label {
+    width: 100%;
+    min-height: 4.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+    text-align: center;
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.25;
+    color: var(--color-foreground);
+    background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+    border: 2px solid color-mix(in srgb, var(--color-primary) 50%, transparent);
+    border-radius: 0.625rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+}
+.team-dept-label-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    max-width: 100%;
+}
+.dark .team-dept-label {
+    background: color-mix(in srgb, var(--color-primary) 22%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+    color: white;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.2);
+}
+.team-back-name {
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    color: var(--color-foreground);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.team-back-name-sm {
+    font-size: 0.75rem;
+}
+.team-back-name-xs {
+    font-size: 0.6875rem;
+}
+.team-back-designation {
+    text-align: center;
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    color: var(--color-muted-foreground);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.team-back-designation-sm {
+    font-size: 0.625rem;
+    -webkit-line-clamp: 2;
+}
+.team-back-designation-xs {
+    font-size: 0.5625rem;
+    -webkit-line-clamp: 2;
+}
+.team-back-role {
+    text-align: center;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+}
+.team-back-close {
+    margin-top: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 40%, transparent);
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.team-back-close:hover {
+    background: color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+.team-back-close:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+}
+.team-back-close-sm {
+    font-size: 0.5625rem;
+    padding: 0.2rem 0.4rem;
+}
+.team-back-close-xs {
+    font-size: 0.5rem;
+    padding: 0.15rem 0.35rem;
+}
+@media (prefers-reduced-motion: reduce) {
+    .team-flip-card {
+        transition: none;
+    }
+    .team-flip-card:hover {
+        transform: none;
+    }
+    .team-flip-inner {
+        transition-duration: 0.15s;
+    }
 }
 </style>
