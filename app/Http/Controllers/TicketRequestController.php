@@ -8,6 +8,7 @@ use App\Models\NatureOfRequest;
 use App\Models\ReferenceValue;
 use App\Models\TicketRequest;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -77,6 +78,8 @@ class TicketRequestController extends Controller
             'natureOfRequests' => $natureOfRequests,
             'preSelectedNatureId' => $preSelectedNatureId,
             'isAdmin' => $isAdmin,
+            'requesterName' => $user?->name,
+            'defaultOfficeDivision' => $user?->officeDesignation?->name,
             'systemsEngineerOptions' => User::query()
                 ->where('is_active', true)
                 ->whereIn('role', [\App\Enums\Role::ADMIN, \App\Enums\Role::SUPER_ADMIN])
@@ -126,7 +129,7 @@ class TicketRequestController extends Controller
         return null;
     }
 
-    public function store(StoreTicketRequestRequest $request)
+    public function store(StoreTicketRequestRequest $request, AuditLogger $auditLogger)
     {
         $validated = $request->validated();
         $attachments = [];
@@ -144,8 +147,13 @@ class TicketRequestController extends Controller
         }
 
         $survey = $validated['systemDevelopmentSurvey'] ?? null;
+        $systemChangeRequestForm = $validated['systemChangeRequestForm'] ?? null;
+        $systemIssueReport = $validated['systemIssueReport'] ?? null;
         $requester = $request->user();
         $isAdmin = $requester->isAdmin();
+        $resolvedControlTicketNumber = $this->resolveControlTicketNumber(
+            $validated['controlTicketNumber'] ?? null,
+        );
         $requestedForUserId = $isAdmin
             ? $validated['requestedForUserId']
             : $requester->id;
@@ -159,6 +167,10 @@ class TicketRequestController extends Controller
                 ->whereKey($officeDesignationId)
                 ->value('name');
         }
+
+        $requestedByName = User::query()
+            ->whereKey($requestedForUserId)
+            ->value('name');
 
         if (is_array($survey)) {
             // Office End-User is the office of the requester (not editable).
@@ -176,6 +188,73 @@ class TicketRequestController extends Controller
                 'type' => 'system_development_survey',
                 'payload' => $survey,
             ]);
+        }
+
+        if (is_array($systemChangeRequestForm)) {
+            // Mirror the header fields to the ticket context (server truth).
+            $systemChangeRequestForm['controlNumber'] = $resolvedControlTicketNumber;
+            if (is_string($officeName) && trim($officeName) !== '') {
+                $systemChangeRequestForm['officeDivision'] = $officeName;
+            }
+            if (is_string($requestedByName) && trim($requestedByName) !== '') {
+                $systemChangeRequestForm['requestedByName'] = $requestedByName;
+            }
+
+            if (! $isAdmin) {
+                $systemChangeRequestForm['evaluatedBy'] = null;
+                $systemChangeRequestForm['approvedBy'] = null;
+                $systemChangeRequestForm['notedBy'] = null;
+                $systemChangeRequestForm['remarks'] = null;
+            }
+
+            array_unshift($attachments, [
+                'type' => 'system_change_request_form',
+                'payload' => $systemChangeRequestForm,
+            ]);
+        }
+
+        if (is_array($systemIssueReport)) {
+            $systemIssueReport['controlNumber'] = $resolvedControlTicketNumber;
+            if (is_string($officeName) && trim($officeName) !== '') {
+                $systemIssueReport['requestingDepartment'] = $officeName;
+            }
+            if (is_string($requestedByName) && trim($requestedByName) !== '') {
+                $systemIssueReport['requestingEmployee'] = $requestedByName;
+            }
+            if (! $isAdmin) {
+                $systemIssueReport['reportedBy'] = null;
+                $systemIssueReport['reportedByDate'] = null;
+                $systemIssueReport['reportedBySignature'] = null;
+                $systemIssueReport['acceptedBy'] = null;
+                $systemIssueReport['acceptedByDate'] = null;
+                $systemIssueReport['acceptedBySignature'] = null;
+                $systemIssueReport['evaluatedBy'] = null;
+                $systemIssueReport['evaluatedByDate'] = null;
+                $systemIssueReport['evaluatedBySignature'] = null;
+                $systemIssueReport['approvedBy'] = null;
+                $systemIssueReport['approvedByDate'] = null;
+                $systemIssueReport['approvedBySignature'] = null;
+            }
+            array_unshift($attachments, [
+                'type' => 'system_issue_report',
+                'payload' => $systemIssueReport,
+            ]);
+        }
+
+        if ($request->hasFile('systemIssueReportAttachments')) {
+            foreach ($request->file('systemIssueReportAttachments', []) as $file) {
+                if (! $file) {
+                    continue;
+                }
+                $path = $file->store('ticket-requests/system-issue-reports', 'public');
+                $attachments[] = [
+                    'type' => 'system_issue_report_attachment',
+                    'path' => $path,
+                    'name' => $file->getClientOriginalName(),
+                    'size' => $file->getSize(),
+                    'mime' => $file->getMimeType(),
+                ];
+            }
         }
 
         if ($request->hasFile('systemDevelopmentSurveyFormAttachments')) {
@@ -213,9 +292,7 @@ class TicketRequestController extends Controller
         }
 
         $ticketRequest = TicketRequest::create([
-            'control_ticket_number' => $this->resolveControlTicketNumber(
-                $validated['controlTicketNumber'] ?? null,
-            ),
+            'control_ticket_number' => $resolvedControlTicketNumber,
             'nature_of_request_id' => $validated['natureOfRequestId'],
             'description' => $validated['description'],
             'has_qr_code' => $validated['hasQrCode'],
@@ -227,6 +304,12 @@ class TicketRequestController extends Controller
             'requested_for_user_id' => $requestedForUserId,
             'office_designation_id' => $officeDesignationId,
         ]);
+
+        if (is_array($systemIssueReport)) {
+            $auditLogger->log($request, 'ticket_request.system_issue_report.submitted', $ticketRequest, [
+                'control_ticket_number' => $ticketRequest->control_ticket_number,
+            ]);
+        }
 
         return redirect()->route('requests.show', $ticketRequest);
     }
@@ -242,7 +325,7 @@ class TicketRequestController extends Controller
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
 
-        [$fileAttachments, $systemDevelopmentSurvey] = $this->splitAttachments($ticketRequest->attachments);
+        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments($ticketRequest->attachments);
 
         return Inertia::render('requests/TicketRequestConfirmation', [
             'ticket' => [
@@ -262,6 +345,17 @@ class TicketRequestController extends Controller
                     ])
                     ->values(),
                 'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
+                'systemChangeRequestForm' => $systemChangeRequestForm,
+                'systemIssueReport' => $systemIssueReport,
+                'systemIssueReportAttachments' => collect($issueReportAttachments)
+                    ->map(fn (array $a) => [
+                        'name' => $a['name'] ?? basename($a['path'] ?? ''),
+                        'size' => $a['size'] ?? null,
+                        'mime' => $a['mime'] ?? null,
+                        'url' => isset($a['path']) ? $disk->url($a['path']) : null,
+                    ])
+                    ->values()
+                    ->all(),
             ],
         ]);
     }
@@ -278,7 +372,7 @@ class TicketRequestController extends Controller
         $disk = Storage::disk('public');
 
         $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
-        [$fileAttachments, $systemDevelopmentSurvey] = $this->splitAttachments($ticketRequest->attachments);
+        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments($ticketRequest->attachments);
 
         $ticket = [
             'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -297,6 +391,15 @@ class TicketRequestController extends Controller
                 ->values()
                 ->all(),
             'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
+            'systemChangeRequestForm' => $systemChangeRequestForm,
+            'systemIssueReport' => $systemIssueReport,
+            'systemIssueReportAttachments' => collect($issueReportAttachments)
+                ->map(fn (array $a) => [
+                    'name' => $a['name'] ?? basename($a['path'] ?? ''),
+                    'url' => isset($a['path']) ? $disk->url($a['path']) : null,
+                ])
+                ->values()
+                ->all(),
             'remarksId' => null,
             'assignedStaffId' => null,
             'dateReceived' => null,
@@ -354,7 +457,7 @@ class TicketRequestController extends Controller
         ]);
     }
 
-    public function updateItGovernance(Request $request, TicketRequest $ticketRequest)
+    public function updateItGovernance(Request $request, TicketRequest $ticketRequest, AuditLogger $auditLogger)
     {
         if (! $request->user()->isAdmin()) {
             abort(403);
@@ -372,6 +475,24 @@ class TicketRequestController extends Controller
             'systemDevelopmentSurvey' => ['nullable', 'array'],
             'systemDevelopmentSurvey.targetCompletion' => ['nullable', 'date'],
             'systemDevelopmentSurvey.assignedSystemsEngineer' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm' => ['nullable', 'array'],
+            'systemChangeRequestForm.evaluatedBy' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm.approvedBy' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm.notedBy' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm.remarks' => ['nullable', 'string', 'max:2000'],
+            'systemIssueReport' => ['nullable', 'array'],
+            'systemIssueReport.reportedBy' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.reportedByDate' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.reportedBySignature' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.acceptedBy' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.acceptedByDate' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.acceptedBySignature' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.evaluatedBy' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.evaluatedByDate' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.evaluatedBySignature' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.approvedBy' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.approvedByDate' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.approvedBySignature' => ['nullable', 'string', 'max:255'],
         ]);
 
         $ticketRequest->update([
@@ -381,6 +502,12 @@ class TicketRequestController extends Controller
 
         if (isset($validated['systemDevelopmentSurvey']) && is_array($validated['systemDevelopmentSurvey'])) {
             $this->updateSystemDevelopmentSurvey($ticketRequest, $validated['systemDevelopmentSurvey']);
+        }
+        if (isset($validated['systemChangeRequestForm']) && is_array($validated['systemChangeRequestForm'])) {
+            $this->updateSystemChangeRequestForm($ticketRequest, $validated['systemChangeRequestForm']);
+        }
+        if (isset($validated['systemIssueReport']) && is_array($validated['systemIssueReport'])) {
+            $this->updateSystemIssueReport($ticketRequest, $validated['systemIssueReport'], $request, $auditLogger);
         }
 
         return redirect()->route('requests.it-governance.show', $ticketRequest)
@@ -399,7 +526,7 @@ class TicketRequestController extends Controller
         $disk = Storage::disk('public');
 
         $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
-        [$fileAttachments, $systemDevelopmentSurvey] = $this->splitAttachments($ticketRequest->attachments);
+        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments($ticketRequest->attachments);
 
         $ticket = [
             'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -418,6 +545,15 @@ class TicketRequestController extends Controller
                 ->values()
                 ->all(),
             'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
+            'systemChangeRequestForm' => $systemChangeRequestForm,
+            'systemIssueReport' => $systemIssueReport,
+            'systemIssueReportAttachments' => collect($issueReportAttachments)
+                ->map(fn (array $a) => [
+                    'name' => $a['name'] ?? basename($a['path'] ?? ''),
+                    'url' => isset($a['path']) ? $disk->url($a['path']) : null,
+                ])
+                ->values()
+                ->all(),
             'remarksId' => null,
             'assignedStaffId' => null,
             'dateReceived' => null,
@@ -537,16 +673,19 @@ class TicketRequestController extends Controller
 
     /**
      * @param  array<int, mixed>|null  $attachments
-     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>|null}
+     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>|null, 2: array<string, mixed>|null, 3: array<string, mixed>|null, 4: array<int, array<string, mixed>>}
      */
     private function splitAttachments(?array $attachments): array
     {
         if (! $attachments) {
-            return [[], null];
+            return [[], null, null, null, []];
         }
 
         $files = [];
         $survey = null;
+        $systemChangeRequestForm = null;
+        $systemIssueReport = null;
+        $issueReportAttachments = [];
 
         foreach ($attachments as $attachment) {
             if (! is_array($attachment)) {
@@ -562,12 +701,36 @@ class TicketRequestController extends Controller
                 continue;
             }
 
+            if (($attachment['type'] ?? null) === 'system_change_request_form') {
+                $payload = $attachment['payload'] ?? null;
+                if (is_array($payload)) {
+                    $systemChangeRequestForm = $payload;
+                }
+
+                continue;
+            }
+
+            if (($attachment['type'] ?? null) === 'system_issue_report') {
+                $payload = $attachment['payload'] ?? null;
+                if (is_array($payload)) {
+                    $systemIssueReport = $payload;
+                }
+
+                continue;
+            }
+
+            if (($attachment['type'] ?? null) === 'system_issue_report_attachment') {
+                $issueReportAttachments[] = $attachment;
+
+                continue;
+            }
+
             if (isset($attachment['path'])) {
                 $files[] = $attachment;
             }
         }
 
-        return [$files, $survey];
+        return [$files, $survey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments];
     }
 
     /**
@@ -613,6 +776,113 @@ class TicketRequestController extends Controller
 
         $ticketRequest->update([
             'attachments' => $attachments,
+        ]);
+    }
+
+    /**
+     * Update (or create) the System Change Request Form payload inside attachments JSON.
+     * Only admin/staff fields should be updated during processing.
+     *
+     * @param  array<string, mixed>  $updates
+     */
+    private function updateSystemChangeRequestForm(TicketRequest $ticketRequest, array $updates): void
+    {
+        $attachments = $ticketRequest->attachments ?? [];
+
+        $formIndex = null;
+        $formPayload = null;
+
+        foreach ($attachments as $i => $attachment) {
+            if (! is_array($attachment)) {
+                continue;
+            }
+            if (($attachment['type'] ?? null) !== 'system_change_request_form') {
+                continue;
+            }
+
+            $formIndex = $i;
+            $payload = $attachment['payload'] ?? null;
+            $formPayload = is_array($payload) ? $payload : [];
+            break;
+        }
+
+        if ($formPayload === null) {
+            return;
+        }
+
+        foreach (['evaluatedBy', 'approvedBy', 'notedBy', 'remarks'] as $key) {
+            if (array_key_exists($key, $updates)) {
+                $formPayload[$key] = $updates[$key];
+            }
+        }
+
+        $attachments[$formIndex] = [
+            'type' => 'system_change_request_form',
+            'payload' => $formPayload,
+        ];
+
+        $ticketRequest->update([
+            'attachments' => $attachments,
+        ]);
+    }
+
+    /**
+     * Update System Issue Report staff/approval fields in attachments.
+     *
+     * @param  array<string, mixed>  $updates
+     */
+    private function updateSystemIssueReport(
+        TicketRequest $ticketRequest,
+        array $updates,
+        Request $request,
+        AuditLogger $auditLogger,
+    ): void {
+        $attachments = $ticketRequest->attachments ?? [];
+
+        $formIndex = null;
+        $formPayload = null;
+
+        foreach ($attachments as $i => $attachment) {
+            if (! is_array($attachment)) {
+                continue;
+            }
+            if (($attachment['type'] ?? null) !== 'system_issue_report') {
+                continue;
+            }
+
+            $formIndex = $i;
+            $payload = $attachment['payload'] ?? null;
+            $formPayload = is_array($payload) ? $payload : [];
+            break;
+        }
+
+        if ($formPayload === null) {
+            return;
+        }
+
+        $staffKeys = [
+            'reportedBy', 'reportedByDate', 'reportedBySignature',
+            'acceptedBy', 'acceptedByDate', 'acceptedBySignature',
+            'evaluatedBy', 'evaluatedByDate', 'evaluatedBySignature',
+            'approvedBy', 'approvedByDate', 'approvedBySignature',
+        ];
+        foreach ($staffKeys as $key) {
+            if (array_key_exists($key, $updates)) {
+                $formPayload[$key] = $updates[$key];
+            }
+        }
+
+        $attachments[$formIndex] = [
+            'type' => 'system_issue_report',
+            'payload' => $formPayload,
+        ];
+
+        $ticketRequest->update([
+            'attachments' => $attachments,
+        ]);
+
+        $auditLogger->log($request, 'ticket_request.system_issue_report.staff_updated', $ticketRequest, [
+            'control_ticket_number' => $ticketRequest->control_ticket_number,
         ]);
     }
 }

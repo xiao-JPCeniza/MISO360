@@ -112,6 +112,31 @@ class TicketRequestSubmissionTest extends TestCase
             ]);
     }
 
+    public function test_system_modification_requires_system_change_request_form(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'System modification',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-0022', now()->format('Ymd'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Request for a system modification.',
+                'hasQrCode' => false,
+            ])
+            ->assertSessionHasErrors([
+                'systemChangeRequestForm',
+            ]);
+    }
+
     public function test_admin_can_submit_ticket_request_for_office_user(): void
     {
         $admin = User::factory()->admin()->create();
@@ -234,5 +259,94 @@ class TicketRequestSubmissionTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->where('preSelectedNatureId', $natureOfRequest->id)
         );
+    }
+
+    public function test_system_error_bug_report_requires_system_issue_report_form(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'System error / bug report',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-0055', now()->format('Ymd'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'The application crashes when submitting the form.',
+                'hasQrCode' => false,
+            ])
+            ->assertSessionHasErrors([
+                'systemIssueReport',
+            ]);
+    }
+
+    public function test_user_can_submit_ticket_request_with_system_issue_report(): void
+    {
+        Storage::fake('public');
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'System error / bug report',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-0066', now()->format('Ymd'));
+
+        $response = $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Data in the system does not match the correct data.',
+                'hasQrCode' => false,
+                'systemIssueReport' => [
+                    'controlNumber' => $controlTicketNumber,
+                    'requestingDepartment' => 'Mayors Office - RQPS',
+                    'dateFiled' => now()->format('Y-m-d'),
+                    'requestingEmployee' => $user->name,
+                    'employeeContactNo' => '09171234567',
+                    'employeeId' => 'EMP001',
+                    'signatureOfEmployee' => $user->name,
+                    'natureOfAppointment' => 'Permanent',
+                    'nameOfSoftware' => 'RQueueSys',
+                    'typeOfRequest' => ['Data Error', 'Display Issue'],
+                    'errorSummaryTitle' => 'Data mismatch in reports',
+                    'detailedDescription' => 'When generating the monthly report, the figures do not match the source data. Steps: 1) Login, 2) Open Reports, 3) Select Monthly. Error message: "Invalid aggregation".',
+                ],
+                'systemIssueReportAttachments' => [
+                    UploadedFile::fake()->image('screenshot.png')->size(256),
+                ],
+            ]);
+
+        $response->assertRedirect();
+
+        $ticketRequest = TicketRequest::firstOrFail();
+        $this->assertDatabaseHas('ticket_requests', [
+            'id' => $ticketRequest->id,
+            'control_ticket_number' => $controlTicketNumber,
+            'nature_of_request_id' => $natureOfRequest->id,
+            'user_id' => $user->id,
+        ]);
+
+        $this->assertNotEmpty($ticketRequest->attachments);
+        $issueReportPayload = collect($ticketRequest->attachments)
+            ->first(fn (array $a) => ($a['type'] ?? null) === 'system_issue_report');
+        $this->assertNotNull($issueReportPayload);
+        $payload = $issueReportPayload['payload'] ?? [];
+        $this->assertSame('RQueueSys', $payload['nameOfSoftware'] ?? null);
+        $this->assertSame('Data mismatch in reports', $payload['errorSummaryTitle'] ?? null);
+        $this->assertContains('Data Error', $payload['typeOfRequest'] ?? []);
+
+        $screenshotAttachment = collect($ticketRequest->attachments)
+            ->first(fn (array $a) => ($a['type'] ?? null) === 'system_issue_report_attachment');
+        $this->assertNotNull($screenshotAttachment);
+        $this->assertTrue(Storage::disk('public')->exists($screenshotAttachment['path']));
     }
 }

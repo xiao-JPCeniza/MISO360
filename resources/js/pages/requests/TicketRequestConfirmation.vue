@@ -21,6 +21,9 @@ defineProps<{
         qrCodeNumber?: string | null;
         attachments: Attachment[];
         systemDevelopmentSurvey?: Record<string, unknown> | null;
+        systemChangeRequestForm?: Record<string, unknown> | null;
+        systemIssueReport?: Record<string, unknown> | null;
+        systemIssueReportAttachments?: Array<{ name: string; url?: string | null; size?: number | null; mime?: string | null }>;
     };
 }>();
 
@@ -136,6 +139,82 @@ function formatSize(size?: number | null) {
                             <p v-else class="mt-2 text-sm text-slate-500">
                                 No attachments were provided.
                             </p>
+                        </div>
+
+                        <div
+                            v-if="ticket.systemIssueReport"
+                            class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"
+                        >
+                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                System Issue Report
+                            </p>
+                            <div class="mt-3 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                                <div>
+                                    <span class="text-slate-500">Control Number:</span>
+                                    {{ ticket.systemIssueReport.controlNumber ?? '—' }}
+                                </div>
+                                <div>
+                                    <span class="text-slate-500">Requesting Department:</span>
+                                    {{ ticket.systemIssueReport.requestingDepartment ?? '—' }}
+                                </div>
+                                <div>
+                                    <span class="text-slate-500">Date Filed:</span>
+                                    {{ ticket.systemIssueReport.dateFiled ?? '—' }}
+                                </div>
+                                <div>
+                                    <span class="text-slate-500">Requesting Employee:</span>
+                                    {{ ticket.systemIssueReport.requestingEmployee ?? '—' }}
+                                </div>
+                                <div>
+                                    <span class="text-slate-500">Employee Contact No.:</span>
+                                    {{ ticket.systemIssueReport.employeeContactNo ?? '—' }}
+                                </div>
+                                <div>
+                                    <span class="text-slate-500">Employee ID:</span>
+                                    {{ ticket.systemIssueReport.employeeId ?? '—' }}
+                                </div>
+                                <div>
+                                    <span class="text-slate-500">Signature of Employee:</span>
+                                    {{ ticket.systemIssueReport.signatureOfEmployee ?? '—' }}
+                                </div>
+                                <div>
+                                    <span class="text-slate-500">Nature of Appointment:</span>
+                                    {{ ticket.systemIssueReport.natureOfAppointment ?? '—' }}
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <span class="text-slate-500">Name of Software:</span>
+                                    {{ ticket.systemIssueReport.nameOfSoftware ?? '—' }}
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <span class="text-slate-500">Type of Request:</span>
+                                    {{ Array.isArray(ticket.systemIssueReport.typeOfRequest) ? ticket.systemIssueReport.typeOfRequest.join(', ') : (ticket.systemIssueReport.typeOfRequest ?? '—') }}
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <span class="text-slate-500">Error Summary/Title:</span>
+                                    {{ ticket.systemIssueReport.errorSummaryTitle ?? '—' }}
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <span class="text-slate-500">Detailed Description:</span>
+                                    <p class="mt-1 whitespace-pre-wrap">{{ ticket.systemIssueReport.detailedDescription ?? '—' }}</p>
+                                </div>
+                            </div>
+                            <div v-if="ticket.systemIssueReportAttachments?.length" class="mt-3 border-t border-slate-200 pt-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    Screenshot / Attachments
+                                </p>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    <a
+                                        v-for="att in ticket.systemIssueReportAttachments"
+                                        :key="att.name"
+                                        :href="att.url ?? undefined"
+                                        :target="att.url ? '_blank' : undefined"
+                                        :rel="att.url ? 'noreferrer' : undefined"
+                                        class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-blue-600 hover:bg-slate-50"
+                                    >
+                                        {{ att.name }}
+                                    </a>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="flex justify-center pt-2">

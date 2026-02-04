@@ -60,12 +60,66 @@ type SystemDevelopmentSurvey = {
     headOfOffice: string;
 };
 
+type SystemChangeRequestForm = {
+    controlNumber: string;
+    date: string;
+    officeDivision: string;
+    requestedByName: string;
+    nameOfSoftware: string;
+    typeOfRequest: string;
+    descriptionOfRequest: string;
+    purposeObjectiveOfModification: string;
+    detailedDescriptionOfRequestedChange: string;
+    evaluatedBy: string;
+    approvedBy: string;
+    notedBy: string;
+    remarks: string;
+};
+
+const TYPE_OF_REQUEST_OPTIONS = [
+    'System Crash',
+    'Display Issue',
+    'Login Problem',
+    'Data Error',
+    'Slow Performance',
+    'Others',
+] as const;
+
+const NATURE_OF_APPOINTMENT_OPTIONS = [
+    'Permanent',
+    'Casual',
+    'J.O.',
+    'O.J.T/Intern',
+    'Co-Terminus',
+    'Others',
+] as const;
+
+type SystemIssueReport = {
+    controlNumber: string;
+    requestingDepartment: string;
+    dateFiled: string;
+    requestingEmployee: string;
+    employeeContactNo: string;
+    employeeId: string;
+    signatureOfEmployee: string;
+    natureOfAppointment: string;
+    natureOfAppointmentOthersSpecify: string;
+    coTerminusUntilDate: string;
+    nameOfSoftware: string;
+    typeOfRequest: string[];
+    typeOfRequestOthersSpecify: string;
+    errorSummaryTitle: string;
+    detailedDescription: string;
+};
+
 const props = withDefaults(
     defineProps<{
         controlTicketNumber: string;
         natureOfRequests: NatureOption[];
         preSelectedNatureId?: number | null;
         isAdmin: boolean;
+        requesterName?: string | null;
+        defaultOfficeDivision?: string | null;
         officeOptions: OfficeOption[];
         officeUsers: OfficeUser[];
         systemsEngineerOptions: SystemsEngineerOption[];
@@ -114,6 +168,39 @@ const form = useForm({
         flowSop: '',
         headOfOffice: '',
     } as SystemDevelopmentSurvey,
+    systemChangeRequestForm: {
+        controlNumber: props.controlTicketNumber,
+        date: new Date().toISOString().slice(0, 10),
+        officeDivision: props.defaultOfficeDivision ?? '',
+        requestedByName: props.requesterName ?? '',
+        nameOfSoftware: '',
+        typeOfRequest: '',
+        descriptionOfRequest: '',
+        purposeObjectiveOfModification: '',
+        detailedDescriptionOfRequestedChange: '',
+        evaluatedBy: '',
+        approvedBy: '',
+        notedBy: '',
+        remarks: '',
+    } as SystemChangeRequestForm,
+    systemIssueReport: {
+        controlNumber: props.controlTicketNumber,
+        requestingDepartment: props.defaultOfficeDivision ?? '',
+        dateFiled: new Date().toISOString().slice(0, 10),
+        requestingEmployee: props.requesterName ?? '',
+        employeeContactNo: '',
+        employeeId: '',
+        signatureOfEmployee: '',
+        natureOfAppointment: '',
+        natureOfAppointmentOthersSpecify: '',
+        coTerminusUntilDate: '',
+        nameOfSoftware: '',
+        typeOfRequest: [] as string[],
+        typeOfRequestOthersSpecify: '',
+        errorSummaryTitle: '',
+        detailedDescription: '',
+    } as SystemIssueReport,
+    systemIssueReportAttachments: [] as File[],
 });
 
 const attachmentEntries = ref<AttachmentEntry[]>([]);
@@ -174,6 +261,14 @@ const isSystemDevelopment = computed(() => {
     return selectedNatureName.value.trim().toLowerCase() === 'system development';
 });
 
+const isSystemModification = computed(() => {
+    return selectedNatureName.value.trim().toLowerCase() === 'system modification';
+});
+
+const isSystemErrorBugReport = computed(() => {
+    return selectedNatureName.value.trim().toLowerCase() === 'system error / bug report';
+});
+
 const surveyErrors = computed(() => {
     if (!submitAttempted.value || !isSystemDevelopment.value) {
         return {};
@@ -232,6 +327,104 @@ const surveyErrors = computed(() => {
     return errors;
 });
 
+const systemChangeRequestErrors = computed(() => {
+    if (!submitAttempted.value || !isSystemModification.value) {
+        return {};
+    }
+
+    const s = form.systemChangeRequestForm as SystemChangeRequestForm;
+    const errors: Record<string, string> = {};
+
+    if (!s.controlNumber.trim()) {
+        errors['systemChangeRequestForm.controlNumber'] = 'Control Number is required.';
+    }
+    if (!s.date) {
+        errors['systemChangeRequestForm.date'] = 'Date is required.';
+    }
+    if (!s.officeDivision.trim()) {
+        errors['systemChangeRequestForm.officeDivision'] = 'Office/Division is required.';
+    }
+    if (!s.requestedByName.trim()) {
+        errors['systemChangeRequestForm.requestedByName'] = 'Requested by (Name) is required.';
+    }
+    if (!s.nameOfSoftware.trim()) {
+        errors['systemChangeRequestForm.nameOfSoftware'] = 'Name of Software is required.';
+    }
+    if (!s.typeOfRequest.trim()) {
+        errors['systemChangeRequestForm.typeOfRequest'] = 'Type of Request is required.';
+    }
+    if (!s.descriptionOfRequest.trim()) {
+        errors['systemChangeRequestForm.descriptionOfRequest'] = 'Description of Request is required.';
+    } else if (s.descriptionOfRequest.trim().length < 10) {
+        errors['systemChangeRequestForm.descriptionOfRequest'] =
+            'Description must be at least 10 characters.';
+    } else if (s.descriptionOfRequest.trim().length > 1000) {
+        errors['systemChangeRequestForm.descriptionOfRequest'] =
+            'Description may not exceed 1000 characters.';
+    }
+    if (!s.purposeObjectiveOfModification.trim()) {
+        errors['systemChangeRequestForm.purposeObjectiveOfModification'] =
+            'Purpose/Objective of Modification is required.';
+    }
+    if (!s.detailedDescriptionOfRequestedChange.trim()) {
+        errors['systemChangeRequestForm.detailedDescriptionOfRequestedChange'] =
+            'Detailed Description of the Requested Change is required.';
+    }
+
+    return errors;
+});
+
+const systemIssueReportErrors = computed(() => {
+    if (!submitAttempted.value || !isSystemErrorBugReport.value) {
+        return {};
+    }
+
+    const s = form.systemIssueReport as SystemIssueReport;
+    const errors: Record<string, string> = {};
+
+    if (!s.controlNumber.trim()) {
+        errors['systemIssueReport.controlNumber'] = 'Control Number is required.';
+    }
+    if (!s.requestingDepartment.trim()) {
+        errors['systemIssueReport.requestingDepartment'] = 'Requesting Department is required.';
+    }
+    if (!s.dateFiled.trim()) {
+        errors['systemIssueReport.dateFiled'] = 'Date Filed is required.';
+    }
+    if (!s.requestingEmployee.trim()) {
+        errors['systemIssueReport.requestingEmployee'] = 'Requesting Employee is required.';
+    }
+    if (!s.employeeContactNo.trim()) {
+        errors['systemIssueReport.employeeContactNo'] = 'Employee Contact No. is required.';
+    }
+    if (!s.employeeId.trim()) {
+        errors['systemIssueReport.employeeId'] = 'Employee ID is required.';
+    }
+    if (!s.signatureOfEmployee.trim()) {
+        errors['systemIssueReport.signatureOfEmployee'] = 'Signature of Employee is required.';
+    }
+    if (!s.natureOfAppointment.trim()) {
+        errors['systemIssueReport.natureOfAppointment'] = 'Nature of Appointment is required.';
+    }
+    if (!s.nameOfSoftware.trim()) {
+        errors['systemIssueReport.nameOfSoftware'] = 'Name of Software is required.';
+    }
+    if (!Array.isArray(s.typeOfRequest) || s.typeOfRequest.length === 0) {
+        errors['systemIssueReport.typeOfRequest'] = 'At least one Type of Request must be selected.';
+    }
+    if (!s.errorSummaryTitle.trim()) {
+        errors['systemIssueReport.errorSummaryTitle'] = 'Error Summary/Title is required.';
+    }
+    if (!s.detailedDescription.trim()) {
+        errors['systemIssueReport.detailedDescription'] = 'Detailed Description is required.';
+    } else if (s.detailedDescription.trim().length < 10) {
+        errors['systemIssueReport.detailedDescription'] =
+            'Detailed Description must be at least 10 characters.';
+    }
+
+    return errors;
+});
+
 const filteredOfficeUsers = computed(() => {
     if (!form.officeDesignationId) {
         return [];
@@ -260,6 +453,20 @@ watch(
 );
 
 watch(
+    () => form.requestedForUserId,
+    () => {
+        if (!props.isAdmin) {
+            return;
+        }
+
+        const selectedUser = props.officeUsers.find(
+            (u) => String(u.id) === String(form.requestedForUserId),
+        );
+        form.systemChangeRequestForm.requestedByName = selectedUser?.name ?? '';
+    },
+);
+
+watch(
     () => [form.officeDesignationId, form.requestedForUserId],
     () => {
         const officeName = props.officeOptions.find(
@@ -268,6 +475,7 @@ watch(
 
         if (props.isAdmin) {
             form.systemDevelopmentSurvey.officeEndUser = officeName ?? '';
+            form.systemChangeRequestForm.officeDivision = officeName ?? '';
         }
     },
 );
@@ -276,6 +484,8 @@ watch(
     () => form.natureOfRequestId,
     () => {
         form.clearErrors('systemDevelopmentSurvey');
+        form.clearErrors('systemChangeRequestForm');
+        form.clearErrors('systemIssueReport');
     },
 );
 
@@ -289,6 +499,105 @@ watch(
         if (!props.isAdmin) {
             form.systemDevelopmentSurvey.assignedSystemsEngineer = '';
             form.systemDevelopmentSurvey.targetCompletion = '';
+        }
+    },
+);
+
+watch(
+    () => isSystemModification.value,
+    (enabled) => {
+        if (!enabled) {
+            return;
+        }
+
+        form.systemChangeRequestForm.controlNumber = props.controlTicketNumber;
+        form.systemChangeRequestForm.date = new Date().toISOString().slice(0, 10);
+
+        if (!props.isAdmin) {
+            form.systemChangeRequestForm.officeDivision = props.defaultOfficeDivision ?? '';
+            form.systemChangeRequestForm.requestedByName = props.requesterName ?? '';
+        }
+
+        if (!form.systemChangeRequestForm.descriptionOfRequest.trim() && form.description.trim()) {
+            form.systemChangeRequestForm.descriptionOfRequest = form.description;
+        }
+    },
+);
+
+watch(
+    () => form.systemChangeRequestForm.descriptionOfRequest,
+    (value) => {
+        if (!isSystemModification.value) {
+            return;
+        }
+
+        form.description = value;
+    },
+);
+
+watch(
+    () => isSystemErrorBugReport.value,
+    (enabled) => {
+        if (!enabled) {
+            return;
+        }
+        form.systemIssueReport.controlNumber = props.controlTicketNumber;
+        form.systemIssueReport.dateFiled = new Date().toISOString().slice(0, 10);
+        form.systemIssueReport.requestingDepartment = props.defaultOfficeDivision ?? '';
+        form.systemIssueReport.requestingEmployee = props.requesterName ?? '';
+        if (!props.isAdmin) {
+            return;
+        }
+        const officeName = props.officeOptions.find(
+            (o) => String(o.id) === String(form.officeDesignationId),
+        )?.name;
+        const selectedUser = props.officeUsers.find(
+            (u) => String(u.id) === String(form.requestedForUserId),
+        )?.name;
+        if (officeName) {
+            form.systemIssueReport.requestingDepartment = officeName;
+        }
+        if (selectedUser) {
+            form.systemIssueReport.requestingEmployee = selectedUser;
+        }
+    },
+);
+
+watch(
+    () => [form.officeDesignationId, form.requestedForUserId],
+    () => {
+        if (!isSystemErrorBugReport.value || !props.isAdmin) {
+            return;
+        }
+        const officeName = props.officeOptions.find(
+            (o) => String(o.id) === String(form.officeDesignationId),
+        )?.name;
+        const selectedUser = props.officeUsers.find(
+            (u) => String(u.id) === String(form.requestedForUserId),
+        )?.name;
+        if (officeName) {
+            form.systemIssueReport.requestingDepartment = officeName;
+        }
+        if (selectedUser) {
+            form.systemIssueReport.requestingEmployee = selectedUser;
+        }
+    },
+);
+
+watch(
+    () => form.systemIssueReport.errorSummaryTitle,
+    (value) => {
+        if (isSystemErrorBugReport.value && value.trim()) {
+            form.description = value.trim().length >= 10 ? value : `${value} ${form.systemIssueReport.detailedDescription}`.trim().slice(0, 1000);
+        }
+    },
+);
+watch(
+    () => form.systemIssueReport.detailedDescription,
+    (value) => {
+        if (isSystemErrorBugReport.value && form.systemIssueReport.errorSummaryTitle.trim()) {
+            const combined = `${form.systemIssueReport.errorSummaryTitle}\n\n${value}`.trim().slice(0, 1000);
+            form.description = combined.length >= 10 ? combined : form.systemIssueReport.errorSummaryTitle;
         }
     },
 );
@@ -404,7 +713,9 @@ function submitTicket() {
         descriptionError.value ||
         officeError.value ||
         requestedUserError.value ||
-        Object.keys(surveyErrors.value).length > 0
+        Object.keys(surveyErrors.value).length > 0 ||
+        Object.keys(systemChangeRequestErrors.value).length > 0 ||
+        Object.keys(systemIssueReportErrors.value).length > 0
     ) {
         if (natureError.value) {
             form.setError('natureOfRequestId', natureError.value);
@@ -420,6 +731,12 @@ function submitTicket() {
         }
 
         Object.entries(surveyErrors.value).forEach(([key, message]) => {
+            form.setError(key as never, message);
+        });
+        Object.entries(systemChangeRequestErrors.value).forEach(([key, message]) => {
+            form.setError(key as never, message);
+        });
+        Object.entries(systemIssueReportErrors.value).forEach(([key, message]) => {
             form.setError(key as never, message);
         });
         return;
@@ -930,7 +1247,435 @@ function submitTicket() {
                             </div>
                         </div>
 
-                        <div class="grid gap-3">
+                        <div
+                            v-if="isSystemModification"
+                            class="grid gap-5 rounded-2xl border border-border bg-muted/20 p-5 dark:border-white/10 dark:bg-white/5"
+                        >
+                            <div class="space-y-1">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    System Change Request Form (Required)
+                                </p>
+                                <p class="text-sm text-muted-foreground">
+                                    This form must be completed before the ticket can be submitted.
+                                </p>
+                            </div>
+
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Control Number
+                                    </label>
+                                    <input
+                                        v-model="form.systemChangeRequestForm.controlNumber"
+                                        type="text"
+                                        readonly
+                                        class="h-9 w-full rounded-md border border-input bg-input px-3 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    />
+                                    <p v-if="form.errors['systemChangeRequestForm.controlNumber']" class="text-xs text-destructive">
+                                        {{ form.errors['systemChangeRequestForm.controlNumber'] }}
+                                    </p>
+                                </div>
+
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Date
+                                    </label>
+                                    <input
+                                        v-model="form.systemChangeRequestForm.date"
+                                        type="date"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    />
+                                    <p v-if="form.errors['systemChangeRequestForm.date']" class="text-xs text-destructive">
+                                        {{ form.errors['systemChangeRequestForm.date'] }}
+                                    </p>
+                                </div>
+
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Office/Division
+                                    </label>
+                                    <input
+                                        v-model="form.systemChangeRequestForm.officeDivision"
+                                        type="text"
+                                        readonly
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    />
+                                    <p class="text-xs text-muted-foreground">
+                                        Automatically set to the requester’s office.
+                                    </p>
+                                    <p v-if="form.errors['systemChangeRequestForm.officeDivision']" class="text-xs text-destructive">
+                                        {{ form.errors['systemChangeRequestForm.officeDivision'] }}
+                                    </p>
+                                </div>
+
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Requested by (Name)
+                                    </label>
+                                    <input
+                                        v-model="form.systemChangeRequestForm.requestedByName"
+                                        type="text"
+                                        readonly
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    />
+                                    <p v-if="form.errors['systemChangeRequestForm.requestedByName']" class="text-xs text-destructive">
+                                        {{ form.errors['systemChangeRequestForm.requestedByName'] }}
+                                    </p>
+                                </div>
+
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Name of Software
+                                    </label>
+                                    <input
+                                        v-model="form.systemChangeRequestForm.nameOfSoftware"
+                                        type="text"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    />
+                                    <p v-if="form.errors['systemChangeRequestForm.nameOfSoftware']" class="text-xs text-destructive">
+                                        {{ form.errors['systemChangeRequestForm.nameOfSoftware'] }}
+                                    </p>
+                                </div>
+
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Type of Request
+                                    </label>
+                                    <input
+                                        v-model="form.systemChangeRequestForm.typeOfRequest"
+                                        type="text"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                        placeholder="e.g., Enhancement / Change / Fix"
+                                    />
+                                    <p v-if="form.errors['systemChangeRequestForm.typeOfRequest']" class="text-xs text-destructive">
+                                        {{ form.errors['systemChangeRequestForm.typeOfRequest'] }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Description of Request
+                                    </label>
+                                    <span class="text-xs text-muted-foreground">
+                                        {{ (form.systemChangeRequestForm.descriptionOfRequest ?? '').length }}/1000
+                                    </span>
+                                </div>
+                                <textarea
+                                    v-model="form.systemChangeRequestForm.descriptionOfRequest"
+                                    rows="4"
+                                    class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="Describe what you want to change..."
+                                    @blur="descriptionTouched = true"
+                                />
+                                <p
+                                    v-if="form.errors['systemChangeRequestForm.descriptionOfRequest'] || form.errors.description"
+                                    class="text-xs text-destructive"
+                                >
+                                    {{
+                                        form.errors['systemChangeRequestForm.descriptionOfRequest'] ||
+                                        form.errors.description
+                                    }}
+                                </p>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    Minimum 10 characters. Maximum 1000 characters.
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Purpose/Objective of Modification
+                                </label>
+                                <textarea
+                                    v-model="form.systemChangeRequestForm.purposeObjectiveOfModification"
+                                    rows="3"
+                                    class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="Explain why this modification is needed..."
+                                />
+                                <p v-if="form.errors['systemChangeRequestForm.purposeObjectiveOfModification']" class="text-xs text-destructive">
+                                    {{ form.errors['systemChangeRequestForm.purposeObjectiveOfModification'] }}
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Detailed Description of the Requested Change
+                                </label>
+                                <textarea
+                                    v-model="form.systemChangeRequestForm.detailedDescriptionOfRequestedChange"
+                                    rows="5"
+                                    class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="Be specific about what should be modified and how it should behave..."
+                                />
+                                <p v-if="form.errors['systemChangeRequestForm.detailedDescriptionOfRequestedChange']" class="text-xs text-destructive">
+                                    {{ form.errors['systemChangeRequestForm.detailedDescriptionOfRequestedChange'] }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="isSystemErrorBugReport"
+                            class="grid gap-5 rounded-2xl border border-border bg-muted/20 p-5 dark:border-white/10 dark:bg-white/5"
+                        >
+                            <div class="space-y-1">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    System Issue Report Form (Required)
+                                </p>
+                                <p class="text-sm text-muted-foreground">
+                                    This form must be completed before the ticket can be submitted.
+                                </p>
+                            </div>
+
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Control Number
+                                    </label>
+                                    <input
+                                        v-model="form.systemIssueReport.controlNumber"
+                                        type="text"
+                                        readonly
+                                        class="h-9 w-full rounded-md border border-input bg-input px-3 text-sm font-semibold text-foreground"
+                                    />
+                                    <p v-if="form.errors['systemIssueReport.controlNumber']" class="text-xs text-destructive">
+                                        {{ form.errors['systemIssueReport.controlNumber'] }}
+                                    </p>
+                                </div>
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Requesting Department
+                                    </label>
+                                    <input
+                                        v-model="form.systemIssueReport.requestingDepartment"
+                                        type="text"
+                                        readonly
+                                        class="h-9 w-full rounded-md border border-input bg-muted/40 px-3 text-sm text-foreground"
+                                    />
+                                    <p v-if="form.errors['systemIssueReport.requestingDepartment']" class="text-xs text-destructive">
+                                        {{ form.errors['systemIssueReport.requestingDepartment'] }}
+                                    </p>
+                                </div>
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Date Filed
+                                    </label>
+                                    <input
+                                        v-model="form.systemIssueReport.dateFiled"
+                                        type="date"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    />
+                                    <p v-if="form.errors['systemIssueReport.dateFiled']" class="text-xs text-destructive">
+                                        {{ form.errors['systemIssueReport.dateFiled'] }}
+                                    </p>
+                                </div>
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Requesting Employee
+                                    </label>
+                                    <input
+                                        v-model="form.systemIssueReport.requestingEmployee"
+                                        type="text"
+                                        readonly
+                                        class="h-9 w-full rounded-md border border-input bg-muted/40 px-3 text-sm text-foreground"
+                                    />
+                                    <p v-if="form.errors['systemIssueReport.requestingEmployee']" class="text-xs text-destructive">
+                                        {{ form.errors['systemIssueReport.requestingEmployee'] }}
+                                    </p>
+                                </div>
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Employee Contact No.
+                                    </label>
+                                    <input
+                                        v-model="form.systemIssueReport.employeeContactNo"
+                                        type="text"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                        placeholder="e.g. 09XX XXX XXXX"
+                                    />
+                                    <p v-if="form.errors['systemIssueReport.employeeContactNo']" class="text-xs text-destructive">
+                                        {{ form.errors['systemIssueReport.employeeContactNo'] }}
+                                    </p>
+                                </div>
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Employee ID
+                                    </label>
+                                    <input
+                                        v-model="form.systemIssueReport.employeeId"
+                                        type="text"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    />
+                                    <p v-if="form.errors['systemIssueReport.employeeId']" class="text-xs text-destructive">
+                                        {{ form.errors['systemIssueReport.employeeId'] }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p class="text-xs text-muted-foreground">
+                                I understand that the information I have provided in this System Issue Report is accurate to the best of my knowledge. I acknowledge that the ICT Unit will review, verify, and prioritize the issue based on its severity and impact on operations.
+                            </p>
+                            <div class="grid gap-2">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Signature of Employee
+                                </label>
+                                <input
+                                    v-model="form.systemIssueReport.signatureOfEmployee"
+                                    type="text"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="Full name of signatory"
+                                />
+                                <p v-if="form.errors['systemIssueReport.signatureOfEmployee']" class="text-xs text-destructive">
+                                    {{ form.errors['systemIssueReport.signatureOfEmployee'] }}
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Nature of Appointment
+                                </label>
+                                <div class="flex flex-wrap gap-4">
+                                    <label
+                                        v-for="opt in NATURE_OF_APPOINTMENT_OPTIONS"
+                                        :key="opt"
+                                        class="flex cursor-pointer items-center gap-2 text-sm"
+                                    >
+                                        <input
+                                            v-model="form.systemIssueReport.natureOfAppointment"
+                                            type="radio"
+                                            :value="opt"
+                                            class="rounded border-input"
+                                        />
+                                        <span>{{ opt }}</span>
+                                    </label>
+                                </div>
+                                <div v-if="form.systemIssueReport.natureOfAppointment === 'Co-Terminus'" class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Co-Terminus until Date
+                                    </label>
+                                    <input
+                                        v-model="form.systemIssueReport.coTerminusUntilDate"
+                                        type="date"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                                    />
+                                </div>
+                                <div v-if="form.systemIssueReport.natureOfAppointment === 'Others'" class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Others, specify
+                                    </label>
+                                    <input
+                                        v-model="form.systemIssueReport.natureOfAppointmentOthersSpecify"
+                                        type="text"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                                    />
+                                </div>
+                                <p v-if="form.errors['systemIssueReport.natureOfAppointment']" class="text-xs text-destructive">
+                                    {{ form.errors['systemIssueReport.natureOfAppointment'] }}
+                                </p>
+                            </div>
+
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Name of Software
+                                    </label>
+                                    <input
+                                        v-model="form.systemIssueReport.nameOfSoftware"
+                                        type="text"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    />
+                                    <p v-if="form.errors['systemIssueReport.nameOfSoftware']" class="text-xs text-destructive">
+                                        {{ form.errors['systemIssueReport.nameOfSoftware'] }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Type of Request
+                                </label>
+                                <div class="flex flex-wrap gap-4">
+                                    <label
+                                        v-for="opt in TYPE_OF_REQUEST_OPTIONS"
+                                        :key="opt"
+                                        class="flex cursor-pointer items-center gap-2 text-sm"
+                                    >
+                                        <input
+                                            v-model="form.systemIssueReport.typeOfRequest"
+                                            type="checkbox"
+                                            :value="opt"
+                                            class="rounded border-input"
+                                        />
+                                        <span>{{ opt }}</span>
+                                    </label>
+                                </div>
+                                <div v-if="form.systemIssueReport.typeOfRequest.includes('Others')" class="grid gap-2">
+                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                        Others, specify
+                                    </label>
+                                    <input
+                                        v-model="form.systemIssueReport.typeOfRequestOthersSpecify"
+                                        type="text"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                                    />
+                                </div>
+                                <p v-if="form.errors['systemIssueReport.typeOfRequest']" class="text-xs text-destructive">
+                                    {{ form.errors['systemIssueReport.typeOfRequest'] }}
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Error Summary/Title (short description of the problem)
+                                </label>
+                                <input
+                                    v-model="form.systemIssueReport.errorSummaryTitle"
+                                    type="text"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="Brief title of the error"
+                                />
+                                <p v-if="form.errors['systemIssueReport.errorSummaryTitle']" class="text-xs text-destructive">
+                                    {{ form.errors['systemIssueReport.errorSummaryTitle'] }}
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Detailed Description (steps before the error, error message if any)
+                                </label>
+                                <textarea
+                                    v-model="form.systemIssueReport.detailedDescription"
+                                    rows="5"
+                                    class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="Describe what happened, steps before the error appeared, and error message if any."
+                                />
+                                <p v-if="form.errors['systemIssueReport.detailedDescription']" class="text-xs text-destructive">
+                                    {{ form.errors['systemIssueReport.detailedDescription'] }}
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Screenshot / Attachment (supporting evidence)
+                                </label>
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept=".jpg,.jpeg,.png,.webp,.pdf"
+                                    class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
+                                    @change="(e) => {
+                                        const target = e.target as HTMLInputElement;
+                                        const files = target.files ? Array.from(target.files) : [];
+                                        form.systemIssueReportAttachments = files;
+                                    }"
+                                />
+                                <p v-if="form.systemIssueReportAttachments.length" class="text-xs text-muted-foreground">
+                                    {{ form.systemIssueReportAttachments.length }} file(s) selected.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div v-if="!isSystemModification && !isSystemErrorBugReport" class="grid gap-3">
                             <div class="flex items-center justify-between">
                                 <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Description of Request

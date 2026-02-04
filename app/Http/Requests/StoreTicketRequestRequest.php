@@ -101,6 +101,57 @@ class StoreTicketRequestRequest extends FormRequest
             'systemDevelopmentSurvey.forms.*.description' => ['nullable', 'string', 'max:1000'],
             'systemDevelopmentSurvey.flowSop' => ['nullable', 'string', 'max:3000'],
             'systemDevelopmentSurvey.headOfOffice' => ['nullable', 'string', 'max:255'],
+
+            'systemChangeRequestForm' => ['nullable', 'array'],
+            'systemChangeRequestForm.controlNumber' => ['nullable', 'string', 'max:25'],
+            'systemChangeRequestForm.date' => ['nullable', 'date'],
+            'systemChangeRequestForm.officeDivision' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm.requestedByName' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm.nameOfSoftware' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm.typeOfRequest' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm.descriptionOfRequest' => ['nullable', 'string', 'max:1000'],
+            'systemChangeRequestForm.purposeObjectiveOfModification' => ['nullable', 'string', 'max:3000'],
+            'systemChangeRequestForm.detailedDescriptionOfRequestedChange' => ['nullable', 'string', 'max:5000'],
+            'systemChangeRequestForm.evaluatedBy' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm.approvedBy' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm.notedBy' => ['nullable', 'string', 'max:255'],
+            'systemChangeRequestForm.remarks' => ['nullable', 'string', 'max:2000'],
+
+            'systemIssueReport' => ['nullable', 'array'],
+            'systemIssueReport.controlNumber' => ['nullable', 'string', 'max:25'],
+            'systemIssueReport.requestingDepartment' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.dateFiled' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.requestingEmployee' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.employeeContactNo' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.employeeId' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.signatureOfEmployee' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.natureOfAppointment' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.natureOfAppointmentOthersSpecify' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.coTerminusUntilDate' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.nameOfSoftware' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.typeOfRequest' => ['nullable', 'array'],
+            'systemIssueReport.typeOfRequest.*' => ['nullable', 'string', 'max:100'],
+            'systemIssueReport.typeOfRequestOthersSpecify' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.errorSummaryTitle' => ['nullable', 'string', 'max:500'],
+            'systemIssueReport.detailedDescription' => ['nullable', 'string', 'max:5000'],
+            'systemIssueReport.reportedBy' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.reportedByDate' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.reportedBySignature' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.acceptedBy' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.acceptedByDate' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.acceptedBySignature' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.evaluatedBy' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.evaluatedByDate' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.evaluatedBySignature' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.approvedBy' => ['nullable', 'string', 'max:255'],
+            'systemIssueReport.approvedByDate' => ['nullable', 'string', 'max:50'],
+            'systemIssueReport.approvedBySignature' => ['nullable', 'string', 'max:255'],
+            'systemIssueReportAttachments' => ['nullable', 'array'],
+            'systemIssueReportAttachments.*' => [
+                'file',
+                'mimes:jpg,jpeg,png,webp,pdf',
+                'max:10240',
+            ],
         ];
     }
 
@@ -108,6 +159,13 @@ class StoreTicketRequestRequest extends FormRequest
     {
         $validator->after(function (Validator $validator) {
             if (! $this->isSystemDevelopment()) {
+                if ($this->isSystemModification()) {
+                    $this->validateSystemChangeRequestForm($validator);
+                }
+                if ($this->isSystemErrorBugReport()) {
+                    $this->validateSystemIssueReport($validator);
+                }
+
                 return;
             }
 
@@ -221,6 +279,119 @@ class StoreTicketRequestRequest extends FormRequest
         return is_string($name) && strtolower(trim($name)) === 'system development';
     }
 
+    private function isSystemModification(): bool
+    {
+        $natureId = $this->integer('natureOfRequestId');
+        if (! $natureId) {
+            return false;
+        }
+
+        $name = NatureOfRequest::query()
+            ->whereKey($natureId)
+            ->value('name');
+
+        return is_string($name) && strtolower(trim($name)) === 'system modification';
+    }
+
+    private function isSystemErrorBugReport(): bool
+    {
+        $natureId = $this->integer('natureOfRequestId');
+        if (! $natureId) {
+            return false;
+        }
+
+        $name = NatureOfRequest::query()
+            ->whereKey($natureId)
+            ->value('name');
+
+        return is_string($name) && strtolower(trim($name)) === 'system error / bug report';
+    }
+
+    private function validateSystemIssueReport(Validator $validator): void
+    {
+        $form = $this->input('systemIssueReport');
+
+        if (! is_array($form)) {
+            $validator->errors()->add(
+                'systemIssueReport',
+                'System Issue Report Form is required for System Error / Bug Report requests.',
+            );
+
+            return;
+        }
+
+        $this->requireIssueReportField($validator, $form, 'controlNumber', 'Control Number is required.');
+        $this->requireIssueReportField($validator, $form, 'requestingDepartment', 'Requesting Department is required.');
+        $this->requireIssueReportField($validator, $form, 'dateFiled', 'Date Filed is required.');
+        $this->requireIssueReportField($validator, $form, 'requestingEmployee', 'Requesting Employee is required.');
+        $this->requireIssueReportField($validator, $form, 'employeeContactNo', 'Employee Contact No. is required.');
+        $this->requireIssueReportField($validator, $form, 'employeeId', 'Employee ID is required.');
+        $this->requireIssueReportField($validator, $form, 'signatureOfEmployee', 'Signature of Employee is required.');
+        $this->requireIssueReportField($validator, $form, 'natureOfAppointment', 'Nature of Appointment is required.');
+        $this->requireIssueReportField($validator, $form, 'nameOfSoftware', 'Name of Software is required.');
+        $typeOfRequest = $form['typeOfRequest'] ?? null;
+        if (! is_array($typeOfRequest) || count($typeOfRequest) === 0) {
+            $validator->errors()->add(
+                'systemIssueReport.typeOfRequest',
+                'At least one Type of Request must be selected.',
+            );
+        }
+        $this->requireIssueReportField($validator, $form, 'errorSummaryTitle', 'Error Summary/Title is required.');
+        $this->requireIssueReportField($validator, $form, 'detailedDescription', 'Detailed Description is required.');
+        $detailed = $form['detailedDescription'] ?? '';
+        if (is_string($detailed) && strlen(trim($detailed)) > 0 && strlen(trim($detailed)) < 10) {
+            $validator->errors()->add(
+                'systemIssueReport.detailedDescription',
+                'Detailed Description must be at least 10 characters.',
+            );
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $form
+     */
+    private function requireIssueReportField(Validator $validator, array $form, string $key, string $message): void
+    {
+        $value = $form[$key] ?? null;
+        if (! is_string($value) || trim($value) === '') {
+            $validator->errors()->add("systemIssueReport.{$key}", $message);
+        }
+    }
+
+    private function validateSystemChangeRequestForm(Validator $validator): void
+    {
+        $form = $this->input('systemChangeRequestForm');
+
+        if (! is_array($form)) {
+            $validator->errors()->add(
+                'systemChangeRequestForm',
+                'System Change Request Form is required for System Modification requests.',
+            );
+
+            return;
+        }
+
+        $this->requireScrField($validator, $form, 'controlNumber', 'Control Number is required.');
+        $this->requireScrField($validator, $form, 'date', 'Date is required.');
+        $this->requireScrField($validator, $form, 'officeDivision', 'Office/Division is required.');
+        $this->requireScrField($validator, $form, 'requestedByName', 'Requested by (Name) is required.');
+        $this->requireScrField($validator, $form, 'nameOfSoftware', 'Name of Software is required.');
+        $this->requireScrField($validator, $form, 'typeOfRequest', 'Type of Request is required.');
+        $this->requireScrField($validator, $form, 'descriptionOfRequest', 'Description of Request is required.');
+        $this->requireScrField(
+            $validator,
+            $form,
+            'purposeObjectiveOfModification',
+            'Purpose/Objective of Modification is required.',
+        );
+        $this->requireScrField(
+            $validator,
+            $form,
+            'detailedDescriptionOfRequestedChange',
+            'Detailed Description of the Requested Change is required.',
+        );
+    }
+
     /**
      * @param  array<string, mixed>  $survey
      */
@@ -247,6 +418,26 @@ class StoreTicketRequestRequest extends FormRequest
 
         if (! is_string($value) || trim($value) === '') {
             $validator->errors()->add($errorKey, $message);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $form
+     */
+    private function requireScrField(Validator $validator, array $form, string $key, string $message): void
+    {
+        $value = $form[$key] ?? null;
+
+        if ($key === 'date') {
+            if (! is_string($value) || trim($value) === '') {
+                $validator->errors()->add("systemChangeRequestForm.{$key}", $message);
+            }
+
+            return;
+        }
+
+        if (! is_string($value) || trim($value) === '') {
+            $validator->errors()->add("systemChangeRequestForm.{$key}", $message);
         }
     }
 }
