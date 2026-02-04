@@ -3,8 +3,10 @@
 namespace App\Http\Requests;
 
 use App\Enums\ReferenceValueGroup;
+use App\Models\NatureOfRequest;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreTicketRequestRequest extends FormRequest
 {
@@ -76,7 +78,119 @@ class StoreTicketRequestRequest extends FormRequest
                 'mimes:jpg,jpeg,png,webp,mp4,mov',
                 'max:10240',
             ],
+            'systemDevelopmentSurveyFormAttachments' => ['nullable', 'array'],
+            'systemDevelopmentSurveyFormAttachments.*' => [
+                'file',
+                'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,webp',
+                'max:10240',
+            ],
+            'systemDevelopmentSurvey' => ['nullable', 'array'],
+            'systemDevelopmentSurvey.titleOfProposedSystem' => ['nullable', 'string', 'max:255'],
+            'systemDevelopmentSurvey.targetCompletion' => ['nullable', 'date'],
+            'systemDevelopmentSurvey.assignedSystemsEngineer' => ['nullable', 'string', 'max:255'],
+            'systemDevelopmentSurvey.officeEndUser' => ['nullable', 'string', 'max:255'],
+            'systemDevelopmentSurvey.servicesOrFeatures' => ['nullable', 'array'],
+            'systemDevelopmentSurvey.servicesOrFeatures.*.serviceFeature' => ['nullable', 'string', 'max:255'],
+            'systemDevelopmentSurvey.servicesOrFeatures.*.specifics' => ['nullable', 'string', 'max:1000'],
+            'systemDevelopmentSurvey.servicesOrFeatures.*.accessibility' => ['nullable', 'string', 'in:Public View,Admin/User View Only'],
+            'systemDevelopmentSurvey.dataGathering' => ['nullable', 'array'],
+            'systemDevelopmentSurvey.dataGathering.*.dataRequired' => ['nullable', 'string', 'max:255'],
+            'systemDevelopmentSurvey.dataGathering.*.specifics' => ['nullable', 'string', 'max:1000'],
+            'systemDevelopmentSurvey.forms' => ['nullable', 'array'],
+            'systemDevelopmentSurvey.forms.*.titleOfForm' => ['nullable', 'string', 'max:255'],
+            'systemDevelopmentSurvey.forms.*.description' => ['nullable', 'string', 'max:1000'],
+            'systemDevelopmentSurvey.flowSop' => ['nullable', 'string', 'max:3000'],
+            'systemDevelopmentSurvey.headOfOffice' => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if (! $this->isSystemDevelopment()) {
+                return;
+            }
+
+            $survey = $this->input('systemDevelopmentSurvey');
+
+            if (! is_array($survey)) {
+                $validator->errors()->add(
+                    'systemDevelopmentSurvey',
+                    'Systems Development Survey Form is required for System Development requests.',
+                );
+
+                return;
+            }
+
+            $this->requireSurveyField($validator, $survey, 'titleOfProposedSystem', 'Title of Proposed System is required.');
+            $this->requireSurveyField($validator, $survey, 'flowSop', 'Flow (SOP) is required.');
+            $this->requireSurveyField($validator, $survey, 'headOfOffice', 'Head of Office is required.');
+
+            $services = $survey['servicesOrFeatures'] ?? null;
+            if (! is_array($services) || count($services) === 0) {
+                $validator->errors()->add(
+                    'systemDevelopmentSurvey.servicesOrFeatures',
+                    'At least one service/feature entry is required.',
+                );
+            } else {
+                foreach ($services as $index => $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+
+                    $this->requireSurveyRowField(
+                        $validator,
+                        $row,
+                        "systemDevelopmentSurvey.servicesOrFeatures.{$index}.serviceFeature",
+                        'serviceFeature',
+                        'Service/Feature is required.',
+                    );
+                    $this->requireSurveyRowField(
+                        $validator,
+                        $row,
+                        "systemDevelopmentSurvey.servicesOrFeatures.{$index}.specifics",
+                        'specifics',
+                        'Specifics is required.',
+                    );
+                    $this->requireSurveyRowField(
+                        $validator,
+                        $row,
+                        "systemDevelopmentSurvey.servicesOrFeatures.{$index}.accessibility",
+                        'accessibility',
+                        'Accessibility is required.',
+                    );
+                }
+            }
+
+            $data = $survey['dataGathering'] ?? null;
+            if (! is_array($data) || count($data) === 0) {
+                $validator->errors()->add(
+                    'systemDevelopmentSurvey.dataGathering',
+                    'At least one data gathering entry is required.',
+                );
+            } else {
+                foreach ($data as $index => $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+
+                    $this->requireSurveyRowField(
+                        $validator,
+                        $row,
+                        "systemDevelopmentSurvey.dataGathering.{$index}.dataRequired",
+                        'dataRequired',
+                        'Data required is required.',
+                    );
+                    $this->requireSurveyRowField(
+                        $validator,
+                        $row,
+                        "systemDevelopmentSurvey.dataGathering.{$index}.specifics",
+                        'specifics',
+                        'Specifics is required.',
+                    );
+                }
+            }
+        });
     }
 
     public function messages(): array
@@ -91,5 +205,48 @@ class StoreTicketRequestRequest extends FormRequest
             'description.min' => 'Description must be at least 10 characters.',
             'description.max' => 'Description may not exceed 1000 characters.',
         ];
+    }
+
+    private function isSystemDevelopment(): bool
+    {
+        $natureId = $this->integer('natureOfRequestId');
+        if (! $natureId) {
+            return false;
+        }
+
+        $name = NatureOfRequest::query()
+            ->whereKey($natureId)
+            ->value('name');
+
+        return is_string($name) && strtolower(trim($name)) === 'system development';
+    }
+
+    /**
+     * @param  array<string, mixed>  $survey
+     */
+    private function requireSurveyField(Validator $validator, array $survey, string $key, string $message): void
+    {
+        $value = $survey[$key] ?? null;
+
+        if (! is_string($value) || trim($value) === '') {
+            $validator->errors()->add("systemDevelopmentSurvey.{$key}", $message);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function requireSurveyRowField(
+        Validator $validator,
+        array $row,
+        string $errorKey,
+        string $key,
+        string $message,
+    ): void {
+        $value = $row[$key] ?? null;
+
+        if (! is_string($value) || trim($value) === '') {
+            $validator->errors()->add($errorKey, $message);
+        }
     }
 }

@@ -26,6 +26,7 @@ type TicketDetails = {
     natureOfRequest: string | null;
     requestDescription: string | null;
     attachments: Attachment[];
+    systemDevelopmentSurvey?: Record<string, unknown> | null;
     remarksId?: number | string | null;
     assignedStaffId?: number | string | null;
     dateReceived?: string | null;

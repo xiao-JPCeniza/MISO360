@@ -77,6 +77,14 @@ class TicketRequestController extends Controller
             'natureOfRequests' => $natureOfRequests,
             'preSelectedNatureId' => $preSelectedNatureId,
             'isAdmin' => $isAdmin,
+            'systemsEngineerOptions' => User::query()
+                ->where('is_active', true)
+                ->whereIn('role', [\App\Enums\Role::ADMIN, \App\Enums\Role::SUPER_ADMIN])
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])
+                ->values()
+                ->all(),
             'officeOptions' => $isAdmin
                 ? ReferenceValue::query()
                     ->forGroup(ReferenceValueGroup::OfficeDesignation)
@@ -135,6 +143,7 @@ class TicketRequestController extends Controller
             }
         }
 
+        $survey = $validated['systemDevelopmentSurvey'] ?? null;
         $requester = $request->user();
         $isAdmin = $requester->isAdmin();
         $requestedForUserId = $isAdmin
@@ -143,6 +152,65 @@ class TicketRequestController extends Controller
         $officeDesignationId = $isAdmin
             ? $validated['officeDesignationId']
             : $requester->office_designation_id;
+
+        $officeName = null;
+        if ($officeDesignationId) {
+            $officeName = ReferenceValue::query()
+                ->whereKey($officeDesignationId)
+                ->value('name');
+        }
+
+        if (is_array($survey)) {
+            // Office End-User is the office of the requester (not editable).
+            if (is_string($officeName) && trim($officeName) !== '') {
+                $survey['officeEndUser'] = $officeName;
+            }
+
+            // Assigned engineer + target completion are admin-managed.
+            if (! $isAdmin) {
+                $survey['assignedSystemsEngineer'] = null;
+                $survey['targetCompletion'] = null;
+            }
+
+            array_unshift($attachments, [
+                'type' => 'system_development_survey',
+                'payload' => $survey,
+            ]);
+        }
+
+        if ($request->hasFile('systemDevelopmentSurveyFormAttachments')) {
+            $files = $request->file('systemDevelopmentSurveyFormAttachments', []);
+            foreach ($files as $index => $file) {
+                if (! $file) {
+                    continue;
+                }
+
+                $path = $file->store('ticket-requests/system-development-forms', 'public');
+
+                $attachmentNo = null;
+                $titleOfForm = null;
+                $description = null;
+
+                if (is_array($survey)) {
+                    $forms = $survey['forms'] ?? null;
+                    if (is_array($forms) && isset($forms[$index]) && is_array($forms[$index])) {
+                        $titleOfForm = $forms[$index]['titleOfForm'] ?? null;
+                        $description = $forms[$index]['description'] ?? null;
+                    }
+                }
+
+                $attachments[] = [
+                    'type' => 'system_development_form_attachment',
+                    'formIndex' => (int) $index,
+                    'titleOfForm' => is_string($titleOfForm) ? $titleOfForm : null,
+                    'description' => is_string($description) ? $description : null,
+                    'path' => $path,
+                    'name' => $file->getClientOriginalName(),
+                    'size' => $file->getSize(),
+                    'mime' => $file->getMimeType(),
+                ];
+            }
+        }
 
         $ticketRequest = TicketRequest::create([
             'control_ticket_number' => $this->resolveControlTicketNumber(
@@ -174,6 +242,8 @@ class TicketRequestController extends Controller
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
 
+        [$fileAttachments, $systemDevelopmentSurvey] = $this->splitAttachments($ticketRequest->attachments);
+
         return Inertia::render('requests/TicketRequestConfirmation', [
             'ticket' => [
                 'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -181,7 +251,7 @@ class TicketRequestController extends Controller
                 'description' => $ticketRequest->description,
                 'hasQrCode' => $ticketRequest->has_qr_code,
                 'qrCodeNumber' => $ticketRequest->qr_code_number,
-                'attachments' => collect($ticketRequest->attachments ?? [])
+                'attachments' => collect($fileAttachments)
                     ->map(fn (array $attachment) => [
                         'name' => $attachment['name'] ?? basename($attachment['path'] ?? ''),
                         'size' => $attachment['size'] ?? null,
@@ -191,6 +261,7 @@ class TicketRequestController extends Controller
                             : null,
                     ])
                     ->values(),
+                'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
             ],
         ]);
     }
@@ -207,6 +278,7 @@ class TicketRequestController extends Controller
         $disk = Storage::disk('public');
 
         $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
+        [$fileAttachments, $systemDevelopmentSurvey] = $this->splitAttachments($ticketRequest->attachments);
 
         $ticket = [
             'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -217,13 +289,14 @@ class TicketRequestController extends Controller
             'email' => $requestedByUser?->email,
             'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
             'requestDescription' => $ticketRequest->description,
-            'attachments' => collect($ticketRequest->attachments ?? [])
+            'attachments' => collect($fileAttachments)
                 ->map(fn (array $attachment) => [
                     'name' => $attachment['name'] ?? basename($attachment['path'] ?? ''),
                     'url' => isset($attachment['path']) ? $disk->url($attachment['path']) : null,
                 ])
                 ->values()
                 ->all(),
+            'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
             'remarksId' => null,
             'assignedStaffId' => null,
             'dateReceived' => null,
@@ -296,12 +369,19 @@ class TicketRequestController extends Controller
             'actionTaken' => ['nullable', 'string', 'max:500'],
             'categoryId' => ['nullable', 'integer'],
             'statusId' => ['nullable', 'integer'],
+            'systemDevelopmentSurvey' => ['nullable', 'array'],
+            'systemDevelopmentSurvey.targetCompletion' => ['nullable', 'date'],
+            'systemDevelopmentSurvey.assignedSystemsEngineer' => ['nullable', 'string', 'max:255'],
         ]);
 
         $ticketRequest->update([
             'status_id' => $validated['statusId'] ?? null,
             'category_id' => $validated['categoryId'] ?? null,
         ]);
+
+        if (isset($validated['systemDevelopmentSurvey']) && is_array($validated['systemDevelopmentSurvey'])) {
+            $this->updateSystemDevelopmentSurvey($ticketRequest, $validated['systemDevelopmentSurvey']);
+        }
 
         return redirect()->route('requests.it-governance.show', $ticketRequest)
             ->with('success', 'IT Governance request updated successfully.');
@@ -319,6 +399,7 @@ class TicketRequestController extends Controller
         $disk = Storage::disk('public');
 
         $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
+        [$fileAttachments, $systemDevelopmentSurvey] = $this->splitAttachments($ticketRequest->attachments);
 
         $ticket = [
             'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -329,13 +410,14 @@ class TicketRequestController extends Controller
             'email' => $requestedByUser?->email,
             'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
             'requestDescription' => $ticketRequest->description,
-            'attachments' => collect($ticketRequest->attachments ?? [])
+            'attachments' => collect($fileAttachments)
                 ->map(fn (array $attachment) => [
                     'name' => $attachment['name'] ?? basename($attachment['path'] ?? ''),
                     'url' => isset($attachment['path']) ? $disk->url($attachment['path']) : null,
                 ])
                 ->values()
                 ->all(),
+            'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
             'remarksId' => null,
             'assignedStaffId' => null,
             'dateReceived' => null,
@@ -451,5 +533,86 @@ class TicketRequestController extends Controller
         } while (TicketRequest::query()->where('control_ticket_number', $candidate)->exists());
 
         return $candidate;
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $attachments
+     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>|null}
+     */
+    private function splitAttachments(?array $attachments): array
+    {
+        if (! $attachments) {
+            return [[], null];
+        }
+
+        $files = [];
+        $survey = null;
+
+        foreach ($attachments as $attachment) {
+            if (! is_array($attachment)) {
+                continue;
+            }
+
+            if (($attachment['type'] ?? null) === 'system_development_survey') {
+                $payload = $attachment['payload'] ?? null;
+                if (is_array($payload)) {
+                    $survey = $payload;
+                }
+
+                continue;
+            }
+
+            if (isset($attachment['path'])) {
+                $files[] = $attachment;
+            }
+        }
+
+        return [$files, $survey];
+    }
+
+    /**
+     * Update (or create) the System Development survey payload inside attachments JSON.
+     *
+     * @param  array<string, mixed>  $updates
+     */
+    private function updateSystemDevelopmentSurvey(TicketRequest $ticketRequest, array $updates): void
+    {
+        $attachments = $ticketRequest->attachments ?? [];
+
+        $surveyIndex = null;
+        $surveyPayload = null;
+
+        foreach ($attachments as $i => $attachment) {
+            if (! is_array($attachment)) {
+                continue;
+            }
+            if (($attachment['type'] ?? null) !== 'system_development_survey') {
+                continue;
+            }
+
+            $surveyIndex = $i;
+            $payload = $attachment['payload'] ?? null;
+            $surveyPayload = is_array($payload) ? $payload : [];
+            break;
+        }
+
+        if ($surveyPayload === null) {
+            return;
+        }
+
+        foreach (['targetCompletion', 'assignedSystemsEngineer'] as $key) {
+            if (array_key_exists($key, $updates)) {
+                $surveyPayload[$key] = $updates[$key];
+            }
+        }
+
+        $attachments[$surveyIndex] = [
+            'type' => 'system_development_survey',
+            'payload' => $surveyPayload,
+        ];
+
+        $ticketRequest->update([
+            'attachments' => $attachments,
+        ]);
     }
 }

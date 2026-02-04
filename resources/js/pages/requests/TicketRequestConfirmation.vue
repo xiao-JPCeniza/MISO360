@@ -20,6 +20,7 @@ defineProps<{
         hasQrCode: boolean;
         qrCodeNumber?: string | null;
         attachments: Attachment[];
+        systemDevelopmentSurvey?: Record<string, unknown> | null;
     };
 }>();
 

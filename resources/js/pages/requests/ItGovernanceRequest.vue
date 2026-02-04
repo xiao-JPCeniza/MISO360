@@ -26,6 +26,7 @@ type TicketDetails = {
     natureOfRequest: string | null;
     requestDescription: string | null;
     attachments: Attachment[];
+    systemDevelopmentSurvey?: Record<string, unknown> | null;
     remarksId?: number | string | null;
     assignedStaffId?: number | string | null;
     dateReceived?: string | null;
@@ -88,6 +89,10 @@ const statusList = computed(() =>
     props.statusOptions?.length ? props.statusOptions : fallbackStatuses,
 );
 const attachments = computed(() => props.ticket.attachments ?? []);
+const systemDevelopmentSurvey = computed(() => props.ticket.systemDevelopmentSurvey ?? null);
+const isSystemDevelopment = computed(() => {
+    return (props.ticket.natureOfRequest ?? '').trim().toLowerCase() === 'system development';
+});
 const isEditable = computed(() => props.canEdit);
 
 type FormFields = {
@@ -99,6 +104,10 @@ type FormFields = {
     actionTaken: string;
     categoryId: number | string;
     statusId: number | string;
+    systemDevelopmentSurvey: {
+        targetCompletion: string;
+        assignedSystemsEngineer: string;
+    };
 };
 
 type FieldName = keyof FormFields;
@@ -112,6 +121,10 @@ const form = useForm<FormFields>({
     actionTaken: props.ticket.actionTaken ?? '',
     categoryId: props.ticket.categoryId ?? '',
     statusId: props.ticket.statusId ?? '',
+    systemDevelopmentSurvey: {
+        targetCompletion: String(systemDevelopmentSurvey.value?.targetCompletion ?? ''),
+        assignedSystemsEngineer: String(systemDevelopmentSurvey.value?.assignedSystemsEngineer ?? ''),
+    },
 });
 
 const localErrors = ref<Partial<Record<FieldName, string>>>({});
@@ -273,6 +286,174 @@ function submitForm() {
                                 :value="props.ticket.requestDescription ?? ''"
                                 class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
                             />
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    v-if="isSystemDevelopment && systemDevelopmentSurvey"
+                    class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm"
+                >
+                    <h2 class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                        Systems Development Survey Form
+                    </h2>
+
+                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Title of Proposed System
+                            </label>
+                            <input
+                                type="text"
+                                readonly
+                                :value="String(systemDevelopmentSurvey.titleOfProposedSystem ?? '')"
+                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            />
+                        </div>
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Target Completion
+                            </label>
+                            <input
+                                v-model="form.systemDevelopmentSurvey.targetCompletion"
+                                type="date"
+                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
+                                :disabled="!isEditable"
+                            />
+                        </div>
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Assigned Systems Engineer
+                            </label>
+                            <select
+                                v-model="form.systemDevelopmentSurvey.assignedSystemsEngineer"
+                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
+                                :disabled="!isEditable"
+                            >
+                                <option value="" disabled>Select engineer</option>
+                                <option v-for="staff in props.staffOptions" :key="staff.id" :value="staff.name">
+                                    {{ staff.name }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Office End-User
+                            </label>
+                            <input
+                                type="text"
+                                readonly
+                                :value="String(systemDevelopmentSurvey.officeEndUser ?? '')"
+                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="mt-3 grid gap-3">
+                        <div class="rounded border border-white/15 bg-white/5 px-3 py-2">
+                            <p class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                I. Services or Features
+                            </p>
+                            <div class="mt-2 grid gap-2">
+                                <div
+                                    v-for="(row, index) in (systemDevelopmentSurvey.servicesOrFeatures ?? [])"
+                                    :key="`sof-view-${index}`"
+                                    class="grid gap-1 rounded bg-white/5 px-2 py-1.5 text-[11px] text-white/90 sm:grid-cols-3"
+                                >
+                                    <div class="text-white/80">
+                                        <span class="text-white/60">Service/Feature:</span>
+                                        {{ row.serviceFeature ?? '' }}
+                                    </div>
+                                    <div class="text-white/80 sm:col-span-1">
+                                        <span class="text-white/60">Accessibility:</span>
+                                        {{ row.accessibility ?? '' }}
+                                    </div>
+                                    <div class="text-white/80 sm:col-span-3">
+                                        <span class="text-white/60">Specifics:</span>
+                                        {{ row.specifics ?? '' }}
+                                    </div>
+                                </div>
+                                <p
+                                    v-if="!(systemDevelopmentSurvey.servicesOrFeatures ?? []).length"
+                                    class="text-[10px] text-white/60"
+                                >
+                                    No entries provided.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="rounded border border-white/15 bg-white/5 px-3 py-2">
+                            <p class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                II. Data Gathering
+                            </p>
+                            <div class="mt-2 grid gap-2">
+                                <div
+                                    v-for="(row, index) in (systemDevelopmentSurvey.dataGathering ?? [])"
+                                    :key="`dg-view-${index}`"
+                                    class="grid gap-1 rounded bg-white/5 px-2 py-1.5 text-[11px] text-white/90 sm:grid-cols-3"
+                                >
+                                    <div class="text-white/80">
+                                        <span class="text-white/60">Data required:</span>
+                                        {{ row.dataRequired ?? '' }}
+                                    </div>
+                                    <div class="text-white/80 sm:col-span-3">
+                                        <span class="text-white/60">Specifics:</span>
+                                        {{ row.specifics ?? '' }}
+                                    </div>
+                                </div>
+                                <p
+                                    v-if="!(systemDevelopmentSurvey.dataGathering ?? []).length"
+                                    class="text-[10px] text-white/60"
+                                >
+                                    No entries provided.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="rounded border border-white/15 bg-white/5 px-3 py-2">
+                            <p class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                III. Forms
+                            </p>
+                            <div class="mt-2 grid gap-2">
+                                <div
+                                    v-for="(row, index) in (systemDevelopmentSurvey.forms ?? [])"
+                                    :key="`forms-view-${index}`"
+                                    class="grid gap-1 rounded bg-white/5 px-2 py-1.5 text-[11px] text-white/90 sm:grid-cols-3"
+                                >
+                                    <div class="text-white/80 sm:col-span-3">
+                                        <span class="text-white/60">Title of form:</span>
+                                        {{ row.titleOfForm ?? '' }}
+                                    </div>
+                                    <div class="text-white/80 sm:col-span-3">
+                                        <span class="text-white/60">Description:</span>
+                                        {{ row.description ?? '' }}
+                                    </div>
+                                </div>
+                                <p
+                                    v-if="!(systemDevelopmentSurvey.forms ?? []).length"
+                                    class="text-[10px] text-white/60"
+                                >
+                                    No entries provided.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="rounded border border-white/15 bg-white/5 px-3 py-2">
+                            <p class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                IV. Flow (SOP)
+                            </p>
+                            <p class="mt-2 text-[11px] text-white/90 whitespace-pre-wrap">
+                                {{ String(systemDevelopmentSurvey.flowSop ?? '') }}
+                            </p>
+                        </div>
+
+                        <div class="rounded border border-white/15 bg-white/5 px-3 py-2">
+                            <p class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Head of Office
+                            </p>
+                            <p class="mt-2 text-[11px] text-white/90">
+                                {{ String(systemDevelopmentSurvey.headOfOffice ?? '') }}
+                            </p>
                         </div>
                     </div>
                 </div>

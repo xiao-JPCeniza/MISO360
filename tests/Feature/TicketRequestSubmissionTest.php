@@ -19,6 +19,7 @@ class TicketRequestSubmissionTest extends TestCase
     public function test_user_can_submit_ticket_request_with_attachments_and_qr_code(): void
     {
         Storage::fake('public');
+        /** @var User $user */
         $user = User::factory()->create();
         $natureOfRequest = NatureOfRequest::create([
             'name' => 'System Development',
@@ -36,6 +37,30 @@ class TicketRequestSubmissionTest extends TestCase
                 'description' => 'Please help with a system development request.',
                 'hasQrCode' => true,
                 'qrCodeNumber' => 'MIS-UID-00001',
+                'systemDevelopmentSurvey' => [
+                    'titleOfProposedSystem' => 'Sample Proposed System',
+                    'servicesOrFeatures' => [
+                        [
+                            'serviceFeature' => 'User Management',
+                            'specifics' => 'Add roles and permissions.',
+                            'accessibility' => 'Admin/User View Only',
+                        ],
+                    ],
+                    'dataGathering' => [
+                        [
+                            'dataRequired' => 'Employee records',
+                            'specifics' => 'Name, ID number, office.',
+                        ],
+                    ],
+                    'forms' => [
+                        [
+                            'titleOfForm' => 'User Registration Form',
+                            'description' => 'Reference form for user onboarding.',
+                        ],
+                    ],
+                    'flowSop' => 'Requester submits -> IT reviews -> Approval -> Development',
+                    'headOfOffice' => 'Head of Office Name',
+                ],
                 'attachments' => [
                     UploadedFile::fake()->image('photo.jpg')->size(512),
                     UploadedFile::fake()->create('video.mp4', 1024, 'video/mp4'),
@@ -56,7 +81,35 @@ class TicketRequestSubmissionTest extends TestCase
         ]);
 
         $this->assertNotEmpty($ticketRequest->attachments);
-        Storage::disk('public')->assertExists($ticketRequest->attachments[0]['path']);
+        $fileAttachment = collect($ticketRequest->attachments)
+            ->first(fn (array $attachment) => isset($attachment['path']));
+        $this->assertNotNull($fileAttachment);
+        $this->assertTrue(Storage::disk('public')->exists($fileAttachment['path']));
+    }
+
+    public function test_system_development_requires_survey_form(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'System Development',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-0011', now()->format('Ymd'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Please help with a system development request.',
+                'hasQrCode' => false,
+            ])
+            ->assertSessionHasErrors([
+                'systemDevelopmentSurvey',
+            ]);
     }
 
     public function test_admin_can_submit_ticket_request_for_office_user(): void
@@ -100,6 +153,7 @@ class TicketRequestSubmissionTest extends TestCase
 
     public function test_ticket_request_requires_qr_code_number_when_enabled(): void
     {
+        /** @var User $user */
         $user = User::factory()->create();
         $natureOfRequest = NatureOfRequest::create([
             'name' => 'Password reset',
@@ -123,6 +177,7 @@ class TicketRequestSubmissionTest extends TestCase
 
     public function test_ticket_request_requires_description_minimum_length(): void
     {
+        /** @var User $user */
         $user = User::factory()->create();
         $natureOfRequest = NatureOfRequest::create([
             'name' => 'Computer Repair',
@@ -145,6 +200,7 @@ class TicketRequestSubmissionTest extends TestCase
 
     public function test_submit_request_create_prefills_nature_when_service_param_matches(): void
     {
+        /** @var User $user */
         $user = User::factory()->create();
         $natureOfRequest = NatureOfRequest::create([
             'name' => 'Computer repair',
@@ -164,6 +220,7 @@ class TicketRequestSubmissionTest extends TestCase
 
     public function test_submit_request_create_resolves_service_case_insensitive(): void
     {
+        /** @var User $user */
         $user = User::factory()->create();
         $natureOfRequest = NatureOfRequest::create([
             'name' => 'System Development',
