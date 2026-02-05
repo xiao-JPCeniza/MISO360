@@ -18,7 +18,9 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('workos_id')->unique();
             $table->rememberToken();
-            $table->text('avatar');
+            // Store only the relative path to the avatar in public storage.
+            // Nullable so existing users without an avatar do not fail inserts/updates.
+            $table->string('avatar')->nullable();
             $table->timestamps();
         });
 

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\ProfileAvatarUpdateRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Models\User;
+use App\Services\AvatarService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +34,36 @@ class ProfileController extends Controller
         $user->update(['name' => $request->name]);
 
         return to_route('profile.edit');
+    }
+
+    /**
+     * Update the authenticated user's profile picture.
+     * Stores in storage/app/public/avatars/{id}/, updates user.avatar (path only).
+     * Shared auth.user includes avatar_url accessor so the UI updates after redirect/reload.
+     * Ensure "php artisan storage:link" has been run so /storage/avatars/... is publicly accessible.
+     */
+    public function updateAvatar(ProfileAvatarUpdateRequest $request, AvatarService $avatarService): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user instanceof User) {
+            return back()->withErrors(['avatar' => 'Unable to update avatar.']);
+        }
+
+        $file = $request->file('avatar');
+        if (! $file || ! $file->isValid()) {
+            return back()->withErrors(['avatar' => 'The uploaded file is invalid. Please try again.']);
+        }
+
+        try {
+            $path = $avatarService->storeAvatar($file, $user);
+            $user->update(['avatar' => $path]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors(['avatar' => 'Failed to save photo. Please try again.']);
+        }
+
+        return redirect()->route('profile.edit')->with('status', 'Profile photo updated.');
     }
 
     /**

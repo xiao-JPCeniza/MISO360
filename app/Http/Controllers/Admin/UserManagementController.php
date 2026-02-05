@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ReferenceValueGroup;
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateUserPasswordRequest;
@@ -9,6 +10,7 @@ use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Http\Requests\Admin\UpdateUserRoleRequest;
 use App\Http\Requests\Admin\UpdateUserStatusRequest;
 use App\Models\AuditLog;
+use App\Models\ReferenceValue;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
@@ -48,6 +50,14 @@ class UserManagementController extends Controller
     {
         Gate::authorize('view', $user);
 
+        $user->load('officeDesignation');
+
+        $officeDesignations = ReferenceValue::query()
+            ->active()
+            ->forGroup(ReferenceValueGroup::OfficeDesignation)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         $auditLogs = AuditLog::query()
             ->where('target_type', $user->getMorphClass())
             ->where('target_id', $user->id)
@@ -65,9 +75,13 @@ class UserManagementController extends Controller
                 'is_active',
                 'two_factor_enabled',
                 'two_factor_confirmed_at',
+                'office_designation_id',
+                'position_title',
                 'created_at',
                 'updated_at',
             ]),
+            'officeDesignation' => $user->officeDesignation?->only(['id', 'name']),
+            'officeDesignations' => $officeDesignations,
             'roleOptions' => Role::options(),
             'auditLogs' => $auditLogs,
         ]);
@@ -77,10 +91,52 @@ class UserManagementController extends Controller
     {
         Gate::authorize('update', $user);
 
-        $user->update($request->validated());
+        $validated = $request->validated();
+
+        $previousValues = $user->only(array_keys($validated));
+
+        $officeNames = ReferenceValue::query()
+            ->whereIn('id', [
+                $user->office_designation_id,
+                $validated['office_designation_id'],
+            ])
+            ->pluck('name', 'id');
+
+        $user->update($validated);
+
+        $changes = [];
+
+        foreach ($validated as $field => $value) {
+            $previous = $previousValues[$field] ?? null;
+
+            if ($previous === $value) {
+                continue;
+            }
+
+            if ($field === 'office_designation_id') {
+                $changes['office_designation'] = [
+                    'from' => [
+                        'id' => $previous,
+                        'name' => $officeNames[$previous] ?? null,
+                    ],
+                    'to' => [
+                        'id' => $value,
+                        'name' => $officeNames[$value] ?? null,
+                    ],
+                ];
+
+                continue;
+            }
+
+            $changes[$field] = [
+                'from' => $previous,
+                'to' => $value,
+            ];
+        }
 
         $auditLogger->log($request, 'user.profile.updated', $user, [
             'fields' => array_keys($request->validated()),
+            'changes' => $changes,
         ]);
 
         return back()->with('status', 'User profile updated.');

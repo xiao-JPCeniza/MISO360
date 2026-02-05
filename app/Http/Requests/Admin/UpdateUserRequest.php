@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\ReferenceValueGroup;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -27,6 +28,14 @@ class UpdateUserRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'position_title' => ['required', 'string', 'max:255'],
+            'office_designation_id' => [
+                'required',
+                'integer',
+                Rule::exists('reference_values', 'id')
+                    ->where('group_key', ReferenceValueGroup::OfficeDesignation->value)
+                    ->where('is_active', true),
+            ],
             'email' => [
                 'required',
                 'string',

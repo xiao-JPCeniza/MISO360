@@ -31,8 +31,11 @@ export interface User {
     name: string;
     email: string;
     avatar?: string;
+    avatar_url?: string | null;
     role?: string;
     phone?: string | null;
+    position_title?: string | null;
+    office_designation_id?: number | null;
     is_active?: boolean;
     two_factor_enabled?: boolean;
     email_verified_at: string | null;

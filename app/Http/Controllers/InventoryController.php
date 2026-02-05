@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\NatureOfRequest;
 use App\Models\TicketArchive;
 use App\Models\TicketEnrollment;
+use App\Models\TicketRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -15,10 +17,35 @@ class InventoryController extends Controller
         $search = $request->string('search')->trim()->toString();
         $status = strtolower($request->string('status')->toString() ?: 'all');
 
+        $borrowedCount = $this->borrowedRequestsQuery()->count();
+        $borrowedRequests = collect();
+
+        if ($status === 'borrowed') {
+            $borrowedRequests = $this->borrowedRequestsQuery()
+                ->with([
+                    'natureOfRequest:id,name',
+                    'officeDesignation:id,name',
+                    'status:id,name',
+                    'requestedForUser:id,name',
+                    'user:id,name',
+                ])
+                ->latest()
+                ->get()
+                ->map(fn (TicketRequest $t) => [
+                    'id' => $t->id,
+                    'controlTicketNumber' => $t->control_ticket_number,
+                    'requesterName' => $t->requestedForUser?->name ?? $t->user?->name,
+                    'office' => $t->officeDesignation?->name,
+                    'status' => $t->status?->name,
+                    'dateFiled' => $t->created_at?->toDateString(),
+                    'showUrl' => route('requests.show', $t),
+                ]);
+        }
+
         $activeItems = collect();
         $archivedItems = collect();
 
-        if ($status !== 'archived') {
+        if ($status !== 'archived' && $status !== 'borrowed') {
             $activeItems = TicketEnrollment::query()
                 ->when($search !== '', function ($query) use ($search) {
                     $query->where('equipment_name', 'like', "%{$search}%");
@@ -27,7 +54,7 @@ class InventoryController extends Controller
                 ->get();
         }
 
-        if ($status !== 'active') {
+        if ($status !== 'active' && $status !== 'borrowed') {
             $archivedItems = TicketArchive::query()
                 ->when($search !== '', function ($query) use ($search) {
                     $query->where('equipment_name', 'like', "%{$search}%");
@@ -42,6 +69,7 @@ class InventoryController extends Controller
 
         return Inertia::render('inventory/Inventory', [
             'items' => $items,
+            'borrowedRequests' => $borrowedRequests,
             'filters' => [
                 'search' => $search,
                 'status' => $status,
@@ -49,8 +77,32 @@ class InventoryController extends Controller
             'counts' => [
                 'active' => TicketEnrollment::count(),
                 'archived' => TicketArchive::count(),
+                'borrowed' => $borrowedCount,
             ],
         ]);
+    }
+
+    /**
+     * Borrow Unit requests that are not yet completed. When completed they disappear from this list.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<TicketRequest>
+     */
+    private function borrowedRequestsQuery()
+    {
+        $borrowNatureId = NatureOfRequest::query()
+            ->where('name', 'Borrow Unit')
+            ->value('id');
+
+        if (! $borrowNatureId) {
+            /** @var \Illuminate\Database\Eloquent\Builder<TicketRequest> $query */
+            $query = TicketRequest::query()->whereNull('id');
+
+            return $query;
+        }
+
+        return TicketRequest::query()
+            ->where('nature_of_request_id', $borrowNatureId)
+            ->active();
     }
 
     public function show(string $uniqueId)

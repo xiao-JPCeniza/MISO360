@@ -8,11 +8,19 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
+
+    /**
+     * The attributes that should be appended when the model is serialized.
+     *
+     * @var list<string>
+     */
+    protected $appends = ['avatar_url'];
 
     /**
      * The attributes that are mass assignable.
@@ -118,5 +126,17 @@ class User extends Authenticatable implements MustVerifyEmail
     public function officeDesignation(): BelongsTo
     {
         return $this->belongsTo(ReferenceValue::class, 'office_designation_id');
+    }
+
+    /**
+     * Get the full URL for the user's avatar (for display).
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (empty($this->avatar)) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->avatar);
     }
 }

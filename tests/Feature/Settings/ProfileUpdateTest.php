@@ -4,6 +4,8 @@ namespace Tests\Feature\Settings;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProfileUpdateTest extends TestCase
@@ -133,5 +135,81 @@ class ProfileUpdateTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->missingAll(['canManageRoles', 'roleOptions'])
         );
+    }
+
+    public function test_user_can_update_profile_avatar_with_valid_image()
+    {
+        Storage::fake('public');
+        $user = User::factory()->create(['avatar' => '']);
+
+        $file = UploadedFile::fake()->image('avatar.jpg', 200, 200);
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
+            ->post(route('profile.avatar.update'), [
+                '_token' => 'test-token',
+                'avatar' => $file,
+            ]);
+
+        $response->assertSessionHasNoErrors()->assertRedirect(route('profile.edit'));
+
+        $user->refresh();
+        $this->assertNotEmpty($user->avatar);
+        $this->assertStringStartsWith('avatars/', $user->avatar);
+        Storage::disk('public')->assertExists($user->avatar);
+        $this->assertSame('Profile photo updated.', session('status'));
+    }
+
+    public function test_profile_avatar_update_rejects_non_image_file()
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
+            ->post(route('profile.avatar.update'), [
+                '_token' => 'test-token',
+                'avatar' => $file,
+            ]);
+
+        $response->assertSessionHasErrors('avatar');
+        $user->refresh();
+        $this->assertSame('', $user->avatar);
+    }
+
+    public function test_profile_avatar_update_rejects_file_over_5mb()
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->image('large.jpg')->size(5121);
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
+            ->post(route('profile.avatar.update'), [
+                '_token' => 'test-token',
+                'avatar' => $file,
+            ]);
+
+        $response->assertSessionHasErrors('avatar');
+    }
+
+    public function test_guest_cannot_update_profile_avatar()
+    {
+        $file = UploadedFile::fake()->image('avatar.jpg');
+
+        $response = $this
+            ->withSession(['_token' => 'test-token'])
+            ->post(route('profile.avatar.update'), [
+                '_token' => 'test-token',
+                'avatar' => $file,
+            ]);
+
+        $response->assertRedirect(route('login'));
     }
 }

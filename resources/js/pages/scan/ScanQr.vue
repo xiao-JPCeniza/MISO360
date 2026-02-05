@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { AlertTriangle, Camera, ScanLine } from 'lucide-vue-next';
+import { BrowserQRCodeReader } from '@zxing/browser';
+import { Camera, ScanLine } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -11,22 +12,57 @@ const scanError = ref('');
 const manualCode = ref('');
 const isResolving = ref(false);
 
-const supportsScanner = computed(
+const hasNativeScanner = computed(
     () => typeof window !== 'undefined' && 'BarcodeDetector' in window,
 );
 
 let detector: BarcodeDetector | null = null;
+let zxingControls: { stop: () => void } | null = null;
 let stream: MediaStream | null = null;
 let frameHandle = 0;
 let lastScanAt = 0;
 
 const normalizedCode = computed(() => manualCode.value.trim().toUpperCase());
 
+const constraintPresets: MediaStreamConstraints['video'][] = [
+    { facingMode: 'environment' },
+    { facingMode: { ideal: 'environment' } },
+    { facingMode: 'user' },
+    true,
+];
+
+async function getStreamWithFallback(): Promise<MediaStream> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+        const tip =
+            typeof location !== 'undefined' && location.protocol === 'http:'
+                ? ' Open this page using https:// or http://localhost or http://127.0.0.1 (same port if needed).'
+                : '';
+        throw new Error(
+            'Camera is only allowed on secure pages (HTTPS or localhost).' + tip,
+        );
+    }
+    for (const video of constraintPresets) {
+        try {
+            return await navigator.mediaDevices.getUserMedia({
+                video,
+                audio: false,
+            });
+        } catch {
+            continue;
+        }
+    }
+    return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+}
+
 function stopScanner() {
     scanning.value = false;
     if (frameHandle) {
         cancelAnimationFrame(frameHandle);
         frameHandle = 0;
+    }
+    if (zxingControls) {
+        zxingControls.stop();
+        zxingControls = null;
     }
     if (stream) {
         stream.getTracks().forEach((track) => track.stop());
@@ -101,30 +137,57 @@ async function scanFrame() {
 }
 
 async function startScanner() {
-    if (!supportsScanner.value || scanning.value || isResolving.value) {
+    if (scanning.value || isResolving.value) {
+        return;
+    }
+    if (!videoRef.value) {
         return;
     }
 
     scanError.value = '';
 
     try {
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' },
-        });
-
-        if (!videoRef.value) {
-            return;
-        }
-
+        stream = await getStreamWithFallback();
         videoRef.value.srcObject = stream;
         await videoRef.value.play();
 
-        detector = new BarcodeDetector({ formats: ['qr_code'] });
-        scanning.value = true;
-        frameHandle = requestAnimationFrame(scanFrame);
+        if (hasNativeScanner.value) {
+            detector = new (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => BarcodeDetector }).BarcodeDetector({
+                formats: ['qr_code'],
+            });
+            scanning.value = true;
+            frameHandle = requestAnimationFrame(scanFrame);
+        } else {
+            const reader = new BrowserQRCodeReader(undefined, {
+                delayBetweenScanAttempts: 200,
+            });
+            scanning.value = true;
+            zxingControls = await reader.decodeFromStream(
+                stream,
+                videoRef.value,
+                (result, error) => {
+                    if (!scanning.value || isResolving.value) {
+                        return;
+                    }
+                    if (result) {
+                        const value = result.getText()?.trim().toUpperCase();
+                        if (value) {
+                            stopScanner();
+                            resolveCode(value);
+                        }
+                        return;
+                    }
+                    if (error && error.name !== 'NotFoundException') {
+                        console.error(error);
+                    }
+                },
+            );
+        }
     } catch (error) {
         scanError.value =
-            'Camera access was blocked. Please allow camera permissions.';
+            error instanceof Error && error.message
+                ? error.message
+                : 'Camera access was blocked or unavailable. Please allow camera permissions and try again.';
         console.error(error);
         stopScanner();
     }
@@ -135,9 +198,7 @@ function submitManual() {
 }
 
 onMounted(() => {
-    if (supportsScanner.value) {
-        startScanner();
-    }
+    startScanner();
 });
 
 onBeforeUnmount(() => {
@@ -173,7 +234,6 @@ onBeforeUnmount(() => {
                     <div class="flex items-center justify-between">
                         <h2 class="text-base font-semibold">Live camera feed</h2>
                         <button
-                            v-if="supportsScanner"
                             type="button"
                             class="rounded-full border border-sidebar-border/70 px-4 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/40"
                             @click="scanning ? stopScanner() : startScanner()"
@@ -194,17 +254,7 @@ onBeforeUnmount(() => {
                             ></video>
                         </div>
                         <div
-                            v-if="!supportsScanner"
-                            class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 p-6 text-center text-sm text-white"
-                        >
-                            <AlertTriangle class="h-6 w-6" />
-                            <p>
-                                Your browser does not support live QR scanning.
-                                Use the manual entry box instead.
-                            </p>
-                        </div>
-                        <div
-                            v-else-if="!scanning"
+                            v-if="!scanning"
                             class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 p-6 text-center text-sm text-white"
                         >
                             <Camera class="h-6 w-6" />

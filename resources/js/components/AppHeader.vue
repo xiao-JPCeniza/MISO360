@@ -304,8 +304,8 @@ const isAdminPanelActive = computed(() =>
                             >
                                 <Avatar class="size-8 overflow-hidden rounded-full">
                                     <AvatarImage
-                                        v-if="auth.user.avatar"
-                                        :src="auth.user.avatar"
+                                        v-if="auth.user.avatar_url || auth.user.avatar"
+                                        :src="auth.user.avatar_url || auth.user.avatar"
                                         :alt="auth.user.name"
                                     />
                                     <AvatarFallback

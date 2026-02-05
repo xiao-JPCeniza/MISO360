@@ -17,6 +17,11 @@ type AuditLogEntry = {
     created_at: string;
 };
 
+type OfficeDesignation = {
+    id: number;
+    name: string;
+};
+
 type ManagedUser = {
     id: number;
     name: string;
@@ -26,12 +31,16 @@ type ManagedUser = {
     is_active: boolean;
     two_factor_enabled: boolean;
     two_factor_confirmed_at?: string | null;
+    office_designation_id: number | null;
+    position_title?: string | null;
     created_at: string;
     updated_at: string;
 };
 
 const props = defineProps<{
     user: ManagedUser;
+    officeDesignation: OfficeDesignation | null;
+    officeDesignations: OfficeDesignation[];
     roleOptions: Record<string, string>;
     auditLogs: AuditLogEntry[];
 }>();
@@ -55,6 +64,11 @@ const profileForm = useForm({
     name: props.user.name,
     email: props.user.email,
     phone: props.user.phone ?? '',
+});
+
+const workForm = useForm({
+    office_designation_id: props.user.office_designation_id ?? props.officeDesignation?.id ?? null,
+    position_title: props.user.position_title ?? '',
 });
 
 const roleForm = useForm({
@@ -143,6 +157,50 @@ const passwordForm = useForm({
                             <Button :disabled="profileForm.processing">
                                 Save profile
                             </Button>
+                        </form>
+                    </div>
+
+                    <div class="rounded-3xl border border-sidebar-border/60 bg-background p-6">
+                        <HeadingSmall
+                            title="Work details"
+                            description="Update designated office and position."
+                        />
+
+                        <form
+                            @submit.prevent="workForm.patch(`/admin/users/${props.user.id}`)"
+                            class="mt-6 space-y-6"
+                        >
+                            <div class="grid gap-2">
+                                <Label for="office_designation_id">Designated office</Label>
+                                <select
+                                    id="office_designation_id"
+                                    v-model.number="workForm.office_designation_id"
+                                    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                >
+                                    <option :value="null" disabled>Select an office</option>
+                                    <option
+                                        v-for="office in props.officeDesignations"
+                                        :key="office.id"
+                                        :value="office.id"
+                                    >
+                                        {{ office.name }}
+                                    </option>
+                                </select>
+                                <InputError :message="workForm.errors.office_designation_id" />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="position_title">Position / Designation</Label>
+                                <Input id="position_title" v-model="workForm.position_title" />
+                                <InputError :message="workForm.errors.position_title" />
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <Button :disabled="workForm.processing">
+                                    Save work details
+                                </Button>
+                                <p v-if="workForm.recentlySuccessful" class="text-sm text-emerald-600">
+                                    Work details saved.
+                                </p>
+                            </div>
                         </form>
                     </div>
 

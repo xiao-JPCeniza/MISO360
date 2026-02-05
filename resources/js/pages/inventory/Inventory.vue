@@ -20,8 +20,19 @@ type InventoryItem = {
     archivedAt?: string | null;
 };
 
+type BorrowedRequest = {
+    id: number;
+    controlTicketNumber: string;
+    requesterName: string | null;
+    office: string | null;
+    status: string | null;
+    dateFiled: string | null;
+    showUrl: string;
+};
+
 const props = defineProps<{
     items: InventoryItem[];
+    borrowedRequests: BorrowedRequest[];
     filters: {
         search: string;
         status: string;
@@ -29,6 +40,7 @@ const props = defineProps<{
     counts: {
         active: number;
         archived: number;
+        borrowed: number;
     };
 }>();
 
@@ -107,7 +119,7 @@ function setStatus(nextStatus: string) {
                 </div>
             </section>
 
-            <section class="grid gap-4 lg:grid-cols-3">
+            <section class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
                 <div class="rounded-2xl border border-sidebar-border/60 bg-background p-5">
                     <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                         Active assets
@@ -124,6 +136,15 @@ function setStatus(nextStatus: string) {
                     <p class="mt-4 text-3xl font-semibold">{{ counts.archived }}</p>
                     <p class="mt-2 text-sm text-muted-foreground">
                         Deactivated or retired equipment.
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-sidebar-border/60 bg-background p-5">
+                    <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                        Borrowed
+                    </p>
+                    <p class="mt-4 text-3xl font-semibold">{{ counts.borrowed }}</p>
+                    <p class="mt-2 text-sm text-muted-foreground">
+                        Pending borrow requests. Completed requests are removed.
                     </p>
                 </div>
                 <div class="rounded-2xl border border-sidebar-border/60 bg-background p-5">
@@ -182,14 +203,65 @@ function setStatus(nextStatus: string) {
                             >
                                 Archived
                             </button>
+                            <button
+                                type="button"
+                                class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition"
+                                :class="status === 'borrowed'
+                                    ? 'border-transparent bg-blue-600 text-white'
+                                    : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40'"
+                                @click="setStatus('borrowed')"
+                            >
+                                Borrowed
+                            </button>
                         </div>
                     </div>
-                    <p v-if="isFiltered" class="text-xs text-muted-foreground">
+                    <p v-if="isFiltered && status !== 'borrowed'" class="text-xs text-muted-foreground">
                         Showing {{ items.length }} result(s) for current filters.
+                    </p>
+                    <p v-else-if="status === 'borrowed'" class="text-xs text-muted-foreground">
+                        {{ borrowedRequests.length }} active borrow request(s). Completed requests are removed from this list.
                     </p>
                 </div>
 
-                <div v-if="!items.length" class="mt-6 rounded-2xl border border-dashed border-sidebar-border/70 p-8 text-center text-sm text-muted-foreground">
+                <!-- Borrowed requests list (when Borrowed tab is selected) -->
+                <div v-if="status === 'borrowed'" class="mt-6 overflow-hidden rounded-2xl border border-sidebar-border/60">
+                    <div v-if="!borrowedRequests.length" class="rounded-2xl border border-dashed border-sidebar-border/70 p-8 text-center text-sm text-muted-foreground">
+                        No active borrow requests. Completed borrows are removed from this list.
+                    </div>
+                    <template v-else>
+                        <div class="hidden grid-cols-[1fr_1fr_0.8fr_0.6fr_0.6fr] gap-4 border-b border-sidebar-border/60 bg-muted/30 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:grid">
+                            <span>Control ticket</span>
+                            <span>Requester</span>
+                            <span>Office</span>
+                            <span>Status</span>
+                            <span class="text-right">Actions</span>
+                        </div>
+                        <div class="divide-y divide-sidebar-border/60">
+                            <div
+                                v-for="req in borrowedRequests"
+                                :key="req.id"
+                                class="flex flex-col gap-3 px-4 py-4 text-sm md:grid md:grid-cols-[1fr_1fr_0.8fr_0.6fr_0.6fr] md:items-center md:gap-4"
+                            >
+                                <p class="font-semibold">{{ req.controlTicketNumber }}</p>
+                                <p class="text-muted-foreground">{{ req.requesterName ?? '—' }}</p>
+                                <p class="text-muted-foreground">{{ req.office ?? '—' }}</p>
+                                <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200">
+                                    {{ req.status ?? '—' }}
+                                </span>
+                                <div class="flex justify-end">
+                                    <Link
+                                        :href="req.showUrl"
+                                        class="rounded-full border border-sidebar-border/70 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/40"
+                                    >
+                                        View
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div v-else-if="!items.length" class="mt-6 rounded-2xl border border-dashed border-sidebar-border/70 p-8 text-center text-sm text-muted-foreground">
                     No inventory records match your filters.
                 </div>
 

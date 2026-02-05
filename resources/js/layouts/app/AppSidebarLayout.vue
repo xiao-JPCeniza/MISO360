@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+
 import AppContent from '@/components/AppContent.vue';
 import AppFooter from '@/components/AppFooter.vue';
 import AppShell from '@/components/AppShell.vue';
@@ -13,15 +16,23 @@ interface Props {
 withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
 });
+
+const page = usePage();
+const canAccessFooter = computed(
+    () =>
+        ['admin', 'super_admin'].includes(
+            (page.props.auth as { user?: { role?: string } })?.user?.role ?? '',
+        ),
+);
 </script>
 
 <template>
     <AppShell variant="sidebar">
         <AppSidebar />
-        <AppContent variant="sidebar" class="overflow-x-hidden pb-24">
+        <AppContent variant="sidebar" :class="['overflow-x-hidden', canAccessFooter ? 'pb-24' : 'pb-6']">
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
             <slot />
         </AppContent>
-        <AppFooter />
+        <AppFooter v-if="canAccessFooter" />
     </AppShell>
 </template>

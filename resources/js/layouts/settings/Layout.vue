@@ -47,8 +47,8 @@ const { urlIsActive } = useActiveUrl();
                         ]"
                         as-child
                     >
-                        <Link :href="item.href">
-                            <component :is="item.icon" class="h-4 w-4" />
+                        <Link :href="item.href" class="flex items-center gap-2">
+                            <component v-if="item.icon" :is="item.icon" class="h-4 w-4 shrink-0" />
                             {{ item.title }}
                         </Link>
                     </Button>

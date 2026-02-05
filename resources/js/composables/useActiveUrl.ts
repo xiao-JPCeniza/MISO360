@@ -4,12 +4,12 @@ import { computed, readonly } from 'vue';
 
 import { toUrl } from '@/lib/utils';
 
-const page = usePage();
-const currentUrlReactive = computed(
-    () => new URL(page.url, window?.location.origin).pathname,
-);
-
 export function useActiveUrl() {
+    const page = usePage();
+    const currentUrlReactive = computed(
+        () => new URL(page.url, window?.location.origin).pathname,
+    );
+
     function urlIsActive(
         urlToCheck: NonNullable<InertiaLinkProps['href']>,
         currentUrl?: string,
@@ -23,3 +23,4 @@ export function useActiveUrl() {
         urlIsActive,
     };
 }
+

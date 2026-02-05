@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { BrowserQRCodeReader, type IScannerControls } from '@zxing/browser';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 import TicketEnrollmentForm from '@/components/TicketEnrollmentForm.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -170,7 +170,9 @@ onMounted(() => {
         return;
     }
     if (enrollmentStep.value === 'scan') {
-        startScan();
+        nextTick(() => {
+            startScan();
+        });
     }
 
     refreshNatureOptions();
@@ -218,6 +220,26 @@ async function validateIssuedUid(value: string) {
     return Boolean(data.valid);
 }
 
+const cameraConstraintPresets: MediaStreamConstraints[] = [
+    {
+        video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+        },
+        audio: false,
+    },
+    {
+        video: { facingMode: 'environment' },
+        audio: false,
+    },
+    {
+        video: { facingMode: 'user' },
+        audio: false,
+    },
+    { video: true, audio: false },
+];
+
 async function startScan() {
     scanError.value = '';
     if (typeof window === 'undefined') {
@@ -231,44 +253,59 @@ async function startScan() {
         return;
     }
 
-    try {
-        if (!videoRef.value) {
-            scanError.value = 'Camera feed is unavailable.';
+    if (!videoRef.value) {
+        scanError.value = 'Camera feed is unavailable.';
+        return;
+    }
+
+    const callback = (
+        result: { getText: () => string } | null,
+        error: { name: string } | null,
+    ) => {
+        if (!isScanning.value) {
             return;
         }
+        if (result) {
+            handleUniqueId(normalizeScannedId(result.getText()));
+            return;
+        }
+        if (error && error.name !== 'NotFoundException') {
+            scanError.value = 'Unable to read the QR code. Try again.';
+            console.error(error);
+        }
+    };
 
+    try {
         isScanning.value = true;
         const reader = new BrowserQRCodeReader(undefined, {
             delayBetweenScanAttempts: 200,
         });
-        scanControls.value = await reader.decodeFromConstraints(
-            {
-                video: {
-                    facingMode: { ideal: 'environment' },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                },
-                audio: false,
-            },
-            videoRef.value,
-            (result, error) => {
-                if (!isScanning.value) {
-                    return;
+
+        for (const constraints of cameraConstraintPresets) {
+            try {
+                scanControls.value = await reader.decodeFromConstraints(
+                    constraints,
+                    videoRef.value,
+                    callback,
+                );
+                return;
+            } catch {
+                if (scanControls.value) {
+                    scanControls.value.stop();
+                    scanControls.value = null;
                 }
-                if (result) {
-                    handleUniqueId(normalizeScannedId(result.getText()));
-                    return;
-                }
-                if (error && error.name !== 'NotFoundException') {
-                    scanError.value = 'Unable to read the QR code. Try again.';
-                    console.error(error);
-                }
-            },
-        );
+                continue;
+            }
+        }
+
+        scanError.value =
+            'Unable to access the camera. Check permissions and try again.';
+        isScanning.value = false;
     } catch (error) {
         scanError.value =
             'Unable to access the camera. Check permissions and try again.';
         console.error(error);
+        isScanning.value = false;
     }
 }
 
