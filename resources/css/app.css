@@ -209,3 +209,18 @@
         background-image: linear-gradient(180deg, #081225 0%, #0b1f45 55%, #081225 100%);
     }
 }
+
+/* Avatar: show full picture at original scale, not zoomed/cropped */
+[data-slot='avatar'] img,
+[data-slot='avatar-image'],
+[data-slot='avatar-image'] img,
+.avatar-show-full img,
+.avatar-image-full img,
+.avatar-profile img {
+    object-fit: contain !important;
+    object-position: center;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+}

@@ -79,7 +79,7 @@ watch(
 
 const servicesSearchQuery = ref('');
 
-const TEAM_PROFILE_BASE = '/storage/MISO_Profile_ID';
+const TEAM_PROFILE_BASE = '/storage/MISO%20-%20ID';
 
 type TeamMember = {
     id: string;
@@ -400,7 +400,7 @@ function getFilteredServicesForDivision(division: Division) {
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <img
-                            src="/storage/logos/MISO360_LOGO.gif"
+                            src="/storage/logos/IT_Logo.gif"
                             alt="System logo"
                             class="h-10 w-10 rounded-full bg-white p-1 dark:bg-white"
                         />
@@ -418,7 +418,7 @@ function getFilteredServicesForDivision(division: Division) {
                             href="#profile"
                             class="transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
                         >
-                            MS  O Profile
+                            MISO Profile
                         </a>
                         <a
                             href="#team"

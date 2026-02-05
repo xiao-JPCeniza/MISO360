@@ -142,7 +142,7 @@ class ProfileUpdateTest extends TestCase
         Storage::fake('public');
         $user = User::factory()->create(['avatar' => '']);
 
-        $file = UploadedFile::fake()->image('avatar.jpg', 200, 200);
+        $file = UploadedFile::fake()->image('avatar.jpg', 400, 400)->size(3000);
 
         $response = $this
             ->actingAs($user)
@@ -181,12 +181,12 @@ class ProfileUpdateTest extends TestCase
         $this->assertSame('', $user->avatar);
     }
 
-    public function test_profile_avatar_update_rejects_file_over_5mb()
+    public function test_profile_avatar_update_rejects_file_over_50mb()
     {
         Storage::fake('public');
         $user = User::factory()->create();
 
-        $file = UploadedFile::fake()->image('large.jpg')->size(5121);
+        $file = UploadedFile::fake()->image('large.jpg')->size(51201);
 
         $response = $this
             ->actingAs($user)

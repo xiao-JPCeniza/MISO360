@@ -16,14 +16,21 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { getInitials } = useInitials();
 
-const avatarUrl = computed(
-    () => props.user.avatar_url ?? (props.user.avatar && props.user.avatar !== '' ? props.user.avatar : null),
-);
+/** Same-origin avatar URL so the photo shows in header dropdown and sidebar after upload. */
+const avatarUrl = computed(() => {
+    const u = props.user;
+    const path = u.avatar && String(u.avatar).trim() !== '' ? u.avatar : null;
+    if (path) {
+        const normalized = path.startsWith('/') ? path.slice(1) : path;
+        return `/storage/${normalized}`;
+    }
+    return u.avatar_url ?? null;
+});
 const showAvatar = computed(() => Boolean(avatarUrl.value));
 </script>
 
 <template>
-    <Avatar class="h-8 w-8 overflow-hidden rounded-lg">
+    <Avatar class="avatar-profile h-8 w-8 overflow-hidden rounded-lg">
         <AvatarImage v-if="showAvatar" :src="avatarUrl!" :alt="user.name" />
         <AvatarFallback class="rounded-lg text-black dark:text-white">
             {{ getInitials(user.name) }}

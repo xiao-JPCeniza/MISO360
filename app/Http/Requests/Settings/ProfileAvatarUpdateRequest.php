@@ -27,7 +27,7 @@ class ProfileAvatarUpdateRequest extends FormRequest
                 'file',
                 'image',
                 'mimes:jpg,jpeg,png,webp',
-                'max:5120',
+                'max:51200',
             ],
         ];
     }
@@ -41,7 +41,7 @@ class ProfileAvatarUpdateRequest extends FormRequest
             'avatar.required' => 'Please select an image to upload.',
             'avatar.image' => 'The file must be an image (JPG, PNG, or WEBP).',
             'avatar.mimes' => 'The image must be a JPG, PNG, or WEBP file.',
-            'avatar.max' => 'The image must not exceed 5 MB.',
+            'avatar.max' => 'The image must not exceed 50 MB.',
         ];
     }
 }

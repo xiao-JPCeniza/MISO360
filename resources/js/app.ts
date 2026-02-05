@@ -1,5 +1,6 @@
 import '../css/app.css';
 
+import Alpine from 'alpinejs';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
@@ -10,6 +11,17 @@ import { initializeTheme } from './composables/useAppearance';
 import './wayfinder';
 
 initializeTheme();
+
+type AlpineInstance = typeof Alpine;
+
+declare global {
+    interface Window {
+        Alpine: AlpineInstance;
+    }
+}
+
+window.Alpine = Alpine;
+Alpine.start();
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 

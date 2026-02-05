@@ -48,6 +48,19 @@ const props = withDefaults(defineProps<Props>(), {
 
 const page = usePage();
 const auth = computed(() => page.props.auth);
+
+/** Same-origin avatar URL so the photo shows in header/dropdown after upload. */
+const headerAvatarUrl = computed(() => {
+    const u = auth.value?.user;
+    if (!u) return null;
+    const path = u.avatar && String(u.avatar).trim() !== '' ? u.avatar : null;
+    if (path) {
+        const normalized = path.startsWith('/') ? path.slice(1) : path;
+        return `/storage/${normalized}`;
+    }
+    return u.avatar_url ?? null;
+});
+
 const { urlIsActive } = useActiveUrl();
 
 function activeItemClasses(url: NonNullable<InertiaLinkProps['href']>) {
@@ -152,7 +165,7 @@ const isAdminPanelActive = computed(() =>
                             <SheetHeader class="flex justify-start text-left">
                                 <div class="flex items-center gap-3">
                                     <img
-                                        src="/storage/logos/MISO360_LOGO.gif"
+                                        src="/storage/logos/IT_Logo.gif"
                                         alt="System logo"
                                         class="h-10 w-10 rounded-full bg-white p-1"
                                     />
@@ -217,7 +230,7 @@ const isAdminPanelActive = computed(() =>
 
                 <Link :href="dashboard()" class="flex items-center gap-3">
                     <img
-                        src="/storage/logos/MISO360_LOGO.gif"
+                        src="/storage/logos/IT_Logo.gif"
                         alt="System logo"
                         class="h-10 w-10 rounded-full bg-white p-1"
                     />
@@ -302,10 +315,10 @@ const isAdminPanelActive = computed(() =>
                                 size="icon"
                                 class="relative size-10 w-auto rounded-full p-1 focus-within:ring-2 focus-within:ring-[#2563eb] dark:focus-within:ring-[#93c5fd]"
                             >
-                                <Avatar class="size-8 overflow-hidden rounded-full">
+                                <Avatar class="avatar-profile size-8 overflow-hidden rounded-full">
                                     <AvatarImage
-                                        v-if="auth.user.avatar_url || auth.user.avatar"
-                                        :src="auth.user.avatar_url || auth.user.avatar"
+                                        v-if="headerAvatarUrl"
+                                        :src="headerAvatarUrl"
                                         :alt="auth.user.name"
                                     />
                                     <AvatarFallback
