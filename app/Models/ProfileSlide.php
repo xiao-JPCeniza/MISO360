@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 class ProfileSlide extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'image_path',
         'title',

@@ -44,4 +44,30 @@ class AdminDashboardTest extends TestCase
             ->has('sort')
         );
     }
+
+    public function test_guest_cannot_access_archive_export(): void
+    {
+        $this->get(route('admin.dashboard.archive-export'))
+            ->assertRedirect('/login');
+    }
+
+    public function test_regular_user_cannot_access_archive_export(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('admin.dashboard.archive-export'))
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_download_archive_export(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.dashboard.archive-export'));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
 }

@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\ArchivedRequestsExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ExportArchivedRequestsRequest;
 use App\Models\IssuedUid;
 use App\Models\TicketRequest;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AdminDashboardController extends Controller
 {
@@ -97,14 +101,9 @@ class AdminDashboardController extends Controller
             'archive' => $archived,
             'filters' => [
                 'control_ticket_number' => $request->string('control_ticket_number')->trim()->toString() ?: null,
-                'requester_name' => $request->string('requester_name')->trim()->toString() ?: null,
-                'office' => $request->string('office')->trim()->toString() ?: null,
-                'category' => $request->string('category')->trim()->toString() ?: null,
-                'status' => $request->string('status')->trim()->toString() ?: null,
-                'remarks' => $request->string('remarks')->trim()->toString() ?: null,
             ],
             'sort' => [
-                'by' => $request->string('sort_by')->trim()->toString() ?: 'created_at',
+                'by' => $request->string('sort_by')->trim()->toString() ?: 'control_ticket_number',
                 'dir' => $request->string('sort_dir')->trim()->toString() === 'desc' ? 'desc' : 'asc',
             ],
             'archiveSearch' => $request->string('archive_search')->trim()->toString() ?: null,
@@ -112,44 +111,92 @@ class AdminDashboardController extends Controller
         ]);
     }
 
+    /**
+     * Export archived (completed) requests to Excel for IPCR/OPCR.
+     * Admin and Super Admin only; audited; respects archive filters and optional date range.
+     */
+    public function exportArchived(ExportArchivedRequestsRequest $request, AuditLogger $auditLogger): BinaryFileResponse
+    {
+        $query = $this->buildArchiveExportQuery($request);
+        $count = $query->count();
+
+        $auditLogger->log($request, 'admin.archive_export.download', null, [
+            'archive_search' => $request->string('archive_search')->trim()->toString() ?: null,
+            'date_from' => $request->date('date_from')?->toDateString(),
+            'date_to' => $request->date('date_to')?->toDateString(),
+            'rows_exported' => $count,
+        ]);
+
+        $filename = 'archived-requests-'.now()->format('Y-m-d-His').'.xlsx';
+
+        return (new ArchivedRequestsExport($query))->download($filename);
+    }
+
+    /**
+     * Build the same filtered query as the archive view (completed only) plus optional date range.
+     *
+     * @param  \Illuminate\Http\Request  $request  validated export request
+     */
+    private function buildArchiveExportQuery(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = TicketRequest::query()
+            ->completed()
+            ->with([
+                'natureOfRequest:id,name',
+                'officeDesignation:id,name',
+                'status:id,name',
+                'category:id,name',
+                'user:id,name',
+                'requestedForUser:id,name',
+                'enrollment',
+                'enrollment.assignedAdmin:id,name',
+            ]);
+
+        if ($request->filled('archive_search')) {
+            $term = '%'.$request->string('archive_search')->trim().'%';
+            $query->where(function ($q) use ($term) {
+                $q->where('control_ticket_number', 'like', $term)
+                    ->orWhereHas('user', fn ($q) => $q->where('name', 'like', $term))
+                    ->orWhereHas('requestedForUser', fn ($q) => $q->where('name', 'like', $term));
+            });
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('ticket_requests.updated_at', '>=', $request->date('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('ticket_requests.updated_at', '<=', $request->date('date_to'));
+        }
+
+        $query->latest('ticket_requests.updated_at');
+
+        $query->limit(10000);
+
+        return $query;
+    }
+
     private function applyQueueFilters($query, Request $request): void
     {
         if ($request->filled('control_ticket_number')) {
             $query->where('control_ticket_number', 'like', '%'.$request->string('control_ticket_number')->trim().'%');
         }
-        if ($request->filled('requester_name')) {
-            $term = '%'.$request->string('requester_name')->trim().'%';
-            $query->where(function ($q) use ($term) {
-                $q->whereHas('user', fn ($q) => $q->where('name', 'like', $term))
-                    ->orWhereHas('requestedForUser', fn ($q) => $q->where('name', 'like', $term));
-            });
-        }
-        if ($request->filled('office')) {
-            $query->whereHas('officeDesignation', fn ($q) => $q->where('name', 'like', '%'.$request->string('office')->trim().'%'));
-        }
-        if ($request->filled('category')) {
-            $query->whereHas('category', fn ($q) => $q->where('name', 'like', '%'.$request->string('category')->trim().'%'));
-        }
-        if ($request->filled('status')) {
-            $query->whereHas('status', fn ($q) => $q->where('name', 'like', '%'.$request->string('status')->trim().'%'));
-        }
-        if ($request->filled('remarks')) {
-            $query->where('description', 'like', '%'.$request->string('remarks')->trim().'%');
-        }
     }
 
     private function applyQueueSort($query, Request $request): void
     {
-        $by = $request->string('sort_by')->trim()->toString() ?: 'created_at';
+        $by = $request->string('sort_by')->trim()->toString() ?: 'control_ticket_number';
         $dir = $request->string('sort_dir')->trim()->toString() === 'desc' ? 'desc' : 'asc';
-        $allowed = ['created_at', 'control_ticket_number', 'updated_at'];
+        $allowed = ['control_ticket_number', 'requester_name'];
         if (! in_array($by, $allowed, true)) {
-            $by = 'created_at';
+            $by = 'control_ticket_number';
         }
         if ($by === 'control_ticket_number') {
             $query->orderBy('control_ticket_number', $dir);
         } else {
-            $query->orderBy($by, $dir);
+            $query->leftJoin('users as sort_requester', 'ticket_requests.requested_for_user_id', '=', 'sort_requester.id')
+                ->leftJoin('users as sort_creator', 'ticket_requests.user_id', '=', 'sort_creator.id')
+                ->orderByRaw('COALESCE(sort_requester.name, sort_creator.name) '.$dir)
+                ->select('ticket_requests.*');
         }
     }
 }

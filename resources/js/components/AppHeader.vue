@@ -294,7 +294,7 @@ const isAdminPanelActive = computed(() =>
                     </DropdownMenu>
                 </nav>
 
-                <div class="ml-auto flex items-center gap-2">
+                <div v-if="auth?.user" class="ml-auto flex items-center gap-2">
                     <DropdownMenu>
                         <DropdownMenuTrigger :as-child="true">
                             <Button
@@ -311,7 +311,7 @@ const isAdminPanelActive = computed(() =>
                                     <AvatarFallback
                                         class="rounded-lg bg-[#2563eb]/10 font-semibold text-[#0b1b3a] dark:bg-white/10 dark:text-white"
                                     >
-                                        {{ getInitials(auth.user?.name) }}
+                                        {{ getInitials(auth.user.name) }}
                                     </AvatarFallback>
                                 </Avatar>
                             </Button>

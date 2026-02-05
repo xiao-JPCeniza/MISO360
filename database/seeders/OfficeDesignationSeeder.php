@@ -118,7 +118,7 @@ class OfficeDesignationSeeder extends Seeder
             'BRGY - Santiago',
             'BRGY - Santo Niño',
             'BRGY - Tankulan',
-           
+
         ];
 
         // Optional: ensure uniqueness at runtime (extra safety)

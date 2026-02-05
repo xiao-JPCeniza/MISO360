@@ -32,7 +32,7 @@ class RequestsPageTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn (Assert $page) => $page
-            ->component('Requests')
+            ->component('requests/Requests')
             ->where('isAdmin', false)
             ->has('requests', 1)
             ->where('requests.0.controlTicketNumber', $userRequest->control_ticket_number)
@@ -59,7 +59,7 @@ class RequestsPageTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn (Assert $page) => $page
-            ->component('Requests')
+            ->component('requests/Requests')
             ->where('isAdmin', true)
             ->has('requests', 2)
             ->where('requests.0.controlTicketNumber', $latestRequest->control_ticket_number)

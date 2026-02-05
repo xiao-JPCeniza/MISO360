@@ -61,6 +61,14 @@ class TicketRequest extends Model
         return $this->belongsTo(ReferenceValue::class, 'category_id');
     }
 
+    /**
+     * QR/asset enrollment record when this request has a linked QR code.
+     */
+    public function enrollment(): BelongsTo
+    {
+        return $this->belongsTo(TicketEnrollment::class, 'qr_code_number', 'unique_id');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereHas('status', function (Builder $q) {

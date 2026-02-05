@@ -71,6 +71,9 @@ Route::middleware([
 
         Route::get('admin/audit-logs', [AuditLogController::class, 'index'])
             ->name('admin.audit-logs.index');
+
+        Route::get('admin/dashboard/archive-export', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'exportArchived'])
+            ->name('admin.dashboard.archive-export');
     });
 
     Route::get('admin/enrollments/create', [EnrollmentController::class, 'create'])

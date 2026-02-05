@@ -40,11 +40,6 @@ const props = defineProps<{
     };
     filters: {
         control_ticket_number: string | null;
-        requester_name: string | null;
-        office: string | null;
-        category: string | null;
-        status: string | null;
-        remarks: string | null;
     };
     sort: { by: string; dir: string };
     archiveSearch: string | null;
@@ -62,36 +57,32 @@ const showArchive = ref(props.archivePanelOpen ?? false);
 
 const filterForm = useForm({
     control_ticket_number: props.filters.control_ticket_number ?? '',
-    requester_name: props.filters.requester_name ?? '',
-    office: props.filters.office ?? '',
-    category: props.filters.category ?? '',
-    status: props.filters.status ?? '',
-    remarks: props.filters.remarks ?? '',
 });
 
 const archiveSearchForm = useForm({
     archive_search: props.archiveSearch ?? '',
 });
 
-const hasActiveFilters = computed(
-    () =>
-        filterForm.control_ticket_number ||
-        filterForm.requester_name ||
-        filterForm.office ||
-        filterForm.category ||
-        filterForm.status ||
-        filterForm.remarks,
-);
+const exportDateFrom = ref('');
+const exportDateTo = ref('');
+
+const exportArchiveUrl = computed(() => {
+    const params = new URLSearchParams();
+    if (archiveSearchForm.archive_search) {
+        params.set('archive_search', archiveSearchForm.archive_search);
+    }
+    if (exportDateFrom.value) params.set('date_from', exportDateFrom.value);
+    if (exportDateTo.value) params.set('date_to', exportDateTo.value);
+    const qs = params.toString();
+    return `/admin/dashboard/archive-export${qs ? `?${qs}` : ''}`;
+});
+
+const hasActiveFilters = computed(() => !!filterForm.control_ticket_number);
 
 function buildQuery(overrides: Record<string, string | undefined> = {}) {
     const q: Record<string, string> = {};
     if (filterForm.control_ticket_number)
         q.control_ticket_number = filterForm.control_ticket_number;
-    if (filterForm.requester_name) q.requester_name = filterForm.requester_name;
-    if (filterForm.office) q.office = filterForm.office;
-    if (filterForm.category) q.category = filterForm.category;
-    if (filterForm.status) q.status = filterForm.status;
-    if (filterForm.remarks) q.remarks = filterForm.remarks;
     if (props.archiveSearch) q.archive_search = props.archiveSearch;
     return { ...q, ...overrides };
 }
@@ -259,13 +250,58 @@ function displayText(value: string | null, fallback = '—'): string {
                 </div>
             </div>
 
+            <!-- Admin quick links (grouped at top) -->
+            <div class="flex flex-col gap-3">
+                <h2 class="text-sm font-semibold text-foreground">
+                    Quick actions
+                </h2>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <Link
+                        href="/admin/qr-generator"
+                        class="flex items-center gap-3 rounded-xl border border-sidebar-border/60 bg-card p-4 shadow-sm dark:border-white/10"
+                    >
+                        <div
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                        >
+                            <Icon name="qrcode" class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-foreground">
+                                QR Generator
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ totalGenerated }} codes generated
+                            </p>
+                        </div>
+                    </Link>
+                    <Link
+                        href="/admin/enrollments/create"
+                        class="flex items-center gap-3 rounded-xl border border-sidebar-border/60 bg-card p-4 shadow-sm dark:border-white/10"
+                    >
+                        <div
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                        >
+                            <Icon name="clipboardList" class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-foreground">
+                                Enroll ticket
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                Add new enrollment
+                            </p>
+                        </div>
+                    </Link>
+                </div>
+            </div>
+
             <!-- Requests Queue -->
             <div class="flex flex-col gap-3">
                 <h2 class="text-sm font-semibold text-foreground">
                     Requests Queue
                 </h2>
                 <p class="text-xs text-muted-foreground">
-                    Latest 15 active requests (excluding Completed). Sort and filter below.
+                    Latest 15 active requests (excluding Completed). Sort by name or control ticket, and filter below.
                 </p>
 
                 <!-- Filters -->
@@ -287,71 +323,6 @@ function displayText(value: string | null, fallback = '—'): string {
                                 type="text"
                                 class="w-full rounded-md border border-sidebar-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground dark:border-white/10"
                                 placeholder="e.g. CTRL-001"
-                            />
-                        </div>
-                        <div class="min-w-[140px] flex-1">
-                            <label
-                                class="mb-1 block text-[11px] font-medium uppercase text-muted-foreground"
-                            >
-                                Requester
-                            </label>
-                            <input
-                                v-model="filterForm.requester_name"
-                                type="text"
-                                class="w-full rounded-md border border-sidebar-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground dark:border-white/10"
-                                placeholder="Name"
-                            />
-                        </div>
-                        <div class="min-w-[120px]">
-                            <label
-                                class="mb-1 block text-[11px] font-medium uppercase text-muted-foreground"
-                            >
-                                Office
-                            </label>
-                            <input
-                                v-model="filterForm.office"
-                                type="text"
-                                class="w-full rounded-md border border-sidebar-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground dark:border-white/10"
-                                placeholder="Office"
-                            />
-                        </div>
-                        <div class="min-w-[100px]">
-                            <label
-                                class="mb-1 block text-[11px] font-medium uppercase text-muted-foreground"
-                            >
-                                Category
-                            </label>
-                            <input
-                                v-model="filterForm.category"
-                                type="text"
-                                class="w-full rounded-md border border-sidebar-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground dark:border-white/10"
-                                placeholder="Category"
-                            />
-                        </div>
-                        <div class="min-w-[100px]">
-                            <label
-                                class="mb-1 block text-[11px] font-medium uppercase text-muted-foreground"
-                            >
-                                Status
-                            </label>
-                            <input
-                                v-model="filterForm.status"
-                                type="text"
-                                class="w-full rounded-md border border-sidebar-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground dark:border-white/10"
-                                placeholder="Status"
-                            />
-                        </div>
-                        <div class="min-w-[140px] flex-1">
-                            <label
-                                class="mb-1 block text-[11px] font-medium uppercase text-muted-foreground"
-                            >
-                                Remarks
-                            </label>
-                            <input
-                                v-model="filterForm.remarks"
-                                type="text"
-                                class="w-full rounded-md border border-sidebar-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground dark:border-white/10"
-                                placeholder="Search remarks"
                             />
                         </div>
                         <div class="flex shrink-0 gap-2">
@@ -385,14 +356,30 @@ function displayText(value: string | null, fallback = '—'): string {
                                     <th class="px-3 py-2.5 text-left font-semibold">
                                         <button
                                             type="button"
-                                            class="hover:text-foreground"
+                                            class="flex items-center gap-1 hover:text-foreground"
                                             @click="sortBy('control_ticket_number')"
                                         >
                                             Control ticket
+                                            <Icon
+                                                v-if="sort.by === 'control_ticket_number'"
+                                                :name="sort.dir === 'asc' ? 'chevronUp' : 'chevronDown'"
+                                                class="h-3.5 w-3.5"
+                                            />
                                         </button>
                                     </th>
                                     <th class="px-3 py-2.5 text-left font-semibold">
-                                        Requester
+                                        <button
+                                            type="button"
+                                            class="flex items-center gap-1 hover:text-foreground"
+                                            @click="sortBy('requester_name')"
+                                        >
+                                            Requester
+                                            <Icon
+                                                v-if="sort.by === 'requester_name'"
+                                                :name="sort.dir === 'asc' ? 'chevronUp' : 'chevronDown'"
+                                                class="h-3.5 w-3.5"
+                                            />
+                                        </button>
                                     </th>
                                     <th class="px-3 py-2.5 text-left font-semibold">
                                         Office
@@ -407,13 +394,7 @@ function displayText(value: string | null, fallback = '—'): string {
                                         Remarks
                                     </th>
                                     <th class="px-3 py-2.5 text-left font-semibold">
-                                        <button
-                                            type="button"
-                                            class="hover:text-foreground"
-                                            @click="sortBy('created_at')"
-                                        >
-                                            Date filed
-                                        </button>
+                                        Date filed
                                     </th>
                                 </tr>
                             </thead>
@@ -547,6 +528,46 @@ function displayText(value: string | null, fallback = '—'): string {
                         </button>
                     </form>
 
+                    <div class="flex flex-wrap items-end gap-3 rounded-lg border border-sidebar-border/40 bg-muted/30 p-3 dark:border-white/10 dark:bg-white/5">
+                        <p class="w-full text-[11px] font-medium uppercase text-muted-foreground">
+                            Download report 
+                        </p>
+                        <div class="min-w-[120px]">
+                            <label
+                                class="mb-1 block text-[11px] font-medium uppercase text-muted-foreground"
+                            >
+                                Date from
+                            </label>
+                            <input
+                                v-model="exportDateFrom"
+                                type="date"
+                                class="w-full rounded-md border border-sidebar-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground dark:border-white/10"
+                            />
+                        </div>
+                        <div class="min-w-[120px]">
+                            <label
+                                class="mb-1 block text-[11px] font-medium uppercase text-muted-foreground"
+                            >
+                                Date to
+                            </label>
+                            <input
+                                v-model="exportDateTo"
+                                type="date"
+                                class="w-full rounded-md border border-sidebar-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground dark:border-white/10"
+                            />
+                        </div>
+                        <a
+                            :href="exportArchiveUrl"
+                            class="inline-flex items-center gap-2 rounded-md border border-sidebar-border/60 bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50 dark:border-white/10"
+                        >
+                            <Icon name="download" class="h-4 w-4" />
+                            Download Report
+                        </a>
+                        <p class="w-full text-[11px] text-muted-foreground">
+                            Exports completed requests. Optional date range (max 365 days). Current search filter is applied.
+                        </p>
+                    </div>
+
                     <div class="overflow-x-auto">
                         <table class="w-full min-w-[720px] text-xs">
                             <thead
@@ -664,46 +685,6 @@ function displayText(value: string | null, fallback = '—'): string {
                         </template>
                     </div>
                 </div>
-            </div>
-
-            <!-- Admin quick links -->
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Link
-                    href="/admin/qr-generator"
-                    class="flex items-center gap-3 rounded-xl border border-sidebar-border/60 bg-card p-4 shadow-sm dark:border-white/10"
-                >
-                    <div
-                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
-                    >
-                        <Icon name="qrcode" class="h-5 w-5" />
-                    </div>
-                    <div class="min-w-0">
-                        <p class="text-sm font-medium text-foreground">
-                            QR Generator
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                            {{ totalGenerated }} codes generated
-                        </p>
-                    </div>
-                </Link>
-                <Link
-                    href="/admin/enrollments/create"
-                    class="flex items-center gap-3 rounded-xl border border-sidebar-border/60 bg-card p-4 shadow-sm dark:border-white/10"
-                >
-                    <div
-                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
-                    >
-                        <Icon name="clipboardList" class="h-5 w-5" />
-                    </div>
-                    <div class="min-w-0">
-                        <p class="text-sm font-medium text-foreground">
-                            Enroll ticket
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                            Add new enrollment
-                        </p>
-                    </div>
-                </Link>
             </div>
         </div>
     </AppLayout>
