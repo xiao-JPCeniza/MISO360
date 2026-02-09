@@ -24,11 +24,22 @@ class TicketRequest extends Model
         'office_designation_id',
         'status_id',
         'category_id',
+        'remarks_id',
+        'assigned_staff_id',
+        'date_received',
+        'date_started',
+        'estimated_completion_date',
+        'action_taken',
+        'equipment_network_details',
     ];
 
     protected $casts = [
         'attachments' => 'array',
+        'equipment_network_details' => 'array',
         'has_qr_code' => 'boolean',
+        'date_received' => 'date',
+        'date_started' => 'date',
+        'estimated_completion_date' => 'date',
     ];
 
     public function natureOfRequest(): BelongsTo
@@ -59,6 +70,16 @@ class TicketRequest extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(ReferenceValue::class, 'category_id');
+    }
+
+    public function remarks(): BelongsTo
+    {
+        return $this->belongsTo(ReferenceValue::class, 'remarks_id');
+    }
+
+    public function assignedStaff(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_staff_id');
     }
 
     /**

@@ -27,6 +27,8 @@ class TicketRequestController extends Controller
                 'officeDesignation:id,name',
                 'status:id,name',
                 'category:id,name',
+                'remarks:id,name',
+                'assignedStaff:id,name',
                 'requestedForUser:id,name,position_title',
                 'user:id,name,position_title',
             ])
@@ -43,11 +45,11 @@ class TicketRequestController extends Controller
                 'dateFiled' => $ticketRequest->created_at?->toDateString(),
                 'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
                 'requestDescription' => $ticketRequest->description,
-                'remarks' => null,
-                'assignedStaff' => null,
+                'remarks' => $ticketRequest->remarks?->name,
+                'assignedStaff' => $ticketRequest->assignedStaff?->name,
                 'status' => $ticketRequest->status?->name,
                 'category' => $ticketRequest->category?->name,
-                'estimatedCompletionDate' => null,
+                'estimatedCompletionDate' => $ticketRequest->estimated_completion_date?->toDateString(),
                 'showUrl' => route('requests.show', $ticketRequest),
             ]);
 
@@ -362,11 +364,9 @@ class TicketRequestController extends Controller
 
     public function itGovernance(Request $request, TicketRequest $ticketRequest)
     {
-        if (! $request->user()->isAdmin()) {
-            abort(403);
-        }
+        $canEdit = $request->user()?->isAdmin() ?? false;
 
-        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'requestedForUser', 'user']);
+        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaff', 'requestedForUser', 'user']);
 
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
@@ -382,6 +382,7 @@ class TicketRequestController extends Controller
             'dateFiled' => $ticketRequest->created_at?->toDateString(),
             'email' => $requestedByUser?->email,
             'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
+            'natureOfRequestId' => $ticketRequest->nature_of_request_id != null ? (string) $ticketRequest->nature_of_request_id : null,
             'requestDescription' => $ticketRequest->description,
             'attachments' => collect($fileAttachments)
                 ->map(fn (array $attachment) => [
@@ -400,14 +401,15 @@ class TicketRequestController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'remarksId' => null,
-            'assignedStaffId' => null,
-            'dateReceived' => null,
-            'dateStarted' => null,
-            'estimatedCompletionDate' => null,
-            'actionTaken' => null,
+            'remarksId' => $ticketRequest->remarks_id != null ? (string) $ticketRequest->remarks_id : null,
+            'assignedStaffId' => $ticketRequest->assigned_staff_id != null ? (string) $ticketRequest->assigned_staff_id : null,
+            'dateReceived' => $ticketRequest->date_received?->toDateString(),
+            'dateStarted' => $ticketRequest->date_started?->toDateString(),
+            'estimatedCompletionDate' => $ticketRequest->estimated_completion_date?->toDateString(),
+            'actionTaken' => $ticketRequest->action_taken,
             'categoryId' => $ticketRequest->category_id,
             'statusId' => $ticketRequest->status_id,
+            'equipmentNetworkDetails' => $ticketRequest->equipment_network_details ?? [],
         ];
 
         $staffOptions = User::query()
@@ -446,14 +448,23 @@ class TicketRequestController extends Controller
             ->values()
             ->all();
 
+        $natureOfRequests = NatureOfRequest::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (NatureOfRequest $n) => ['id' => $n->id, 'name' => $n->name])
+            ->values()
+            ->all();
+
         return Inertia::render('requests/ItGovernanceRequest', [
             'ticket' => $ticket,
             'updateUrl' => route('requests.it-governance.update', $ticketRequest),
+            'natureOfRequests' => $natureOfRequests,
             'staffOptions' => $staffOptions,
             'remarksOptions' => $remarksOptions,
             'categoryOptions' => $categoryOptions,
             'statusOptions' => $statusOptions,
-            'canEdit' => true,
+            'canEdit' => $canEdit,
         ]);
     }
 
@@ -464,6 +475,7 @@ class TicketRequestController extends Controller
         }
 
         $validated = $request->validate([
+            'natureOfRequestId' => ['nullable', 'integer', 'exists:nature_of_requests,id'],
             'remarksId' => ['nullable', 'string'],
             'assignedStaffId' => ['nullable', 'string'],
             'dateReceived' => ['nullable', 'date'],
@@ -495,7 +507,22 @@ class TicketRequestController extends Controller
             'systemIssueReport.approvedBySignature' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $this->validateRequestDateOrder($validated, 'dateReceived', 'dateStarted', 'estimatedCompletionDate');
+
+        $remarksId = isset($validated['remarksId']) && $validated['remarksId'] !== '' ? (int) $validated['remarksId'] : null;
+        $assignedStaffId = isset($validated['assignedStaffId']) && $validated['assignedStaffId'] !== '' ? (int) $validated['assignedStaffId'] : null;
+        $natureOfRequestId = array_key_exists('natureOfRequestId', $validated)
+            ? (isset($validated['natureOfRequestId']) && $validated['natureOfRequestId'] !== '' ? (int) $validated['natureOfRequestId'] : null)
+            : $ticketRequest->nature_of_request_id;
+
         $ticketRequest->update([
+            'nature_of_request_id' => $natureOfRequestId,
+            'remarks_id' => $remarksId,
+            'assigned_staff_id' => $assignedStaffId,
+            'date_received' => $validated['dateReceived'] ?? null,
+            'date_started' => $validated['dateStarted'] ?? null,
+            'estimated_completion_date' => $validated['estimatedCompletionDate'] ?? null,
+            'action_taken' => $validated['actionTaken'] ?? null,
             'status_id' => $validated['statusId'] ?? null,
             'category_id' => $validated['categoryId'] ?? null,
         ]);
@@ -516,11 +543,9 @@ class TicketRequestController extends Controller
 
     public function equipmentAndNetwork(Request $request, TicketRequest $ticketRequest)
     {
-        if (! $request->user()->isAdmin()) {
-            abort(403);
-        }
+        $canEdit = $request->user()?->isAdmin() ?? false;
 
-        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'requestedForUser', 'user']);
+        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaff', 'requestedForUser', 'user']);
 
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
@@ -536,6 +561,7 @@ class TicketRequestController extends Controller
             'dateFiled' => $ticketRequest->created_at?->toDateString(),
             'email' => $requestedByUser?->email,
             'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
+            'natureOfRequestId' => $ticketRequest->nature_of_request_id != null ? (string) $ticketRequest->nature_of_request_id : null,
             'requestDescription' => $ticketRequest->description,
             'attachments' => collect($fileAttachments)
                 ->map(fn (array $attachment) => [
@@ -554,14 +580,15 @@ class TicketRequestController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'remarksId' => null,
-            'assignedStaffId' => null,
-            'dateReceived' => null,
-            'dateStarted' => null,
-            'estimatedCompletionDate' => null,
-            'actionTaken' => null,
+            'remarksId' => $ticketRequest->remarks_id != null ? (string) $ticketRequest->remarks_id : null,
+            'assignedStaffId' => $ticketRequest->assigned_staff_id != null ? (string) $ticketRequest->assigned_staff_id : null,
+            'dateReceived' => $ticketRequest->date_received?->toDateString(),
+            'dateStarted' => $ticketRequest->date_started?->toDateString(),
+            'estimatedCompletionDate' => $ticketRequest->estimated_completion_date?->toDateString(),
+            'actionTaken' => $ticketRequest->action_taken,
             'categoryId' => $ticketRequest->category_id,
             'statusId' => $ticketRequest->status_id,
+            'equipmentNetworkDetails' => $ticketRequest->equipment_network_details ?? [],
         ];
 
         $staffOptions = User::query()
@@ -600,14 +627,23 @@ class TicketRequestController extends Controller
             ->values()
             ->all();
 
+        $natureOfRequests = NatureOfRequest::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (NatureOfRequest $n) => ['id' => $n->id, 'name' => $n->name])
+            ->values()
+            ->all();
+
         return Inertia::render('requests/EquipmentAndNetwork', [
             'ticket' => $ticket,
             'updateUrl' => route('requests.equipment-network.update', $ticketRequest),
+            'natureOfRequests' => $natureOfRequests,
             'staffOptions' => $staffOptions,
             'remarksOptions' => $remarksOptions,
             'categoryOptions' => $categoryOptions,
             'statusOptions' => $statusOptions,
-            'canEdit' => true,
+            'canEdit' => $canEdit,
         ]);
     }
 
@@ -618,6 +654,7 @@ class TicketRequestController extends Controller
         }
 
         $validated = $request->validate([
+            'natureOfRequestId' => ['nullable', 'integer', 'exists:nature_of_requests,id'],
             'remarksId' => ['nullable', 'string'],
             'assignedStaffId' => ['nullable', 'string'],
             'dateReceived' => ['nullable', 'date'],
@@ -626,15 +663,125 @@ class TicketRequestController extends Controller
             'actionTaken' => ['nullable', 'string', 'max:500'],
             'categoryId' => ['nullable', 'integer'],
             'statusId' => ['nullable', 'integer'],
+            'equipmentNetworkDetails' => ['nullable', 'array'],
+            'equipmentNetworkDetails.rj45' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.fiberOpticHeatShrink' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.fiberOpticSClamp' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.scConnector' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.napBox' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.fiberOpticMeters' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.fiberOpticType' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.utpCableMeters' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.utpCableType' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.sfpModuleQty' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.sfpModuleBrand' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.sfpModuleType' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.sfpModuleSerial' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.wifiRouterQty' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.wifiRouterBrand' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.wifiRouterSerial' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.wifiRouterModel' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.networkSwitchQty' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.networkSwitchBrand' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.networkSwitchSerial' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.networkSwitchModel' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.apBeamQty' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.apBeamBrand' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.apBeamSerial' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.apBeamModel' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $this->validateRequestDateOrder($validated, 'dateReceived', 'dateStarted', 'estimatedCompletionDate');
+
+        $remarksId = isset($validated['remarksId']) && $validated['remarksId'] !== '' ? (int) $validated['remarksId'] : null;
+        $assignedStaffId = isset($validated['assignedStaffId']) && $validated['assignedStaffId'] !== '' ? (int) $validated['assignedStaffId'] : null;
+        $natureOfRequestId = array_key_exists('natureOfRequestId', $validated)
+            ? (isset($validated['natureOfRequestId']) && $validated['natureOfRequestId'] !== '' ? (int) $validated['natureOfRequestId'] : null)
+            : $ticketRequest->nature_of_request_id;
+
         $ticketRequest->update([
+            'nature_of_request_id' => $natureOfRequestId,
+            'remarks_id' => $remarksId,
+            'assigned_staff_id' => $assignedStaffId,
+            'date_received' => $validated['dateReceived'] ?? null,
+            'date_started' => $validated['dateStarted'] ?? null,
+            'estimated_completion_date' => $validated['estimatedCompletionDate'] ?? null,
+            'action_taken' => $validated['actionTaken'] ?? null,
             'status_id' => $validated['statusId'] ?? null,
             'category_id' => $validated['categoryId'] ?? null,
+            'equipment_network_details' => $this->normalizeEquipmentNetworkDetails($validated['equipmentNetworkDetails'] ?? []),
         ]);
+
+        $this->syncTicketRequestToEnrollment($ticketRequest);
 
         return redirect()->route('requests.equipment-network.show', $ticketRequest)
             ->with('success', 'Equipment and network request updated successfully.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function validateRequestDateOrder(array $validated, string $receivedKey, string $startedKey, string $completionKey): void
+    {
+        $received = $validated[$receivedKey] ?? null;
+        $started = $validated[$startedKey] ?? null;
+        $completion = $validated[$completionKey] ?? null;
+
+        if ($received && $started && $received > $started) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $startedKey => ['Date started must be on or after date received.'],
+            ]);
+        }
+        if ($started && $completion && $started > $completion) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $completionKey => ['Estimated completion must be on or after date started.'],
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $details
+     * @return array<string, mixed>
+     */
+    private function normalizeEquipmentNetworkDetails(array $details): array
+    {
+        $keys = [
+            'rj45', 'fiberOpticHeatShrink', 'fiberOpticSClamp', 'scConnector', 'napBox',
+            'fiberOpticMeters', 'fiberOpticType', 'utpCableMeters', 'utpCableType',
+            'sfpModuleQty', 'sfpModuleBrand', 'sfpModuleType', 'sfpModuleSerial',
+            'wifiRouterQty', 'wifiRouterBrand', 'wifiRouterSerial', 'wifiRouterModel',
+            'networkSwitchQty', 'networkSwitchBrand', 'networkSwitchSerial', 'networkSwitchModel',
+            'apBeamQty', 'apBeamBrand', 'apBeamSerial', 'apBeamModel',
+        ];
+        $out = [];
+        foreach ($keys as $key) {
+            $out[$key] = isset($details[$key]) && is_string($details[$key]) ? $details[$key] : '';
+        }
+
+        return $out;
+    }
+
+    private function syncTicketRequestToEnrollment(TicketRequest $ticketRequest): void
+    {
+        if (! $ticketRequest->qr_code_number) {
+            return;
+        }
+
+        $enrollment = \App\Models\TicketEnrollment::where('unique_id', $ticketRequest->qr_code_number)->first();
+        if (! $enrollment) {
+            return;
+        }
+
+        $remarksName = $ticketRequest->remarks?->name;
+        $assignedStaffName = $ticketRequest->assignedStaff?->name;
+
+        $enrollment->update([
+            'request_nature' => $ticketRequest->natureOfRequest?->name,
+            'request_date' => $ticketRequest->date_received ?? $ticketRequest->created_at?->toDateString(),
+            'request_action_taken' => $ticketRequest->action_taken,
+            'request_assigned_staff' => $assignedStaffName,
+            'request_remarks' => $remarksName,
+        ]);
     }
 
     private function generateControlTicketNumber(): string

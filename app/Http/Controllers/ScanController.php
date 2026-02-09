@@ -7,6 +7,7 @@ use App\Http\Requests\ScanAssignRequest;
 use App\Http\Requests\ScanReviewRequest;
 use App\Models\TicketArchive;
 use App\Models\TicketEnrollment;
+use App\Models\TicketRequest;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
@@ -141,6 +142,9 @@ class ScanController extends Controller
     private function mapDetail(object $item, string $status): array
     {
         $assignedAdmin = $item->assignedAdmin ?? null;
+        $linkedRequest = TicketRequest::with('status')
+            ->where('qr_code_number', $item->unique_id)
+            ->first();
 
         return [
             'uniqueId' => $item->unique_id,
@@ -174,6 +178,8 @@ class ScanController extends Controller
                 'actionTaken' => $item->request_action_taken,
                 'assignedStaff' => $item->request_assigned_staff,
                 'remarks' => $item->request_remarks,
+                'requestStatus' => $linkedRequest?->status?->name,
+                'requestControlTicketNumber' => $linkedRequest?->control_ticket_number,
             ],
             'scheduledMaintenance' => [
                 'date' => optional($item->maintenance_date)->format('Y-m-d'),

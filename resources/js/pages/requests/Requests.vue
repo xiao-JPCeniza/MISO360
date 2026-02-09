@@ -4,6 +4,11 @@ import { computed, ref } from 'vue';
 
 import Icon from '@/components/Icon.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import {
+    getCategoryBadgeClass,
+    getStatusBadgeClass,
+    requestBadgeBase,
+} from '@/lib/requestBadges';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -47,73 +52,31 @@ const searchQuery = ref('');
 const badgeBase =
     'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium leading-4';
 
+const normalizeValue = (value: string | null | undefined): string =>
+    (value ?? '').toLowerCase();
+
 const badgeTones = {
     emerald: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
     blue: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300',
     amber: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-    rose: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
     purple: 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300',
     slate: 'border-slate-500/20 bg-slate-500/10 text-slate-600 dark:text-slate-300',
 };
 
-const normalizeValue = (value: string | null | undefined): string =>
-    (value ?? '').toLowerCase();
+const resolveNatureBadgeTone = (value: string | null) => {
+    const n = normalizeValue(value);
+    if (n.includes('password')) return badgeTones.blue;
+    if (n.includes('repair')) return badgeTones.amber;
+    if (n.includes('system')) return badgeTones.purple;
+    return badgeTones.slate;
+};
 
-const resolveBadgeTone = (type: 'nature' | 'remarks' | 'status' | 'category', value: string | null) => {
-    const normalized = normalizeValue(value);
-
-    if (type === 'status') {
-        if (normalized.includes('completed') || normalized.includes('closed')) {
-            return badgeTones.emerald;
-        }
-        if (normalized.includes('ongoing') || normalized.includes('assigned')) {
-            return badgeTones.blue;
-        }
-        if (normalized.includes('pending') || normalized.includes('review')) {
-            return badgeTones.amber;
-        }
-        return badgeTones.slate;
-    }
-
-    if (type === 'category') {
-        if (normalized.includes('simple')) {
-            return badgeTones.emerald;
-        }
-        if (normalized.includes('average') || normalized.includes('moderate')) {
-            return badgeTones.amber;
-        }
-        if (normalized.includes('complex') || normalized.includes('urgent')) {
-            return badgeTones.rose;
-        }
-        return badgeTones.slate;
-    }
-
-    if (type === 'remarks') {
-        if (normalized.includes('deliver')) {
-            return badgeTones.blue;
-        }
-        if (normalized.includes('interview')) {
-            return badgeTones.purple;
-        }
-        if (normalized.includes('remote')) {
-            return badgeTones.emerald;
-        }
-        if (normalized.includes('pick')) {
-            return badgeTones.amber;
-        }
-        return badgeTones.slate;
-    }
-
-    if (normalized.includes('password')) {
-        return badgeTones.blue;
-    }
-    if (normalized.includes('repair')) {
-        return badgeTones.amber;
-    }
-    if (normalized.includes('system')) {
-        return badgeTones.purple;
-    }
-
+const resolveRemarksBadgeTone = (value: string | null) => {
+    const n = normalizeValue(value);
+    if (n.includes('deliver')) return badgeTones.blue;
+    if (n.includes('interview')) return badgeTones.purple;
+    if (n.includes('remote')) return badgeTones.emerald;
+    if (n.includes('pick')) return badgeTones.amber;
     return badgeTones.slate;
 };
 
@@ -259,7 +222,7 @@ const filteredRequests = computed(() => {
                     <table class="w-full min-w-[980px] text-[11px] text-foreground">
                         <thead class="border-b border-border bg-muted/50 text-[11px] uppercase text-foreground dark:border-white/10 dark:bg-white/5">
                             <tr>
-                                <th colspan="8" class="px-3 py-2 text-center text-xs font-semibold">
+                                <th colspan="10" class="px-3 py-2 text-center text-xs font-semibold">
                                     REQUEST FORM
                                 </th>
                             </tr>
@@ -271,6 +234,8 @@ const filteredRequests = computed(() => {
                                 <th class="px-3 py-2 text-left font-semibold">Date Filed</th>
                                 <th class="px-3 py-2 text-left font-semibold">Nature of Request</th>
                                 <th class="px-3 py-2 text-left font-semibold">Request Description</th>
+                                <th class="px-3 py-2 text-left font-semibold">Status</th>
+                                <th class="px-3 py-2 text-left font-semibold">Category</th>
                                 <th class="px-3 py-2 text-left font-semibold">Action</th>
                             </tr>
                         </thead>
@@ -315,6 +280,22 @@ const filteredRequests = computed(() => {
                                     </span>
                                 </td>
                                 <td class="px-3 py-2">
+                                    <span
+                                        :class="[requestBadgeBase, getStatusBadgeClass(request.status)]"
+                                        :title="displayBadge(request.status)"
+                                    >
+                                        {{ displayBadge(request.status) }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <span
+                                        :class="[requestBadgeBase, getCategoryBadgeClass(request.category)]"
+                                        :title="displayBadge(request.category)"
+                                    >
+                                        {{ displayBadge(request.category) }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2">
                                     <Link
                                         v-if="resolveActionUrl(request)"
                                         :href="resolveActionUrl(request) || ''"
@@ -332,7 +313,7 @@ const filteredRequests = computed(() => {
                                 </td>
                             </tr>
                             <tr v-if="filteredRequests.length === 0">
-                                <td colspan="8" class="px-4 py-10 text-center text-xs text-muted-foreground">
+                                <td colspan="10" class="px-4 py-10 text-center text-xs text-muted-foreground">
                                     No requests match your search yet.
                                 </td>
                             </tr>
@@ -436,7 +417,7 @@ const filteredRequests = computed(() => {
                                 </td>
                                 <td class="px-3 py-2">
                                     <span
-                                        :class="[badgeBase, resolveBadgeTone('nature', request.natureOfRequest)]"
+                                        :class="[badgeBase, resolveNatureBadgeTone(request.natureOfRequest)]"
                                         :title="displayBadge(request.natureOfRequest, 'Unspecified')"
                                     >
                                         {{ displayBadge(request.natureOfRequest, 'Unspecified') }}
@@ -444,7 +425,7 @@ const filteredRequests = computed(() => {
                                 </td>
                                 <td class="px-3 py-2">
                                     <span
-                                        :class="[badgeBase, resolveBadgeTone('remarks', request.remarks)]"
+                                        :class="[badgeBase, resolveRemarksBadgeTone(request.remarks)]"
                                         :title="displayBadge(request.remarks)"
                                     >
                                         {{ displayBadge(request.remarks) }}
@@ -457,7 +438,7 @@ const filteredRequests = computed(() => {
                                 </td>
                                 <td class="px-3 py-2">
                                     <span
-                                        :class="[badgeBase, resolveBadgeTone('status', request.status)]"
+                                        :class="[requestBadgeBase, getStatusBadgeClass(request.status)]"
                                         :title="displayBadge(request.status)"
                                     >
                                         {{ displayBadge(request.status) }}
@@ -465,7 +446,7 @@ const filteredRequests = computed(() => {
                                 </td>
                                 <td class="px-3 py-2">
                                     <span
-                                        :class="[badgeBase, resolveBadgeTone('category', request.category)]"
+                                        :class="[requestBadgeBase, getCategoryBadgeClass(request.category)]"
                                         :title="displayBadge(request.category)"
                                     >
                                         {{ displayBadge(request.category) }}

@@ -38,6 +38,8 @@ type ScanRecord = {
         actionTaken: string | null;
         assignedStaff: string | null;
         remarks: string | null;
+        requestStatus: string | null;
+        requestControlTicketNumber: string | null;
     };
     scheduledMaintenance: {
         date: string | null;
@@ -365,7 +367,9 @@ function submitAssignment() {
                         item.requestHistory.date ||
                         item.requestHistory.actionTaken ||
                         item.requestHistory.assignedStaff ||
-                        item.requestHistory.remarks"
+                        item.requestHistory.remarks ||
+                        item.requestHistory.requestStatus ||
+                        item.requestHistory.requestControlTicketNumber"
                     class="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2"
                 >
                     <p><span class="font-semibold text-foreground">Nature of request:</span> {{ item.requestHistory.natureOfRequest || '—' }}</p>
@@ -373,6 +377,8 @@ function submitAssignment() {
                     <p><span class="font-semibold text-foreground">Action taken:</span> {{ item.requestHistory.actionTaken || '—' }}</p>
                     <p><span class="font-semibold text-foreground">Assigned staff:</span> {{ item.requestHistory.assignedStaff || '—' }}</p>
                     <p><span class="font-semibold text-foreground">Remarks:</span> {{ item.requestHistory.remarks || '—' }}</p>
+                    <p><span class="font-semibold text-foreground">Request status:</span> {{ item.requestHistory.requestStatus || '—' }}</p>
+                    <p><span class="font-semibold text-foreground">Control ticket no.:</span> {{ item.requestHistory.requestControlTicketNumber || '—' }}</p>
                 </div>
                 <p v-else class="mt-3 text-sm text-muted-foreground">
                     No maintenance or service history recorded yet.

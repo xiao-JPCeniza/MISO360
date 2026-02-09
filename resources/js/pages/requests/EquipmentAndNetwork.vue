@@ -2,7 +2,13 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
+import Icon from '@/components/Icon.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import {
+    getCategoryBadgeClass,
+    getStatusBadgeClass,
+    requestBadgeBase,
+} from '@/lib/requestBadges';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -24,6 +30,7 @@ type TicketDetails = {
     dateFiled: string | null;
     email: string | null;
     natureOfRequest: string | null;
+    natureOfRequestId?: number | string | null;
     requestDescription: string | null;
     attachments: Attachment[];
     systemDevelopmentSurvey?: Record<string, unknown> | null;
@@ -35,11 +42,13 @@ type TicketDetails = {
     actionTaken?: string | null;
     categoryId?: number | string | null;
     statusId?: number | string | null;
+    equipmentNetworkDetails?: Record<string, string>;
 };
 
 const props = defineProps<{
     ticket: TicketDetails;
     updateUrl: string;
+    natureOfRequests?: SelectOption[];
     staffOptions: SelectOption[];
     remarksOptions?: SelectOption[];
     categoryOptions?: SelectOption[];
@@ -89,8 +98,40 @@ const statusList = computed(() =>
 );
 const attachments = computed(() => props.ticket.attachments ?? []);
 const isEditable = computed(() => props.canEdit);
+const natureList = computed(() => props.natureOfRequests ?? []);
+
+const selectedCategoryName = computed(() => {
+    const id = form.categoryId;
+    if (id == null || id === '') return null;
+    return categoryList.value.find((o) => String(o.id) === String(id))?.name ?? null;
+});
+const selectedStatusName = computed(() => {
+    const id = form.statusId;
+    if (id == null || id === '') return null;
+    return statusList.value.find((o) => String(o.id) === String(id))?.name ?? null;
+});
+
+const equipmentDetailKeys = [
+    'rj45', 'fiberOpticHeatShrink', 'fiberOpticSClamp', 'scConnector', 'napBox',
+    'fiberOpticMeters', 'fiberOpticType', 'utpCableMeters', 'utpCableType',
+    'sfpModuleQty', 'sfpModuleBrand', 'sfpModuleType', 'sfpModuleSerial',
+    'wifiRouterQty', 'wifiRouterBrand', 'wifiRouterSerial', 'wifiRouterModel',
+    'networkSwitchQty', 'networkSwitchBrand', 'networkSwitchSerial', 'networkSwitchModel',
+    'apBeamQty', 'apBeamBrand', 'apBeamSerial', 'apBeamModel',
+] as const;
+
+function defaultEquipmentDetails(): Record<string, string> {
+    return Object.fromEntries(equipmentDetailKeys.map((k) => [k, '']));
+}
+
+function equipmentNetworkDetailsFromTicket(): Record<string, string> {
+    const from = props.ticket.equipmentNetworkDetails ?? {};
+    const defaults = defaultEquipmentDetails();
+    return { ...defaults, ...from };
+}
 
 type FormFields = {
+    natureOfRequestId: number | string;
     remarksId: number | string;
     assignedStaffId: number | string;
     dateReceived: string;
@@ -99,11 +140,14 @@ type FormFields = {
     actionTaken: string;
     categoryId: number | string;
     statusId: number | string;
+    equipmentNetworkDetails: Record<string, string>;
 };
 
 type FieldName = keyof FormFields;
 
 const form = useForm<FormFields>({
+    natureOfRequestId:
+        props.ticket.natureOfRequestId != null ? String(props.ticket.natureOfRequestId) : '',
     remarksId: props.ticket.remarksId != null ? String(props.ticket.remarksId) : '',
     assignedStaffId: props.ticket.assignedStaffId != null ? String(props.ticket.assignedStaffId) : '',
     dateReceived: props.ticket.dateReceived ?? '',
@@ -112,6 +156,7 @@ const form = useForm<FormFields>({
     actionTaken: props.ticket.actionTaken ?? '',
     categoryId: props.ticket.categoryId != null ? String(props.ticket.categoryId) : '',
     statusId: props.ticket.statusId != null ? String(props.ticket.statusId) : '',
+    equipmentNetworkDetails: equipmentNetworkDetailsFromTicket(),
 });
 
 const localErrors = ref<Partial<Record<FieldName, string>>>({});
@@ -256,7 +301,22 @@ function submitForm() {
                             <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
                                 Nature of Request
                             </label>
+                            <select
+                                v-if="isEditable"
+                                v-model="form.natureOfRequestId"
+                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                            >
+                                <option value="" disabled>Select nature of request</option>
+                                <option
+                                    v-for="opt in natureList"
+                                    :key="opt.id"
+                                    :value="String(opt.id)"
+                                >
+                                    {{ opt.name }}
+                                </option>
+                            </select>
                             <input
+                                v-else
                                 type="text"
                                 readonly
                                 :value="props.ticket.natureOfRequest ?? ''"
@@ -322,23 +382,43 @@ function submitForm() {
                             <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
                                 Date Received
                             </label>
-                            <input
-                                v-model="form.dateReceived"
-                                type="date"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
+                            <div
+                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white pr-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
+                                :class="{ 'cursor-not-allowed opacity-70': !isEditable }"
+                            >
+                                <input
+                                    v-model="form.dateReceived"
+                                    type="date"
+                                    class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-2 py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                                    :disabled="!isEditable"
+                                    @keydown.prevent
+                                />
+                                <Icon
+                                    name="calendar"
+                                    class="h-4 w-4 shrink-0 text-slate-500 pointer-events-none"
+                                />
+                            </div>
                         </div>
                         <div class="grid gap-0.5">
                             <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
                                 Date Started
                             </label>
-                            <input
-                                v-model="form.dateStarted"
-                                type="date"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
+                            <div
+                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white pr-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
+                                :class="{ 'cursor-not-allowed opacity-70': !isEditable }"
+                            >
+                                <input
+                                    v-model="form.dateStarted"
+                                    type="date"
+                                    class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-2 py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                                    :disabled="!isEditable"
+                                    @keydown.prevent
+                                />
+                                <Icon
+                                    name="calendar"
+                                    class="h-4 w-4 shrink-0 text-slate-500 pointer-events-none"
+                                />
+                            </div>
                             <p v-if="fieldError('dateStarted')" class="mt-0.5 text-[10px] text-red-300">
                                 {{ fieldError('dateStarted') }}
                             </p>
@@ -347,12 +427,22 @@ function submitForm() {
                             <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
                                 Estimated Completion Date
                             </label>
-                            <input
-                                v-model="form.estimatedCompletionDate"
-                                type="date"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
+                            <div
+                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white pr-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
+                                :class="{ 'cursor-not-allowed opacity-70': !isEditable }"
+                            >
+                                <input
+                                    v-model="form.estimatedCompletionDate"
+                                    type="date"
+                                    class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-2 py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                                    :disabled="!isEditable"
+                                    @keydown.prevent
+                                />
+                                <Icon
+                                    name="calendar"
+                                    class="h-4 w-4 shrink-0 text-slate-500 pointer-events-none"
+                                />
+                            </div>
                             <p v-if="fieldError('estimatedCompletionDate')" class="mt-0.5 text-[10px] text-red-300">
                                 {{ fieldError('estimatedCompletionDate') }}
                             </p>
@@ -405,6 +495,13 @@ function submitForm() {
                                     {{ option.name }}
                                 </option>
                             </select>
+                            <p v-if="selectedCategoryName" class="mt-1">
+                                <span
+                                    :class="[requestBadgeBase, getCategoryBadgeClass(selectedCategoryName)]"
+                                >
+                                    {{ selectedCategoryName }}
+                                </span>
+                            </p>
                             <p v-if="fieldError('categoryId')" class="mt-0.5 text-[10px] text-red-300">
                                 {{ fieldError('categoryId') }}
                             </p>
@@ -423,6 +520,13 @@ function submitForm() {
                                     {{ option.name }}
                                 </option>
                             </select>
+                            <p v-if="selectedStatusName" class="mt-1">
+                                <span
+                                    :class="[requestBadgeBase, getStatusBadgeClass(selectedStatusName)]"
+                                >
+                                    {{ selectedStatusName }}
+                                </span>
+                            </p>
                             <p v-if="fieldError('statusId')" class="mt-0.5 text-[10px] text-red-300">
                                 {{ fieldError('statusId') }}
                             </p>
@@ -443,6 +547,7 @@ function submitForm() {
                                 RJ45
                             </label>
                             <input
+                                v-model="form.equipmentNetworkDetails.rj45"
                                 type="text"
                                 placeholder="No. of pcs"
                                 class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
@@ -453,6 +558,7 @@ function submitForm() {
                                 Fiber Optic – Heat Shrink Sleeve
                             </label>
                             <input
+                                v-model="form.equipmentNetworkDetails.fiberOpticHeatShrink"
                                 type="text"
                                 placeholder="No. of pcs"
                                 class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
@@ -463,6 +569,7 @@ function submitForm() {
                                 Fiber Optic S-Clamp
                             </label>
                             <input
+                                v-model="form.equipmentNetworkDetails.fiberOpticSClamp"
                                 type="text"
                                 placeholder="No. of pcs"
                                 class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
@@ -473,6 +580,7 @@ function submitForm() {
                                 SC Connector
                             </label>
                             <input
+                                v-model="form.equipmentNetworkDetails.scConnector"
                                 type="text"
                                 placeholder="No. of pcs"
                                 class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
@@ -483,45 +591,83 @@ function submitForm() {
                                 NAP Box
                             </label>
                             <input
+                                v-model="form.equipmentNetworkDetails.napBox"
                                 type="text"
                                 placeholder="No. of pcs"
                                 class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
                             />
                         </div>
                     </div>
-                    <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Fiber Optic
-                            </label>
-                            <div class="flex gap-1.5">
-                                <input
-                                    type="text"
-                                    placeholder="Meters"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Type"
-                                    class="h-8 w-20 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
+                    <div class="mt-3 rounded-lg border border-white/20 bg-white/5 px-4 py-3 shadow-sm">
+                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <div class="grid gap-0.5">
+                                <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                    Fiber Optic
+                                </label>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <input
+                                        v-model="form.equipmentNetworkDetails.fiberOpticMeters"
+                                        type="text"
+                                        placeholder="No. of Meters"
+                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                    />
+                                    <input
+                                        v-model="form.equipmentNetworkDetails.fiberOpticType"
+                                        type="text"
+                                        placeholder="Type"
+                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                UTP Cable
-                            </label>
-                            <div class="flex gap-1.5">
-                                <input
-                                    type="text"
-                                    placeholder="Meters"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Type"
-                                    class="h-8 w-20 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
+                            <div class="grid gap-0.5">
+                                <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                    UTP Cable
+                                </label>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <input
+                                        v-model="form.equipmentNetworkDetails.utpCableMeters"
+                                        type="text"
+                                        placeholder="No. of Meters"
+                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                    />
+                                    <input
+                                        v-model="form.equipmentNetworkDetails.utpCableType"
+                                        type="text"
+                                        placeholder="Type"
+                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                    />
+                                </div>
+                            </div>
+                            <div class="grid gap-0.5">
+                                <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                    SFPT/SFP module
+                                </label>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <input
+                                        v-model="form.equipmentNetworkDetails.sfpModuleQty"
+                                        type="text"
+                                        placeholder="Qty"
+                                        class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                    />
+                                    <input
+                                        v-model="form.equipmentNetworkDetails.sfpModuleBrand"
+                                        type="text"
+                                        placeholder="Brand"
+                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                    />
+                                    <input
+                                        v-model="form.equipmentNetworkDetails.sfpModuleType"
+                                        type="text"
+                                        placeholder="Type"
+                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                    />
+                                    <input
+                                        v-model="form.equipmentNetworkDetails.sfpModuleSerial"
+                                        type="text"
+                                        placeholder="Serial"
+                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -532,21 +678,25 @@ function submitForm() {
                             </label>
                             <div class="flex flex-wrap gap-1.5">
                                 <input
+                                    v-model="form.equipmentNetworkDetails.wifiRouterQty"
                                     type="text"
                                     placeholder="Qty"
                                     class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
                                 />
                                 <input
+                                    v-model="form.equipmentNetworkDetails.wifiRouterBrand"
                                     type="text"
                                     placeholder="Brand"
                                     class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
                                 />
                                 <input
+                                    v-model="form.equipmentNetworkDetails.wifiRouterSerial"
                                     type="text"
                                     placeholder="Serial"
                                     class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
                                 />
                                 <input
+                                    v-model="form.equipmentNetworkDetails.wifiRouterModel"
                                     type="text"
                                     placeholder="Model"
                                     class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
@@ -559,21 +709,25 @@ function submitForm() {
                             </label>
                             <div class="flex flex-wrap gap-1.5">
                                 <input
+                                    v-model="form.equipmentNetworkDetails.networkSwitchQty"
                                     type="text"
                                     placeholder="Qty"
                                     class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
                                 />
                                 <input
+                                    v-model="form.equipmentNetworkDetails.networkSwitchBrand"
                                     type="text"
                                     placeholder="Brand"
                                     class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
                                 />
                                 <input
+                                    v-model="form.equipmentNetworkDetails.networkSwitchSerial"
                                     type="text"
                                     placeholder="Serial"
                                     class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
                                 />
                                 <input
+                                    v-model="form.equipmentNetworkDetails.networkSwitchModel"
                                     type="text"
                                     placeholder="Model"
                                     class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
@@ -586,21 +740,25 @@ function submitForm() {
                             </label>
                             <div class="flex flex-wrap gap-1.5">
                                 <input
+                                    v-model="form.equipmentNetworkDetails.apBeamQty"
                                     type="text"
                                     placeholder="Qty"
                                     class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
                                 />
                                 <input
+                                    v-model="form.equipmentNetworkDetails.apBeamBrand"
                                     type="text"
                                     placeholder="Brand"
                                     class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
                                 />
                                 <input
+                                    v-model="form.equipmentNetworkDetails.apBeamSerial"
                                     type="text"
                                     placeholder="Serial"
                                     class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
                                 />
                                 <input
+                                    v-model="form.equipmentNetworkDetails.apBeamModel"
                                     type="text"
                                     placeholder="Model"
                                     class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
