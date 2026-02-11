@@ -4,11 +4,6 @@ import { computed, ref } from 'vue';
 
 import Icon from '@/components/Icon.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import {
-    getCategoryBadgeClass,
-    getStatusBadgeClass,
-    requestBadgeBase,
-} from '@/lib/requestBadges';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -99,17 +94,6 @@ const statusList = computed(() =>
 const attachments = computed(() => props.ticket.attachments ?? []);
 const isEditable = computed(() => props.canEdit);
 const natureList = computed(() => props.natureOfRequests ?? []);
-
-const selectedCategoryName = computed(() => {
-    const id = form.categoryId;
-    if (id == null || id === '') return null;
-    return categoryList.value.find((o) => String(o.id) === String(id))?.name ?? null;
-});
-const selectedStatusName = computed(() => {
-    const id = form.statusId;
-    if (id == null || id === '') return null;
-    return statusList.value.find((o) => String(o.id) === String(id))?.name ?? null;
-});
 
 const equipmentDetailKeys = [
     'rj45', 'fiberOpticHeatShrink', 'fiberOpticSClamp', 'scConnector', 'napBox',
@@ -495,13 +479,6 @@ function submitForm() {
                                     {{ option.name }}
                                 </option>
                             </select>
-                            <p v-if="selectedCategoryName" class="mt-1">
-                                <span
-                                    :class="[requestBadgeBase, getCategoryBadgeClass(selectedCategoryName)]"
-                                >
-                                    {{ selectedCategoryName }}
-                                </span>
-                            </p>
                             <p v-if="fieldError('categoryId')" class="mt-0.5 text-[10px] text-red-300">
                                 {{ fieldError('categoryId') }}
                             </p>
@@ -520,13 +497,6 @@ function submitForm() {
                                     {{ option.name }}
                                 </option>
                             </select>
-                            <p v-if="selectedStatusName" class="mt-1">
-                                <span
-                                    :class="[requestBadgeBase, getStatusBadgeClass(selectedStatusName)]"
-                                >
-                                    {{ selectedStatusName }}
-                                </span>
-                            </p>
                             <p v-if="fieldError('statusId')" class="mt-0.5 text-[10px] text-red-300">
                                 {{ fieldError('statusId') }}
                             </p>
