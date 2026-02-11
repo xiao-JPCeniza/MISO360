@@ -364,6 +364,7 @@ class TicketRequestController extends Controller
 
     public function itGovernance(Request $request, TicketRequest $ticketRequest)
     {
+        // Admin and Super Admin can access and save; regular users see read-only.
         $canEdit = $request->user()?->isAdmin() ?? false;
 
         $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaff', 'requestedForUser', 'user']);
@@ -470,8 +471,8 @@ class TicketRequestController extends Controller
 
     public function updateItGovernance(Request $request, TicketRequest $ticketRequest, AuditLogger $auditLogger)
     {
-        if (! $request->user()->isAdmin()) {
-            abort(403);
+        if (! $request->user()?->isAdmin()) {
+            abort(403, 'Only Admin and Super Admin can save IT Governance updates.');
         }
 
         $validated = $request->validate([
@@ -543,6 +544,7 @@ class TicketRequestController extends Controller
 
     public function equipmentAndNetwork(Request $request, TicketRequest $ticketRequest)
     {
+        // Admin and Super Admin can access and save; regular users see read-only.
         $canEdit = $request->user()?->isAdmin() ?? false;
 
         $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaff', 'requestedForUser', 'user']);
@@ -649,8 +651,8 @@ class TicketRequestController extends Controller
 
     public function updateEquipmentAndNetwork(Request $request, TicketRequest $ticketRequest)
     {
-        if (! $request->user()->isAdmin()) {
-            abort(403);
+        if (! $request->user()?->isAdmin()) {
+            abort(403, 'Only Admin and Super Admin can save equipment and network updates.');
         }
 
         $validated = $request->validate([

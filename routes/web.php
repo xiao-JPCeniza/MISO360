@@ -154,7 +154,7 @@ Route::middleware([
         ->name('requests.equipment-network');
     Route::get('requests/{ticketRequest}/equipment-and-network', [TicketRequestController::class, 'equipmentAndNetwork'])
         ->name('requests.equipment-network.show');
-    Route::patch('requests/{ticketRequest}/equipment-and-network', [TicketRequestController::class, 'updateEquipmentAndNetwork'])
+    Route::match(['post', 'patch'], 'requests/{ticketRequest}/equipment-and-network', [TicketRequestController::class, 'updateEquipmentAndNetwork'])
         ->name('requests.equipment-network.update');
 
     Route::get('nature-of-request/options', NatureOfRequestOptionsController::class)
