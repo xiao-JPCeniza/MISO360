@@ -11,6 +11,8 @@ use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\ViteException;
+use Illuminate\Foundation\ViteManifestNotFoundException;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -42,6 +44,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (ViteException|ViteManifestNotFoundException $e, Request $request): ?Response {
+            $html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Setup required</title></head><body style="font-family:system-ui,sans-serif;max-width:36em;margin:2em auto;padding:0 1em;color:#334"><h1>Frontend assets not built</h1><p>This usually happens after deploying without building the frontend.</p><p>On the server, run:</p><pre style="background:#f1f5f9;padding:1em;border-radius:6px;overflow:auto">composer install --no-dev --optimize-autoloader\nnpm ci\nnpm run build\nphp artisan storage:link</pre><p>Then reload this page.</p></body></html>';
+
+            return new Response($html, Response::HTTP_SERVICE_UNAVAILABLE, ['Content-Type' => 'text/html; charset=utf-8']);
+        });
+
         $exceptions->render(function (\Throwable $e, Request $request): ?Response {
             if (! $request->header('X-Inertia')) {
                 return null;
