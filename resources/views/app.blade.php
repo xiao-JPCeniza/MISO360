@@ -33,8 +33,14 @@
         <link rel="icon" href="{{ asset('storage/logos/IT Logo.png') }}" type="image/png" sizes="any">
         <link rel="apple-touch-icon" href="{{ asset('storage/logos/IT Logo.png') }}">
 
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
+        <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+        <link
+            href="https://fonts.bunny.net/css?family=Instrument+Sans:400,500,600&display=swap"
+            rel="stylesheet"
+            media="print"
+            onload="this.media='all'"
+        >
+        <noscript><link href="https://fonts.bunny.net/css?family=Instrument+Sans:400,500,600&display=swap" rel="stylesheet"></noscript>
 
         @vite(['resources/js/app.ts'])
         @inertiaHead
