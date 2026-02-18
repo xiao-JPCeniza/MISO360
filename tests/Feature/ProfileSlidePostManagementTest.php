@@ -57,4 +57,31 @@ class ProfileSlidePostManagementTest extends TestCase
             ->has('profileSlides')
             ->where('profileSlides', fn ($slides) => count($slides) === 2));
     }
+
+    public function test_super_admin_can_archive_slide_and_it_is_removed_from_list(): void
+    {
+        $superAdmin = User::factory()->superAdmin()->create();
+        $slide = ProfileSlide::factory()->create(['title' => 'Slide to archive']);
+
+        $response = $this->actingAs($superAdmin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => Carbon::now()->timestamp,
+            ])
+            ->patch("/admin/posts/{$slide->id}/archive");
+
+        $response->assertRedirect(route('admin.posts.index'));
+        $response->assertSessionHas('status');
+
+        $slide->refresh();
+        $this->assertNotNull($slide->archived_at);
+
+        $indexResponse = $this->actingAs($superAdmin)
+            ->withSession(['_token' => 'test-token', 'two_factor.verified_at' => Carbon::now()->timestamp])
+            ->get('/admin/posts');
+
+        $indexResponse->assertInertia(fn ($page) => $page
+            ->component('admin/posts/Index')
+            ->where('slides', fn ($slides) => count($slides) === 0));
+    }
 }

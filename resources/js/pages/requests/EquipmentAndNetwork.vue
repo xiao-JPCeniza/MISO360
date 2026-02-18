@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onUnmounted, onMounted, ref } from 'vue';
 
 import Icon from '@/components/Icon.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -33,7 +33,9 @@ type TicketDetails = {
     assignedStaffId?: number | string | null;
     dateReceived?: string | null;
     dateStarted?: string | null;
+    timeStarted?: string | null;
     estimatedCompletionDate?: string | null;
+    timeCompleted?: string | null;
     actionTaken?: string | null;
     categoryId?: number | string | null;
     statusId?: number | string | null;
@@ -146,6 +148,61 @@ const form = useForm<FormFields>({
 const localErrors = ref<Partial<Record<FieldName, string>>>({});
 
 const fieldError = (field: FieldName) => form.errors[field] ?? localErrors.value[field] ?? '';
+
+function formatDateTime(iso: string | null | undefined): string {
+    if (!iso) return '—';
+    try {
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'medium' });
+    } catch {
+        return '—';
+    }
+}
+
+const completedStatusName = 'Completed';
+const isCompleted = computed(() => {
+    const id = form.statusId ? String(form.statusId) : '';
+    const opt = statusList.value.find((o) => String(o.id) === id);
+    return opt?.name === completedStatusName;
+});
+const elapsedSeconds = ref<number | null>(null);
+let elapsedInterval: ReturnType<typeof setInterval> | null = null;
+onMounted(() => {
+    const start = props.ticket.timeStarted;
+    const end = props.ticket.timeCompleted;
+    if (!start) {
+        elapsedSeconds.value = null;
+        return;
+    }
+    if (end) {
+        elapsedSeconds.value = Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000);
+        return;
+    }
+    if (isCompleted.value) {
+        elapsedSeconds.value = null;
+        return;
+    }
+    const tick = () => {
+        const startMs = new Date(start).getTime();
+        if (Number.isNaN(startMs)) return;
+        elapsedSeconds.value = Math.floor((Date.now() - startMs) / 1000);
+    };
+    tick();
+    elapsedInterval = setInterval(tick, 1000);
+});
+onUnmounted(() => {
+    if (elapsedInterval) clearInterval(elapsedInterval);
+});
+function formatElapsed(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    const parts = [];
+    if (h > 0) parts.push(`${h}h`);
+    parts.push(`${m}m`);
+    parts.push(`${s}s`);
+    return parts.join(' ');
+}
 
 const dateIsAfter = (start: string, end: string) => start && end && start > end;
 
@@ -407,6 +464,14 @@ function submitForm() {
                                 {{ fieldError('dateStarted') }}
                             </p>
                         </div>
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Time Started
+                            </label>
+                            <div class="flex h-8 items-center rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600">
+                                {{ formatDateTime(ticket.timeStarted) }}
+                            </div>
+                        </div>
                         <div class="grid gap-0.5 sm:col-span-2 lg:col-span-1">
                             <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
                                 Estimated Completion Date
@@ -430,6 +495,22 @@ function submitForm() {
                             <p v-if="fieldError('estimatedCompletionDate')" class="mt-0.5 text-[10px] text-red-300">
                                 {{ fieldError('estimatedCompletionDate') }}
                             </p>
+                        </div>
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Time Completed
+                            </label>
+                            <div class="flex h-8 items-center rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600">
+                                {{ formatDateTime(ticket.timeCompleted) }}
+                            </div>
+                        </div>
+                        <div v-if="elapsedSeconds !== null" class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Elapsed
+                            </label>
+                            <div class="flex h-8 items-center rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600">
+                                {{ formatElapsed(elapsedSeconds) }}
+                            </div>
                         </div>
                     </div>
                     <div class="mt-3 grid gap-0.5">

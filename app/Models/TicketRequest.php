@@ -28,7 +28,9 @@ class TicketRequest extends Model
         'assigned_staff_id',
         'date_received',
         'date_started',
+        'time_started',
         'estimated_completion_date',
+        'time_completed',
         'action_taken',
         'equipment_network_details',
     ];
@@ -39,7 +41,9 @@ class TicketRequest extends Model
         'has_qr_code' => 'boolean',
         'date_received' => 'date',
         'date_started' => 'date',
+        'time_started' => 'datetime',
         'estimated_completion_date' => 'date',
+        'time_completed' => 'datetime',
     ];
 
     public function natureOfRequest(): BelongsTo

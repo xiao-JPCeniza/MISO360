@@ -1,7 +1,7 @@
 import '../css/app.css';
 
-import Alpine from 'alpinejs';
 import { createInertiaApp } from '@inertiajs/vue3';
+import Alpine from 'alpinejs';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { Camera, Check, X } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 import DeleteUser from '@/components/DeleteUser.vue';
@@ -13,7 +14,6 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { edit } from '@/routes/profile';
 import type { BreadcrumbItem, User } from '@/types';
-import { Camera, Check, X } from 'lucide-vue-next';
 
 interface Props {
     status?: string;
@@ -215,13 +215,13 @@ window.profileAvatarUploader = (options: ProfileAvatarUploaderOptions) => {
                         x-data="profileAvatarUploader({
                             currentAvatar: $el.dataset.currentAvatar || null,
                             csrfToken: $el.dataset.csrfToken || '',
-                            uploadUrl: $el.dataset.uploadUrl || '/settings/profile/avatar',
-                            initials: $el.dataset.initials || '?',
+                            uploadUrl: $el.dataset.uploadUrl || avatarUploadUrl,
+                            initials: $el.dataset.initials || userInitials,
                         })"
                         :data-current-avatar="currentAvatarUrl ?? ''"
                         :data-csrf-token="csrfToken"
-                        data-upload-url="/settings/profile/avatar"
-                        :data-initials="user ? getInitials(user.name) : '?'"
+                        :data-upload-url="avatarUploadUrl"
+                        :data-initials="userInitials"
                         class="flex flex-col items-center gap-6 sm:items-start"
                     >
                         <input

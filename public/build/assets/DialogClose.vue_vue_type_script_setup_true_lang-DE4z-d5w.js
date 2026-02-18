@@ -1,1 +1,0 @@
-import{k as s}from"./AppLayout.vue_vue_type_script_setup_true_lang-CGMNLiAn.js";import{d as t,m as r,e as l,O as n,w as p,P as c,o as d}from"./app-DjKwfWyu.js";const _=t({__name:"DialogClose",props:{asChild:{type:Boolean},as:{}},setup(o){const e=o;return(a,i)=>(d(),r(l(s),n({"data-slot":"dialog-close"},e),{default:p(()=>[c(a.$slots,"default")]),_:3},16))}});export{_};

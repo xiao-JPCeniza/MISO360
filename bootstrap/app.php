@@ -12,6 +12,10 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -38,5 +42,19 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Throwable $e, Request $request): ?Response {
+            if (! $request->header('X-Inertia')) {
+                return null;
+            }
+
+            $status = $e instanceof HttpException ? $e->getStatusCode() : Response::HTTP_INTERNAL_SERVER_ERROR;
+            $message = $e instanceof HttpException ? $e->getMessage() : '';
+
+            return Inertia::render('Error', [
+                'status' => $status,
+                'message' => $message,
+            ])
+                ->toResponse($request)
+                ->setStatusCode($status);
+        });
     })->create();

@@ -94,11 +94,8 @@ class UserManagementTest extends TestCase
                 '_token' => 'test-token',
                 'two_factor.verified_at' => Carbon::now()->timestamp,
             ])
-            ->patch("/admin/users/{$user->id}", [
+            ->patch("/admin/users/{$user->id}/work", [
                 '_token' => 'test-token',
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
                 'position_title' => 'Updated Position',
                 'office_designation_id' => $nextOffice->id,
             ])
@@ -112,7 +109,7 @@ class UserManagementTest extends TestCase
         $auditLog = AuditLog::query()->latest()->first();
 
         $this->assertNotNull($auditLog);
-        $this->assertSame('user.profile.updated', $auditLog->action);
+        $this->assertSame('user.work.updated', $auditLog->action);
         $this->assertSame($user->id, $auditLog->target_id);
         $this->assertSame($superAdmin->id, $auditLog->actor_id);
 

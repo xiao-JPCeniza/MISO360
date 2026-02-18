@@ -16,7 +16,7 @@ class EnsureUserIsAdmin
         $user = $request->user();
 
         if (! $user || ! $user->isAdmin()) {
-            abort(403);
+            abort(403, 'You do not have permission to access this area.');
         }
 
         return $next($request);

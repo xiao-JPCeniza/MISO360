@@ -10,6 +10,7 @@ use App\Models\TicketRequest;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -133,17 +134,26 @@ class TicketRequestController extends Controller
 
     public function store(StoreTicketRequestRequest $request, AuditLogger $auditLogger)
     {
+        $requester = $request->user();
+        if (! $requester) {
+            abort(401, 'Authentication required to submit a ticket request.');
+        }
+
         $validated = $request->validated();
         $attachments = [];
 
         if ($request->hasFile('attachments')) {
-            foreach ($request->file('attachments', []) as $file) {
+            $files = Arr::wrap($request->file('attachments', []));
+            foreach ($files as $file) {
+                if (! $file || ! $file->isValid()) {
+                    continue;
+                }
                 $path = $file->store('ticket-requests', 'public');
                 $attachments[] = [
                     'path' => $path,
                     'name' => $file->getClientOriginalName(),
-                    'size' => $file->getSize(),
-                    'mime' => $file->getMimeType(),
+                    'size' => $file->getSize() ?: 0,
+                    'mime' => $file->getMimeType() ?: 'application/octet-stream',
                 ];
             }
         }
@@ -151,16 +161,15 @@ class TicketRequestController extends Controller
         $survey = $validated['systemDevelopmentSurvey'] ?? null;
         $systemChangeRequestForm = $validated['systemChangeRequestForm'] ?? null;
         $systemIssueReport = $validated['systemIssueReport'] ?? null;
-        $requester = $request->user();
         $isAdmin = $requester->isAdmin();
         $resolvedControlTicketNumber = $this->resolveControlTicketNumber(
             $validated['controlTicketNumber'] ?? null,
         );
         $requestedForUserId = $isAdmin
-            ? $validated['requestedForUserId']
+            ? (int) $validated['requestedForUserId']
             : $requester->id;
         $officeDesignationId = $isAdmin
-            ? $validated['officeDesignationId']
+            ? (int) $validated['officeDesignationId']
             : $requester->office_designation_id;
 
         $officeName = null;
@@ -244,8 +253,9 @@ class TicketRequestController extends Controller
         }
 
         if ($request->hasFile('systemIssueReportAttachments')) {
-            foreach ($request->file('systemIssueReportAttachments', []) as $file) {
-                if (! $file) {
+            $files = Arr::wrap($request->file('systemIssueReportAttachments', []));
+            foreach ($files as $file) {
+                if (! $file || ! $file->isValid()) {
                     continue;
                 }
                 $path = $file->store('ticket-requests/system-issue-reports', 'public');
@@ -253,22 +263,22 @@ class TicketRequestController extends Controller
                     'type' => 'system_issue_report_attachment',
                     'path' => $path,
                     'name' => $file->getClientOriginalName(),
-                    'size' => $file->getSize(),
-                    'mime' => $file->getMimeType(),
+                    'size' => $file->getSize() ?: 0,
+                    'mime' => $file->getMimeType() ?: 'application/octet-stream',
                 ];
             }
         }
 
         if ($request->hasFile('systemDevelopmentSurveyFormAttachments')) {
             $files = $request->file('systemDevelopmentSurveyFormAttachments', []);
+            $files = is_array($files) ? $files : [$files];
             foreach ($files as $index => $file) {
-                if (! $file) {
+                if (! $file || ! $file->isValid()) {
                     continue;
                 }
 
                 $path = $file->store('ticket-requests/system-development-forms', 'public');
 
-                $attachmentNo = null;
                 $titleOfForm = null;
                 $description = null;
 
@@ -287,24 +297,24 @@ class TicketRequestController extends Controller
                     'description' => is_string($description) ? $description : null,
                     'path' => $path,
                     'name' => $file->getClientOriginalName(),
-                    'size' => $file->getSize(),
-                    'mime' => $file->getMimeType(),
+                    'size' => $file->getSize() ?: 0,
+                    'mime' => $file->getMimeType() ?: 'application/octet-stream',
                 ];
             }
         }
 
         $ticketRequest = TicketRequest::create([
             'control_ticket_number' => $resolvedControlTicketNumber,
-            'nature_of_request_id' => $validated['natureOfRequestId'],
+            'nature_of_request_id' => (int) $validated['natureOfRequestId'],
             'description' => $validated['description'],
-            'has_qr_code' => $validated['hasQrCode'],
+            'has_qr_code' => (bool) $validated['hasQrCode'],
             'qr_code_number' => $validated['hasQrCode']
-                ? strtoupper(trim($validated['qrCodeNumber']))
+                ? strtoupper(trim((string) $validated['qrCodeNumber']))
                 : null,
             'attachments' => $attachments ?: null,
             'user_id' => $requester->id,
             'requested_for_user_id' => $requestedForUserId,
-            'office_designation_id' => $officeDesignationId,
+            'office_designation_id' => $officeDesignationId !== null && $officeDesignationId !== '' ? (int) $officeDesignationId : null,
         ]);
 
         if (is_array($systemIssueReport)) {
@@ -318,8 +328,12 @@ class TicketRequestController extends Controller
 
     public function show(Request $request, TicketRequest $ticketRequest)
     {
-        if (! $request->user()->isAdmin() && $ticketRequest->user_id !== $request->user()->id) {
-            abort(403);
+        $user = $request->user();
+        if (! $user) {
+            abort(401, 'Authentication required.');
+        }
+        if (! $user->isAdmin() && $ticketRequest->user_id !== $user->id && $ticketRequest->requested_for_user_id !== $user->id) {
+            abort(403, 'You do not have permission to view this request.');
         }
 
         $ticketRequest->load('natureOfRequest');
@@ -327,7 +341,7 @@ class TicketRequestController extends Controller
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
 
-        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments($ticketRequest->attachments);
+        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
 
         return Inertia::render('requests/TicketRequestConfirmation', [
             'ticket' => [
@@ -364,8 +378,15 @@ class TicketRequestController extends Controller
 
     public function itGovernance(Request $request, TicketRequest $ticketRequest)
     {
-        // Admin and Super Admin can access and save; regular users see read-only.
-        $canEdit = $request->user()?->isAdmin() ?? false;
+        $user = $request->user();
+        if (! $user) {
+            abort(401, 'Authentication required.');
+        }
+        if (! $user->isAdmin() && $ticketRequest->user_id !== $user->id && $ticketRequest->requested_for_user_id !== $user->id) {
+            abort(403, 'You do not have permission to view this request.');
+        }
+
+        $canEdit = $user->isAdmin();
 
         $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaff', 'requestedForUser', 'user']);
 
@@ -373,7 +394,7 @@ class TicketRequestController extends Controller
         $disk = Storage::disk('public');
 
         $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
-        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments($ticketRequest->attachments);
+        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
 
         $ticket = [
             'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -544,8 +565,15 @@ class TicketRequestController extends Controller
 
     public function equipmentAndNetwork(Request $request, TicketRequest $ticketRequest)
     {
-        // Admin and Super Admin can access and save; regular users see read-only.
-        $canEdit = $request->user()?->isAdmin() ?? false;
+        $user = $request->user();
+        if (! $user) {
+            abort(401, 'Authentication required.');
+        }
+        if (! $user->isAdmin() && $ticketRequest->user_id !== $user->id && $ticketRequest->requested_for_user_id !== $user->id) {
+            abort(403, 'You do not have permission to view this request.');
+        }
+
+        $canEdit = $user->isAdmin();
 
         $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaff', 'requestedForUser', 'user']);
 
@@ -553,7 +581,7 @@ class TicketRequestController extends Controller
         $disk = Storage::disk('public');
 
         $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
-        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments($ticketRequest->attachments);
+        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
 
         $ticket = [
             'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -586,7 +614,9 @@ class TicketRequestController extends Controller
             'assignedStaffId' => $ticketRequest->assigned_staff_id != null ? (string) $ticketRequest->assigned_staff_id : null,
             'dateReceived' => $ticketRequest->date_received?->toDateString(),
             'dateStarted' => $ticketRequest->date_started?->toDateString(),
+            'timeStarted' => $ticketRequest->time_started?->toIso8601String(),
             'estimatedCompletionDate' => $ticketRequest->estimated_completion_date?->toDateString(),
+            'timeCompleted' => $ticketRequest->time_completed?->toIso8601String(),
             'actionTaken' => $ticketRequest->action_taken,
             'categoryId' => $ticketRequest->category_id,
             'statusId' => $ticketRequest->status_id,
@@ -701,15 +731,37 @@ class TicketRequestController extends Controller
             ? (isset($validated['natureOfRequestId']) && $validated['natureOfRequestId'] !== '' ? (int) $validated['natureOfRequestId'] : null)
             : $ticketRequest->nature_of_request_id;
 
+        $dateStarted = $validated['dateStarted'] ?? null;
+        $timeStarted = $ticketRequest->time_started;
+        if ($dateStarted && ! $ticketRequest->time_started) {
+            $timeStarted = now();
+        }
+
+        $resolvedStatusId = array_key_exists('statusId', $validated) && $validated['statusId'] !== '' && $validated['statusId'] !== null
+            ? (int) $validated['statusId']
+            : $ticketRequest->status_id;
+        $timeCompleted = $ticketRequest->time_completed;
+        if ($resolvedStatusId && ! $ticketRequest->time_completed) {
+            $status = ReferenceValue::query()
+                ->forGroup(ReferenceValueGroup::Status)
+                ->where('id', $resolvedStatusId)
+                ->first();
+            if ($status?->name === 'Completed') {
+                $timeCompleted = now();
+            }
+        }
+
         $ticketRequest->update([
             'nature_of_request_id' => $natureOfRequestId,
             'remarks_id' => $remarksId,
             'assigned_staff_id' => $assignedStaffId,
             'date_received' => $validated['dateReceived'] ?? null,
-            'date_started' => $validated['dateStarted'] ?? null,
+            'date_started' => $dateStarted,
+            'time_started' => $timeStarted,
             'estimated_completion_date' => $validated['estimatedCompletionDate'] ?? null,
+            'time_completed' => $timeCompleted,
             'action_taken' => $validated['actionTaken'] ?? null,
-            'status_id' => $validated['statusId'] ?? null,
+            'status_id' => $resolvedStatusId,
             'category_id' => $validated['categoryId'] ?? null,
             'equipment_network_details' => $this->normalizeEquipmentNetworkDetails($validated['equipmentNetworkDetails'] ?? []),
         ]);
@@ -824,9 +876,13 @@ class TicketRequestController extends Controller
      * @param  array<int, mixed>|null  $attachments
      * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>|null, 2: array<string, mixed>|null, 3: array<string, mixed>|null, 4: array<int, array<string, mixed>>}
      */
+    /**
+     * @param  array<int, mixed>|null  $attachments
+     * @return array{0: array, 1: array|null, 2: array|null, 3: array|null, 4: array}
+     */
     private function splitAttachments(?array $attachments): array
     {
-        if (! $attachments) {
+        if (! is_array($attachments) || $attachments === []) {
             return [[], null, null, null, []];
         }
 

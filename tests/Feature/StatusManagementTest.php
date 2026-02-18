@@ -59,6 +59,49 @@ class StatusManagementTest extends TestCase
         ]);
     }
 
+    public function test_super_admin_can_manage_reference_values(): void
+    {
+        $superAdmin = User::factory()->superAdmin()->create();
+        $csrfToken = 'test-token';
+
+        $this->actingAs($superAdmin)
+            ->get('/admin/status')
+            ->assertOk();
+
+        $this->actingAs($superAdmin)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/admin/status', [
+                '_token' => $csrfToken,
+                'group_key' => ReferenceValueGroup::Remarks->value,
+                'name' => 'For Pickup',
+            ])
+            ->assertRedirect('/admin/status');
+
+        $referenceValue = ReferenceValue::query()
+            ->where('group_key', ReferenceValueGroup::Remarks->value)
+            ->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->withSession(['_token' => $csrfToken])
+            ->patch("/admin/status/{$referenceValue->id}", [
+                '_token' => $csrfToken,
+                'name' => 'To Deliver',
+            ])
+            ->assertRedirect('/admin/status');
+
+        $this->actingAs($superAdmin)
+            ->withSession(['_token' => $csrfToken])
+            ->delete("/admin/status/{$referenceValue->id}", [
+                '_token' => $csrfToken,
+            ])
+            ->assertRedirect('/admin/status');
+
+        $this->assertDatabaseHas('reference_values', [
+            'id' => $referenceValue->id,
+            'is_active' => false,
+        ]);
+    }
+
     public function test_regular_user_cannot_manage_reference_values(): void
     {
         $user = User::factory()->create();

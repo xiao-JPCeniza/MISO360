@@ -19,6 +19,39 @@ class StoreTicketRequestRequest extends FormRequest
     }
 
     /**
+     * Normalize file inputs to arrays so validation and controller handle single or multiple files.
+     */
+    protected function prepareForValidation(): void
+    {
+        $files = $this->allFiles();
+        $normalized = [];
+
+        if (isset($files['attachments'])) {
+            $normalized['attachments'] = is_array($files['attachments'])
+                ? array_values($files['attachments'])
+                : [$files['attachments']];
+        }
+        if (isset($files['systemIssueReportAttachments'])) {
+            $normalized['systemIssueReportAttachments'] = is_array($files['systemIssueReportAttachments'])
+                ? array_values($files['systemIssueReportAttachments'])
+                : [$files['systemIssueReportAttachments']];
+        }
+        if (isset($files['systemDevelopmentSurveyFormAttachments'])) {
+            $att = $files['systemDevelopmentSurveyFormAttachments'];
+            $normalized['systemDevelopmentSurveyFormAttachments'] = is_array($att)
+                ? $att
+                : [0 => $att];
+        }
+
+        if ($normalized !== []) {
+            $this->merge($normalized);
+            foreach ($normalized as $key => $value) {
+                $this->files->set($key, $value);
+            }
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>

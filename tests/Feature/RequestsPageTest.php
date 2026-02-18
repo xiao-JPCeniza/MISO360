@@ -131,4 +131,47 @@ class RequestsPageTest extends TestCase
             ->where('canEdit', true)
         );
     }
+
+    public function test_regular_user_cannot_access_another_users_ticket_on_it_governance(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $ticket = TicketRequest::factory()->create(['user_id' => $otherUser->id]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('requests.it-governance.show', $ticket));
+
+        $response->assertForbidden();
+    }
+
+    public function test_regular_user_cannot_access_another_users_ticket_on_equipment_and_network(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $ticket = TicketRequest::factory()->create(['user_id' => $otherUser->id]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('requests.equipment-network.show', $ticket));
+
+        $response->assertForbidden();
+    }
+
+    public function test_regular_user_can_access_own_ticket_on_it_governance(): void
+    {
+        $user = User::factory()->create();
+        $ticket = TicketRequest::factory()->create(['user_id' => $user->id]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('requests.it-governance.show', $ticket));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('requests/ItGovernanceRequest')
+            ->has('ticket')
+            ->where('canEdit', false)
+        );
+    }
 }

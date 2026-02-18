@@ -167,7 +167,7 @@ const passwordForm = useForm({
                         />
 
                         <form
-                            @submit.prevent="workForm.patch(`/admin/users/${props.user.id}`)"
+                            @submit.prevent="workForm.patch(`/admin/users/${props.user.id}/work`)"
                             class="mt-6 space-y-6"
                         >
                             <div class="grid gap-2">
@@ -234,6 +234,9 @@ const passwordForm = useForm({
                             <Button :disabled="roleForm.processing">
                                 Update role
                             </Button>
+                            <p v-if="roleForm.recentlySuccessful" class="text-sm text-emerald-600">
+                                Role updated.
+                            </p>
                         </form>
 
                         <form
@@ -256,6 +259,9 @@ const passwordForm = useForm({
                             >
                                 Update status
                             </Button>
+                            <p v-if="statusForm.recentlySuccessful" class="text-sm text-emerald-600">
+                                Status updated.
+                            </p>
                         </form>
                     </div>
                 </div>
@@ -294,6 +300,9 @@ const passwordForm = useForm({
                             >
                                 Update password
                             </Button>
+                            <p v-if="passwordForm.recentlySuccessful" class="text-sm text-emerald-600">
+                                Password updated.
+                            </p>
                         </form>
                     </div>
 

@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\UpdateUserPasswordRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Http\Requests\Admin\UpdateUserRoleRequest;
 use App\Http\Requests\Admin\UpdateUserStatusRequest;
+use App\Http\Requests\Admin\UpdateUserWorkRequest;
 use App\Models\AuditLog;
 use App\Models\ReferenceValue;
 use App\Models\User;
@@ -92,7 +93,31 @@ class UserManagementController extends Controller
         Gate::authorize('update', $user);
 
         $validated = $request->validated();
+        $previousValues = $user->only(array_keys($validated));
 
+        $user->update($validated);
+
+        $changes = [];
+        foreach ($validated as $field => $value) {
+            $previous = $previousValues[$field] ?? null;
+            if ($previous !== $value) {
+                $changes[$field] = ['from' => $previous, 'to' => $value];
+            }
+        }
+
+        $auditLogger->log($request, 'user.profile.updated', $user, [
+            'fields' => array_keys($request->validated()),
+            'changes' => $changes,
+        ]);
+
+        return back()->with('status', 'User profile updated.');
+    }
+
+    public function updateWork(UpdateUserWorkRequest $request, User $user, AuditLogger $auditLogger): RedirectResponse
+    {
+        Gate::authorize('update', $user);
+
+        $validated = $request->validated();
         $previousValues = $user->only(array_keys($validated));
 
         $officeNames = ReferenceValue::query()
@@ -105,14 +130,11 @@ class UserManagementController extends Controller
         $user->update($validated);
 
         $changes = [];
-
         foreach ($validated as $field => $value) {
             $previous = $previousValues[$field] ?? null;
-
             if ($previous === $value) {
                 continue;
             }
-
             if ($field === 'office_designation_id') {
                 $changes['office_designation'] = [
                     'from' => [
@@ -127,19 +149,15 @@ class UserManagementController extends Controller
 
                 continue;
             }
-
-            $changes[$field] = [
-                'from' => $previous,
-                'to' => $value,
-            ];
+            $changes[$field] = ['from' => $previous, 'to' => $value];
         }
 
-        $auditLogger->log($request, 'user.profile.updated', $user, [
+        $auditLogger->log($request, 'user.work.updated', $user, [
             'fields' => array_keys($request->validated()),
             'changes' => $changes,
         ]);
 
-        return back()->with('status', 'User profile updated.');
+        return back()->with('status', 'Work details updated.');
     }
 
     public function updateRole(UpdateUserRoleRequest $request, User $user, AuditLogger $auditLogger): RedirectResponse

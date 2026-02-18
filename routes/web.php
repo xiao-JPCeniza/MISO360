@@ -21,6 +21,7 @@ use Inertia\Inertia;
 
 Route::get('/', function () {
     $profileSlides = ProfileSlide::query()
+        ->notArchived()
         ->active()
         ->ordered()
         ->get()
@@ -62,6 +63,8 @@ Route::middleware([
             ->name('admin.users.show');
         Route::patch('admin/users/{user}', [UserManagementController::class, 'update'])
             ->name('admin.users.update');
+        Route::patch('admin/users/{user}/work', [UserManagementController::class, 'updateWork'])
+            ->name('admin.users.work');
         Route::patch('admin/users/{user}/role', [UserManagementController::class, 'updateRole'])
             ->name('admin.users.role');
         Route::patch('admin/users/{user}/status', [UserManagementController::class, 'updateStatus'])
@@ -93,6 +96,7 @@ Route::middleware([
         ->middleware('admin')
         ->name('admin.nature-of-requests.destroy');
 
+    // Remarks, Office Designation, Category, Status: both admin and super_admin may access and CRUD.
     Route::get('admin/status', [StatusManagementController::class, 'index'])
         ->middleware('admin')
         ->name('admin.status.index');
@@ -123,6 +127,7 @@ Route::middleware([
         Route::get('/create', [ProfileSlideController::class, 'create'])->name('create');
         Route::post('/', [ProfileSlideController::class, 'store'])->name('store');
         Route::get('/{profileSlide}/edit', [ProfileSlideController::class, 'edit'])->name('edit');
+        Route::patch('/{profileSlide}/archive', [ProfileSlideController::class, 'archive'])->name('archive');
         Route::patch('/{profileSlide}', [ProfileSlideController::class, 'update'])->name('update');
         Route::delete('/{profileSlide}', [ProfileSlideController::class, 'destroy'])->name('destroy');
     });
@@ -176,6 +181,7 @@ Route::middleware([
     Route::get('submit-request', [TicketRequestController::class, 'create'])
         ->name('submit-request');
     Route::post('submit-request', [TicketRequestController::class, 'store'])
+        ->middleware('throttle:10,1')
         ->name('submit-request.store');
     Route::get('requests/{ticketRequest}', [TicketRequestController::class, 'show'])
         ->name('requests.show');

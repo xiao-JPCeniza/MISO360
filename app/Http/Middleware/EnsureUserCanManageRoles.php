@@ -16,7 +16,7 @@ class EnsureUserCanManageRoles
         $user = $request->user();
 
         if (! $user || ! $user->canManageRoles()) {
-            abort(403);
+            abort(403, 'You do not have permission to manage roles.');
         }
 
         return $next($request);

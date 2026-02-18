@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Pencil, Trash2, ImageIcon, Hash, Eye, EyeOff } from 'lucide-vue-next';
+import { Archive, Pencil, Trash2, ImageIcon, Hash, Eye, EyeOff } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 import {
@@ -43,6 +43,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const search = ref(props.filters.search);
 const sort = ref(props.filters.sort);
 const deleteConfirmSlide = ref<SlideRow | null>(null);
+const archiveConfirmSlide = ref<SlideRow | null>(null);
 
 const slidesToShow = computed(() => props.slides);
 
@@ -65,6 +66,25 @@ function doDelete() {
         preserveScroll: true,
         onSuccess: () => {
             deleteConfirmSlide.value = null;
+        },
+    });
+}
+
+function confirmArchive(slide: SlideRow) {
+    archiveConfirmSlide.value = slide;
+}
+
+function cancelArchive() {
+    archiveConfirmSlide.value = null;
+}
+
+function doArchive() {
+    if (archiveConfirmSlide.value === null) return;
+    const id = archiveConfirmSlide.value.id;
+    router.patch(`/admin/posts/${id}/archive`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            archiveConfirmSlide.value = null;
         },
     });
 }
@@ -247,6 +267,14 @@ function excerpt(text: string | null, max = 60) {
                                     </Link>
                                     <button
                                         type="button"
+                                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-amber-200 text-amber-600 transition-all hover:bg-amber-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 dark:border-amber-500/40"
+                                        title="Archive"
+                                        @click="confirmArchive(slide)"
+                                    >
+                                        <Archive class="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        type="button"
                                         class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 text-rose-600 transition-all hover:bg-rose-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/50 dark:border-rose-500/40"
                                         title="Delete"
                                         @click="confirmDelete(slide)"
@@ -261,6 +289,39 @@ function excerpt(text: string | null, max = 60) {
             </section>
         </div>
 
+        <!-- Archive confirmation modal -->
+        <Dialog
+            :open="archiveConfirmSlide !== null"
+            @update:open="(open) => !open && cancelArchive()"
+        >
+            <DialogContent class="sm:max-w-md rounded-2xl border border-sidebar-border/60 shadow-2xl">
+                <DialogHeader>
+                    <DialogTitle id="archive-title" class="text-lg font-semibold text-foreground">
+                        Archive this slide?
+                    </DialogTitle>
+                    <DialogDescription>
+                        “{{ archiveConfirmSlide?.title }}” will be removed from the carousel and stored in the archive. You can restore it later from the archive.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="flex justify-end gap-3 sm:justify-end">
+                    <button
+                        type="button"
+                        class="rounded-xl border border-sidebar-border/70 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60"
+                        @click="cancelArchive"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+                        @click="doArchive"
+                    >
+                        Archive
+                    </button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
         <!-- Delete confirmation modal -->
         <Dialog
             :open="deleteConfirmSlide !== null"
@@ -272,7 +333,7 @@ function excerpt(text: string | null, max = 60) {
                         Delete this slide?
                     </DialogTitle>
                     <DialogDescription>
-                        “{{ deleteConfirmSlide?.title }}” and its image will be removed. This can’t be undone.
+                        “{{ deleteConfirmSlide?.title }}” and its image will be removed permanently. This can’t be undone.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="flex justify-end gap-3 sm:justify-end">

@@ -16,7 +16,7 @@ class ProfileSlideController extends Controller
 {
     public function index(Request $request): Response
     {
-        $query = ProfileSlide::query();
+        $query = ProfileSlide::query()->notArchived();
 
         $search = $request->string('search')->trim();
         if ($search->isNotEmpty()) {
@@ -99,6 +99,13 @@ class ProfileSlideController extends Controller
         $profileSlide->save();
 
         return redirect()->route('admin.posts.index')->with('status', 'Slide updated successfully.');
+    }
+
+    public function archive(ProfileSlide $profileSlide): RedirectResponse
+    {
+        $profileSlide->update(['archived_at' => now()]);
+
+        return redirect()->route('admin.posts.index')->with('status', 'Slide archived. It has been removed from the carousel and stored in the archive.');
     }
 
     public function destroy(ProfileSlide $profileSlide): RedirectResponse

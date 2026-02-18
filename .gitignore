@@ -1,14 +1,8 @@
 /.phpunit.cache
 /bootstrap/ssr
 /node_modules
-#/public/build
+/public/build
 /public/hot
-# Ignore public/storage contents except logos and MISO - ID
-/public/storage/*
-!/public/storage/logos
-!/public/storage/logos/**
-!/public/storage/MISO - ID
-!/public/storage/MISO - ID/**
 /storage/*.key
 /storage/pail
 /resources/js/actions

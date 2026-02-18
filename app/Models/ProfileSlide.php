@@ -17,6 +17,7 @@ class ProfileSlide extends Model
         'text_position',
         'sort_order',
         'is_active',
+        'archived_at',
     ];
 
     /**
@@ -28,7 +29,18 @@ class ProfileSlide extends Model
             'text_position' => ProfileSlideTextPosition::class,
             'sort_order' => 'integer',
             'is_active' => 'boolean',
+            'archived_at' => 'datetime',
         ];
+    }
+
+    public function scopeNotArchived($query)
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function scopeArchived($query)
+    {
+        return $query->whereNotNull('archived_at');
     }
 
     public function scopeActive($query)

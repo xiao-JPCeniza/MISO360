@@ -88,6 +88,8 @@ type TeamMember = {
     fullDesignation: string;
     shortDesignation: string;
     imageSlug: string;
+    /** When set, used as filename under TEAM_PROFILE_BASE instead of `${imageSlug}.jpg` */
+    imageFilename?: string;
     roleLabel?: string;
 };
 
@@ -172,6 +174,7 @@ const teamMembers: TeamMember[] = [
         fullDesignation: 'Administrative Aide VI (Clerk III)',
         shortDesignation: 'Administrative Aide VI',
         imageSlug: 'JALA-MISO',
+        imageFilename: 'JALA-MISO.jpg.jpg',
     },
 ];
 
@@ -209,6 +212,11 @@ const membersById = computed(() => {
 
 function getMember(id: string): TeamMember | undefined {
     return membersById.value[id];
+}
+
+function memberImageSrc(member: TeamMember): string {
+    const filename = member.imageFilename ?? `${member.imageSlug}.jpg`;
+    return `${TEAM_PROFILE_BASE}/${filename}`;
 }
 
 const flippedCardId = ref<string | null>(null);
@@ -444,7 +452,7 @@ function getFilteredServicesForDivision(division: Division) {
                             :href="login()"
                             class="rounded-full border border-primary px-4 py-2 text-primary transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         >
-                            Book a Service
+                        Sign in to start
                         </Link>
                     </nav>
                 </div>
@@ -481,7 +489,7 @@ function getFilteredServicesForDivision(division: Division) {
                         :href="login()"
                         class="rounded-full border border-primary px-3 py-1.5 text-primary transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
-                        Book a Service
+                    Sign in to start
                     </Link>
                 </nav>
             </div>
@@ -607,7 +615,7 @@ function getFilteredServicesForDivision(division: Division) {
                                         <span v-show="imageFailed(teamLead.id)" class="team-avatar-fallback" aria-hidden="true">{{ memberInitial(teamLead) }}</span>
                                         <img
                                             v-show="!imageFailed(teamLead.id)"
-                                            :src="`${TEAM_PROFILE_BASE}/${teamLead.imageSlug}.jpg`"
+                                            :src="memberImageSrc(teamLead)"
                                             :alt="teamLead.shortName"
                                             loading="lazy"
                                             @error="setImageFailed(teamLead.id)"
@@ -656,7 +664,7 @@ function getFilteredServicesForDivision(division: Division) {
                                                 <span v-show="imageFailed(getMember(group.memberIds[0])!.id)" class="team-avatar-fallback" aria-hidden="true">{{ memberInitial(getMember(group.memberIds[0])!) }}</span>
                                                 <img
                                                     v-show="!imageFailed(getMember(group.memberIds[0])!.id)"
-                                                    :src="`${TEAM_PROFILE_BASE}/${getMember(group.memberIds[0])!.imageSlug}.jpg`"
+                                                    :src="memberImageSrc(getMember(group.memberIds[0])!)"
                                                     :alt="getMember(group.memberIds[0])!.shortName"
                                                     loading="lazy"
                                                     @error="setImageFailed(getMember(group.memberIds[0])!.id)"
@@ -697,7 +705,7 @@ function getFilteredServicesForDivision(division: Division) {
                                                     <span v-show="imageFailed(memberId)" class="team-avatar-fallback" aria-hidden="true">{{ getMember(memberId) ? memberInitial(getMember(memberId)!) : '' }}</span>
                                                     <img
                                                         v-show="!imageFailed(memberId)"
-                                                        :src="`${TEAM_PROFILE_BASE}/${getMember(memberId)!.imageSlug}.jpg`"
+                                                        :src="memberImageSrc(getMember(memberId)!)"
                                                         :alt="getMember(memberId)!.shortName"
                                                         loading="lazy"
                                                         @error="setImageFailed(memberId)"

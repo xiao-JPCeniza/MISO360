@@ -63,16 +63,19 @@ onMounted(() => {
             <div class="grid w-full gap-10 lg:grid-cols-[1fr_460px]">
                 <div class="flex flex-col gap-6">
                     <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
-                        MISO 360
+                        MISO 360 Access
                     </p>
                     <h1 class="text-4xl font-semibold leading-tight">
-                        Your devices and requests, centralized
+                        Secure access for every MISO account
                     </h1>
                     <p class="max-w-xl text-base text-slate-300">
-                        Sign in to view device inventory, create and track requests, and
-                        manage your day-to-day MISO tasks.
+                        Sign in to keep operations moving, or create your account in
+                        a guided flow that verifies your office identity.
                     </p>
-                
+                    <div class="flex items-center gap-3 text-sm text-slate-400">
+                        <span class="h-px w-12 bg-slate-700"></span>
+                        Email verification required before dashboard access
+                    </div>
                 </div>
 
                 <div class="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl shadow-black/40">

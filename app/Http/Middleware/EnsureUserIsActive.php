@@ -18,7 +18,7 @@ class EnsureUserIsActive
         $user = $request->user();
 
         if ($user && ! $user->isActive()) {
-            abort(403);
+            abort(403, 'Your account is inactive. Please contact an administrator.');
         }
 
         return $next($request);

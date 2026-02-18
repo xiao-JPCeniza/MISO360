@@ -2,11 +2,12 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\ReferenceValueGroup;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateUserRequest extends FormRequest
+class UpdateUserWorkRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -26,15 +27,14 @@ class UpdateUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => [
+            'office_designation_id' => [
                 'required',
-                'string',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($this->route('user')),
+                'integer',
+                Rule::exists('reference_values', 'id')
+                    ->where('group_key', ReferenceValueGroup::OfficeDesignation->value)
+                    ->where('is_active', true),
             ],
-            'phone' => ['nullable', 'string', 'max:50'],
+            'position_title' => ['required', 'string', 'max:255'],
         ];
     }
 }
