@@ -111,7 +111,7 @@ class StoreTicketRequestRequest extends FormRequest
                 'mimes:jpg,jpeg,png,webp,mp4,mov',
                 'max:10240',
             ],
-            'systemDevelopmentSurveyFormAttachments' => ['nullable', 'array'],
+            'systemDevelopmentSurveyFormAttachments' => ['nullable', 'array', 'max:5'],
             'systemDevelopmentSurveyFormAttachments.*' => [
                 'file',
                 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,webp',
@@ -179,7 +179,7 @@ class StoreTicketRequestRequest extends FormRequest
             'systemIssueReport.approvedBy' => ['nullable', 'string', 'max:255'],
             'systemIssueReport.approvedByDate' => ['nullable', 'string', 'max:50'],
             'systemIssueReport.approvedBySignature' => ['nullable', 'string', 'max:255'],
-            'systemIssueReportAttachments' => ['nullable', 'array'],
+            'systemIssueReportAttachments' => ['nullable', 'array', 'max:5'],
             'systemIssueReportAttachments.*' => [
                 'file',
                 'mimes:jpg,jpeg,png,webp,pdf',
@@ -295,6 +295,8 @@ class StoreTicketRequestRequest extends FormRequest
             'qrCodeNumber.regex' => 'QR Code Number must match MIS-UID-00000 format.',
             'description.min' => 'Description must be at least 10 characters.',
             'description.max' => 'Description may not exceed 1000 characters.',
+            'systemDevelopmentSurveyFormAttachments.max' => 'You may upload up to 5 system development form attachments.',
+            'systemIssueReportAttachments.max' => 'You may upload up to 5 system issue report attachments.',
         ];
     }
 

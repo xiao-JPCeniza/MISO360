@@ -207,6 +207,7 @@ const attachmentEntries = ref<AttachmentEntry[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
 const uploadError = ref('');
+const systemIssueUploadError = ref('');
 const descriptionTouched = ref(false);
 const submitAttempted = ref(false);
 
@@ -539,6 +540,8 @@ watch(
     () => isSystemErrorBugReport.value,
     (enabled) => {
         if (!enabled) {
+            form.systemIssueReportAttachments = [];
+            systemIssueUploadError.value = '';
             return;
         }
         form.systemIssueReport.controlNumber = props.controlTicketNumber;
@@ -610,6 +613,8 @@ const acceptedTypes = [
     'video/quicktime',
 ];
 const acceptedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'mov'];
+const issueAcceptedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const issueAcceptedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
 const acceptAttribute = acceptedExtensions.map((ext) => `.${ext}`).join(',');
 
 function formatSize(size: number) {
@@ -669,6 +674,48 @@ function handleFiles(files: File[]) {
         attachmentEntries.value = [...attachmentEntries.value, ...accepted];
         form.attachments = attachmentEntries.value.map((entry) => entry.file);
     }
+}
+
+function handleSystemIssueReportFiles(files: File[]) {
+    systemIssueUploadError.value = '';
+    form.clearErrors('systemIssueReportAttachments');
+
+    if (!files.length) {
+        form.systemIssueReportAttachments = [];
+        return;
+    }
+
+    const limitedFiles = files.slice(0, maxAttachments.value);
+    const rejected: string[] = [];
+    const accepted: File[] = [];
+
+    limitedFiles.forEach((file) => {
+        const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+        const isValidType =
+            issueAcceptedTypes.includes(file.type) || issueAcceptedExtensions.includes(extension);
+
+        if (!isValidType) {
+            rejected.push(`${file.name} (unsupported format)`);
+            return;
+        }
+
+        if (file.size > maxSizeBytes.value) {
+            rejected.push(`${file.name} (exceeds ${props.maxAttachmentSizeMb} MB)`);
+            return;
+        }
+
+        accepted.push(file);
+    });
+
+    if (files.length > maxAttachments.value) {
+        rejected.push(`Only the first ${maxAttachments.value} files were considered.`);
+    }
+
+    if (rejected.length) {
+        systemIssueUploadError.value = rejected.join(', ');
+    }
+
+    form.systemIssueReportAttachments = accepted;
 }
 
 function onFileChange(event: Event) {
@@ -1666,11 +1713,18 @@ function submitTicket() {
                                     @change="(e) => {
                                         const target = e.target as HTMLInputElement;
                                         const files = target.files ? Array.from(target.files) : [];
-                                        form.systemIssueReportAttachments = files;
+                                        handleSystemIssueReportFiles(files);
+                                        target.value = '';
                                     }"
                                 />
                                 <p v-if="form.systemIssueReportAttachments.length" class="text-xs text-muted-foreground">
                                     {{ form.systemIssueReportAttachments.length }} file(s) selected.
+                                </p>
+                                <p v-if="systemIssueUploadError" class="text-xs text-destructive">
+                                    {{ systemIssueUploadError }}
+                                </p>
+                                <p v-if="form.errors['systemIssueReportAttachments']" class="text-xs text-destructive">
+                                    {{ form.errors['systemIssueReportAttachments'] }}
                                 </p>
                             </div>
                         </div>
