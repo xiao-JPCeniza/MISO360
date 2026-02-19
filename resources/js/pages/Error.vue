@@ -27,12 +27,24 @@ function messageFor(status: number, message?: string): string {
 
     <div class="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 dark:bg-slate-900">
         <div class="w-full max-w-md space-y-6 text-center">
-            <img
-                src="/images/unplugged.gif"
-                alt=""
-                class="mx-auto h-32 w-32 object-contain sm:h-40 sm:w-40"
+            <div
+                class="mx-auto flex h-32 w-32 items-center justify-center text-slate-300 dark:text-slate-600 sm:h-40 sm:w-40"
                 aria-hidden="true"
-            />
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="h-full w-full"
+                >
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                    <line x1="2" y1="2" x2="22" y2="22" stroke-dasharray="2 2" />
+                </svg>
+            </div>
             <p class="text-6xl font-bold text-slate-300 dark:text-slate-600" aria-hidden="true">
                 {{ status }}
             </p>

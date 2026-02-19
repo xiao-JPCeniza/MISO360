@@ -77,3 +77,82 @@ See `apache-virtualhost-example.conf` in this folder. Copy it to `/etc/apache2/s
 Then enable the site and reload Apache as in step 1.
 
 After these changes, reload or restart Apache and test again; the "Forbidden" from Apache should be resolved and Laravel can run.
+
+---
+
+## 7. Forbidden only when submitting with an uploaded file
+
+If the submit-request page loads and works **without** a file, but returns **403 Forbidden** when you submit **with** an attachment, the block is usually from Apache or ModSecurity, not Laravel.
+
+### 7.1 Check Apache error log
+
+On the server:
+
+```bash
+sudo tail -100 /var/log/apache2/error.log
+# or your site-specific error log, e.g.:
+sudo tail -100 /var/log/apache2/miso360_error.log
+```
+
+Look for lines that mention **ModSecurity**, **mod_security**, or a **rule id** (e.g. `id "200000"`) when you reproduce the 403 with a file upload.
+
+### 7.2 ModSecurity blocking file uploads
+
+ModSecurity often blocks large or multipart requests and returns 403.
+
+- **Option A – Temporarily disable ModSecurity for this site** (to confirm it’s the cause):
+
+  In your site’s Apache config (e.g. in `<VirtualHost *:443>`), add:
+
+  ```apache
+  <IfModule security2_module>
+      SecRuleEngine Off
+  </IfModule>
+  ```
+
+  Reload Apache and test. If 403 goes away, ModSecurity was the cause.
+
+- **Option B – Turn ModSecurity back on and whitelist only the upload path:**
+
+  Remove `SecRuleEngine Off`. Add a location for the submit-request POST so only that path is not filtered by ModSecurity:
+
+  ```apache
+  <Location "/submit-request">
+      <IfModule security2_module>
+          SecRuleEngine Off
+      </IfModule>
+  </Location>
+  ```
+
+  Reload Apache and test again.
+
+- **Option C – Keep ModSecurity on and relax only file-upload rules:**  
+  If your ModSecurity ruleset uses specific rule IDs for “inbound file upload” or “multipart”, you can disable only those rules in the server config or in a rule file. The exact IDs depend on your ModSecurity/OWASP CRS version; the error log will show them.
+
+### 7.3 Request body size limit (LimitRequestBody)
+
+If the server has a low `LimitRequestBody`, large POSTs (e.g. with files) can be rejected. In the same `<VirtualHost>` or `<Directory>` for this app, set a limit that allows your max upload (e.g. 10 MB per file × 5 files + form data ≈ 60 MB):
+
+```apache
+LimitRequestBody 67108864
+```
+
+(67108864 = 64 MB.) Then reload Apache.
+
+### 7.4 PHP upload limits
+
+Laravel allows up to 10 MB per file and up to 5 attachments (see `StoreTicketRequestRequest`). Ensure PHP allows at least that:
+
+- **upload_max_filesize** – at least `10M`
+- **post_max_size** – larger than the total request (e.g. `64M`)
+
+Edit `php.ini` (or the pool config if using PHP-FPM), then restart PHP-FPM or Apache:
+
+```ini
+upload_max_filesize = 10M
+post_max_size = 64M
+```
+
+If `post_max_size` is too small, the request may be truncated and can sometimes result in a 403 or empty request at the server/proxy layer.
+
+After any change, reload Apache (and PHP-FPM if applicable) and test the submit-request form with a file again.
