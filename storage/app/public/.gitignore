@@ -1,2 +1,9 @@
-# Allow uploaded images and files to be committed to the repository.
+#Allow uploaded images and files to be committed to the repository.
 # Remove or add ignore rules below if you want to exclude specific paths.
+
+!MISO - ID/
+!MISO - ID/**
+
+
+!logos/
+!logos/**
