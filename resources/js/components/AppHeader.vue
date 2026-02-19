@@ -322,7 +322,7 @@ const isAdminPanelActive = computed(() =>
                                         :alt="auth.user.name"
                                     />
                                     <AvatarFallback
-                                        class="rounded-lg bg-[#2563eb]/10 font-semibold text-[#0b1b3a] dark:bg-white/10 dark:text-white"
+                                        class="rounded-full bg-[#2563eb]/10 font-semibold text-[#0b1b3a] dark:bg-white/10 dark:text-white"
                                     >
                                         {{ getInitials(auth.user.name) }}
                                     </AvatarFallback>

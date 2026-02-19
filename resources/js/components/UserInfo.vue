@@ -30,9 +30,9 @@ const showAvatar = computed(() => Boolean(avatarUrl.value));
 </script>
 
 <template>
-    <Avatar class="avatar-profile h-8 w-8 overflow-hidden rounded-lg">
+    <Avatar class="avatar-profile h-8 w-8 overflow-hidden rounded-full">
         <AvatarImage v-if="showAvatar" :src="avatarUrl!" :alt="user.name" />
-        <AvatarFallback class="rounded-lg text-black dark:text-white">
+        <AvatarFallback class="rounded-full text-black dark:text-white">
             {{ getInitials(user.name) }}
         </AvatarFallback>
     </Avatar>

@@ -161,6 +161,33 @@ class ProfileUpdateTest extends TestCase
         $this->assertSame('Profile photo updated.', session('status'));
     }
 
+    public function test_profile_avatar_keeps_original_framing_without_square_crop()
+    {
+        Storage::fake('public');
+        $user = User::factory()->create(['avatar' => '']);
+
+        $file = UploadedFile::fake()->image('avatar-wide.jpg', 1200, 600)->size(3000);
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
+            ->post(route('profile.avatar.update'), [
+                '_token' => 'test-token',
+                'avatar' => $file,
+            ]);
+
+        $response->assertSessionHasNoErrors()->assertRedirect(route('profile.edit'));
+
+        $user->refresh();
+        Storage::disk('public')->assertExists($user->avatar);
+
+        $storedPath = Storage::disk('public')->path($user->avatar);
+        [$storedWidth, $storedHeight] = getimagesize($storedPath);
+
+        $this->assertSame(400, $storedWidth);
+        $this->assertSame(200, $storedHeight);
+    }
+
     public function test_profile_avatar_update_rejects_non_image_file()
     {
         Storage::fake('public');
