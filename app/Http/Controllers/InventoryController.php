@@ -102,7 +102,7 @@ class InventoryController extends Controller
 
         return TicketRequest::query()
             ->where('nature_of_request_id', $borrowNatureId)
-            ->active();
+            ->activelyBorrowed();
     }
 
     public function show(string $uniqueId)

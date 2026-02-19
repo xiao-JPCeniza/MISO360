@@ -13,6 +13,8 @@ use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -86,25 +88,43 @@ class StatusManagementController extends Controller
         $nextName = trim($validated['name']);
         $isActive = $validated['is_active'] ?? $referenceValue->is_active;
 
-        DB::transaction(function () use ($referenceValue, $previousName, $nextName, $isActive) {
-            $referenceValue->update([
+        try {
+            DB::transaction(function () use ($referenceValue, $previousName, $nextName, $isActive) {
+                $referenceValue->update([
+                    'name' => $nextName,
+                    'is_active' => $isActive,
+                ]);
+
+                if ($previousName !== $nextName) {
+                    $this->cascadeRename($referenceValue->group_key, $previousName, $nextName);
+                }
+            });
+
+            $auditLogger->log($request, 'reference-values.updated', $referenceValue, [
+                'group_key' => $referenceValue->group_key,
+                'previous_name' => $previousName,
                 'name' => $nextName,
                 'is_active' => $isActive,
             ]);
 
-            if ($previousName !== $nextName) {
-                $this->cascadeRename($referenceValue->group_key, $previousName, $nextName);
-            }
-        });
+            $message = $referenceValue->wasChanged('is_active') && $isActive
+                ? 'The value has been restored and is active again.'
+                : 'The value has been updated.';
 
-        $auditLogger->log($request, 'reference-values.updated', $referenceValue, [
-            'group_key' => $referenceValue->group_key,
-            'previous_name' => $previousName,
-            'name' => $nextName,
-            'is_active' => $isActive,
-        ]);
+            return redirect()->route('admin.status.index')->with('status', $message);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Status management update failed.', [
+                'reference_value_id' => $referenceValue->id,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
-        return redirect()->route('admin.status.index');
+            return redirect()
+                ->route('admin.status.index')
+                ->with('error', 'Unable to update this value. Please try again or contact support if the problem persists.');
+        }
     }
 
     public function destroy(

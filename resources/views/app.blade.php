@@ -30,6 +30,7 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+        {{-- <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml" sizes="any"> --}}
         <link rel="icon" href="{{ asset('storage/logos/IT Logo.png') }}" type="image/png" sizes="any">
         <link rel="apple-touch-icon" href="{{ asset('storage/logos/IT Logo.png') }}">
 

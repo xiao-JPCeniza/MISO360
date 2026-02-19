@@ -41,14 +41,14 @@ class RequestsPageTest extends TestCase
         );
     }
 
-    public function test_admin_sees_all_requests(): void
+    public function test_admin_sees_all_requests_in_fifo_order(): void
     {
         $admin = User::factory()->admin()->create();
 
-        TicketRequest::factory()->create([
+        $olderRequest = TicketRequest::factory()->create([
             'created_at' => now()->subMinute(),
         ]);
-        $latestRequest = TicketRequest::factory()->create([
+        $newerRequest = TicketRequest::factory()->create([
             'description' => 'Network connection issue.',
             'created_at' => now(),
         ]);
@@ -62,9 +62,10 @@ class RequestsPageTest extends TestCase
             ->component('requests/Requests')
             ->where('isAdmin', true)
             ->has('requests', 2)
-            ->where('requests.0.controlTicketNumber', $latestRequest->control_ticket_number)
-            ->where('requests.0.positionTitle', $latestRequest->user->position_title)
-            ->where('requests.0.requestDescription', 'Network connection issue.')
+            ->where('requests.0.controlTicketNumber', $olderRequest->control_ticket_number)
+            ->where('requests.1.controlTicketNumber', $newerRequest->control_ticket_number)
+            ->where('requests.1.positionTitle', $newerRequest->user->position_title)
+            ->where('requests.1.requestDescription', 'Network connection issue.')
         );
     }
 
@@ -103,6 +104,23 @@ class RequestsPageTest extends TestCase
             ->where('ticket.controlTicketNumber', $ticket->control_ticket_number)
             ->where('ticket.requestDescription', 'New gov mail account')
             ->has('staffOptions')
+            ->where('canEdit', true)
+        );
+    }
+
+    public function test_super_admin_can_open_it_governance_page_for_ticket(): void
+    {
+        $superAdmin = User::factory()->superAdmin()->create();
+        $ticket = TicketRequest::factory()->create();
+
+        $response = $this
+            ->actingAs($superAdmin)
+            ->get(route('requests.it-governance.show', $ticket));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('requests/ItGovernanceRequest')
+            ->has('ticket')
             ->where('canEdit', true)
         );
     }
@@ -158,7 +176,7 @@ class RequestsPageTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_regular_user_can_access_own_ticket_on_it_governance(): void
+    public function test_regular_user_cannot_access_it_governance_even_for_own_ticket(): void
     {
         $user = User::factory()->create();
         $ticket = TicketRequest::factory()->create(['user_id' => $user->id]);
@@ -167,11 +185,84 @@ class RequestsPageTest extends TestCase
             ->actingAs($user)
             ->get(route('requests.it-governance.show', $ticket));
 
+        $response->assertForbidden();
+    }
+
+    public function test_active_list_shows_only_non_archived_requests_limited_to_twenty_fifo(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $archived = TicketRequest::factory()->create([
+            'archived' => true,
+            'description' => 'Archived request',
+        ]);
+        $activeOlder = TicketRequest::factory()->create([
+            'archived' => false,
+            'created_at' => now()->subMinutes(2),
+            'description' => 'Oldest active',
+        ]);
+        $activeNewer = TicketRequest::factory()->create([
+            'archived' => false,
+            'created_at' => now()->subMinute(),
+            'description' => 'Newer active',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('requests'));
+
         $response->assertOk();
         $response->assertInertia(fn (Assert $page) => $page
-            ->component('requests/ItGovernanceRequest')
-            ->has('ticket')
-            ->where('canEdit', false)
+            ->component('requests/Requests')
+            ->has('requests', 2)
+            ->where('requests.0.controlTicketNumber', $activeOlder->control_ticket_number)
+            ->where('requests.0.requestDescription', 'Oldest active')
+            ->where('requests.1.controlTicketNumber', $activeNewer->control_ticket_number)
+            ->where('requests.1.requestDescription', 'Newer active')
+        );
+    }
+
+    public function test_archive_page_displays_archived_requests(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $archivedRequest = TicketRequest::factory()->create([
+            'archived' => true,
+            'description' => 'Completed and archived',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('requests.archive'));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('requests/Archive')
+            ->where('isAdmin', true)
+            ->has('requests', 1)
+            ->where('requests.0.controlTicketNumber', $archivedRequest->control_ticket_number)
+            ->where('requests.0.requestDescription', 'Completed and archived')
+        );
+    }
+
+    public function test_regular_user_sees_only_own_archived_requests(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        TicketRequest::factory()->create([
+            'user_id' => $otherUser->id,
+            'archived' => true,
+            'description' => 'Other user archived',
+        ]);
+        $ownArchived = TicketRequest::factory()->create([
+            'user_id' => $user->id,
+            'archived' => true,
+            'description' => 'My archived request',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('requests.archive'));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('requests/Archive')
+            ->where('isAdmin', false)
+            ->has('requests', 1)
+            ->where('requests.0.controlTicketNumber', $ownArchived->control_ticket_number)
         );
     }
 }

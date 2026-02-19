@@ -20,7 +20,7 @@ class DashboardController extends Controller
 
         $queuedCountForUser = TicketRequest::query()
             ->where('user_id', $user->id)
-            ->active()
+            ->pending()
             ->count();
 
         $totalRequestsForUser = TicketRequest::query()
@@ -28,7 +28,7 @@ class DashboardController extends Controller
             ->count();
 
         $activeQuery = TicketRequest::query()
-            ->active()
+            ->pending()
             ->with([
                 'natureOfRequest:id,name',
                 'officeDesignation:id,name',

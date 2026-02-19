@@ -12,6 +12,7 @@ use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -34,30 +35,68 @@ class TicketRequestController extends Controller
                 'user:id,name,position_title',
             ])
             ->when(! $isAdmin && $user, fn ($query) => $query->where('user_id', $user->id))
-            ->latest()
+            ->notArchived()
+            ->orderBy('created_at')
+            ->limit(20)
             ->get()
-            ->map(fn (TicketRequest $ticketRequest) => [
-                'id' => $ticketRequest->id,
-                'controlTicketNumber' => $ticketRequest->control_ticket_number,
-                'requestedBy' => $ticketRequest->requestedForUser?->name ?? $ticketRequest->user?->name,
-                'positionTitle' => $ticketRequest->requestedForUser?->position_title
-                    ?? $ticketRequest->user?->position_title,
-                'office' => $ticketRequest->officeDesignation?->name,
-                'dateFiled' => $ticketRequest->created_at?->toDateString(),
-                'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
-                'requestDescription' => $ticketRequest->description,
-                'remarks' => $ticketRequest->remarks?->name,
-                'assignedStaff' => $ticketRequest->assignedStaff?->name,
-                'status' => $ticketRequest->status?->name,
-                'category' => $ticketRequest->category?->name,
-                'estimatedCompletionDate' => $ticketRequest->estimated_completion_date?->toDateString(),
-                'showUrl' => route('requests.show', $ticketRequest),
-            ]);
+            ->map(fn (TicketRequest $ticketRequest) => $this->mapTicketRequestToRow($ticketRequest));
 
         return Inertia::render('requests/Requests', [
             'requests' => $ticketRequests,
             'isAdmin' => $isAdmin,
         ]);
+    }
+
+    public function archive(Request $request): Response
+    {
+        $user = $request->user();
+        $isAdmin = $user?->isAdmin() ?? false;
+
+        $archivedRequests = TicketRequest::query()
+            ->with([
+                'natureOfRequest:id,name',
+                'officeDesignation:id,name',
+                'status:id,name',
+                'category:id,name',
+                'remarks:id,name',
+                'assignedStaff:id,name',
+                'requestedForUser:id,name,position_title',
+                'user:id,name,position_title',
+            ])
+            ->when(! $isAdmin && $user, fn ($query) => $query->where('user_id', $user->id))
+            ->archived()
+            ->latest()
+            ->get()
+            ->map(fn (TicketRequest $ticketRequest) => $this->mapTicketRequestToRow($ticketRequest));
+
+        return Inertia::render('requests/Archive', [
+            'requests' => $archivedRequests,
+            'isAdmin' => $isAdmin,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapTicketRequestToRow(TicketRequest $ticketRequest): array
+    {
+        return [
+            'id' => $ticketRequest->id,
+            'controlTicketNumber' => $ticketRequest->control_ticket_number,
+            'requestedBy' => $ticketRequest->requestedForUser?->name ?? $ticketRequest->user?->name,
+            'positionTitle' => $ticketRequest->requestedForUser?->position_title
+                ?? $ticketRequest->user?->position_title,
+            'office' => $ticketRequest->officeDesignation?->name,
+            'dateFiled' => $ticketRequest->created_at?->toDateString(),
+            'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
+            'requestDescription' => $ticketRequest->description,
+            'remarks' => $ticketRequest->remarks?->name,
+            'assignedStaff' => $ticketRequest->assignedStaff?->name,
+            'status' => $ticketRequest->status?->name,
+            'category' => $ticketRequest->category?->name,
+            'estimatedCompletionDate' => $ticketRequest->estimated_completion_date?->toDateString(),
+            'showUrl' => route('requests.show', $ticketRequest),
+        ];
     }
 
     public function create(Request $request)
@@ -378,15 +417,7 @@ class TicketRequestController extends Controller
 
     public function itGovernance(Request $request, TicketRequest $ticketRequest)
     {
-        $user = $request->user();
-        if (! $user) {
-            abort(401, 'Authentication required.');
-        }
-        if (! $user->isAdmin() && $ticketRequest->user_id !== $user->id && $ticketRequest->requested_for_user_id !== $user->id) {
-            abort(403, 'You do not have permission to view this request.');
-        }
-
-        $canEdit = $user->isAdmin();
+        // Access restricted to admin/super_admin via middleware.
 
         $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaff', 'requestedForUser', 'user']);
 
@@ -486,15 +517,13 @@ class TicketRequestController extends Controller
             'remarksOptions' => $remarksOptions,
             'categoryOptions' => $categoryOptions,
             'statusOptions' => $statusOptions,
-            'canEdit' => $canEdit,
+            'canEdit' => true,
         ]);
     }
 
     public function updateItGovernance(Request $request, TicketRequest $ticketRequest, AuditLogger $auditLogger)
     {
-        if (! $request->user()?->isAdmin()) {
-            abort(403, 'Only Admin and Super Admin can save IT Governance updates.');
-        }
+        // Access restricted to admin/super_admin via middleware.
 
         $validated = $request->validate([
             'natureOfRequestId' => ['nullable', 'integer', 'exists:nature_of_requests,id'],
@@ -537,7 +566,16 @@ class TicketRequestController extends Controller
             ? (isset($validated['natureOfRequestId']) && $validated['natureOfRequestId'] !== '' ? (int) $validated['natureOfRequestId'] : null)
             : $ticketRequest->nature_of_request_id;
 
-        $ticketRequest->update([
+        $statusId = array_key_exists('statusId', $validated) && $validated['statusId'] !== '' && $validated['statusId'] !== null
+            ? (int) $validated['statusId']
+            : $ticketRequest->status_id;
+        $isCompleted = $statusId && ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Status)
+            ->where('id', $statusId)
+            ->where('name', 'Completed')
+            ->exists();
+
+        $updatePayload = [
             'nature_of_request_id' => $natureOfRequestId,
             'remarks_id' => $remarksId,
             'assigned_staff_id' => $assignedStaffId,
@@ -545,9 +583,13 @@ class TicketRequestController extends Controller
             'date_started' => $validated['dateStarted'] ?? null,
             'estimated_completion_date' => $validated['estimatedCompletionDate'] ?? null,
             'action_taken' => $validated['actionTaken'] ?? null,
-            'status_id' => $validated['statusId'] ?? null,
+            'status_id' => $statusId,
             'category_id' => $validated['categoryId'] ?? null,
-        ]);
+        ];
+        if ($isCompleted) {
+            $updatePayload['archived'] = true;
+        }
+        $ticketRequest->update($updatePayload);
 
         if (isset($validated['systemDevelopmentSurvey']) && is_array($validated['systemDevelopmentSurvey'])) {
             $this->updateSystemDevelopmentSurvey($ticketRequest, $validated['systemDevelopmentSurvey']);
@@ -694,7 +736,11 @@ class TicketRequestController extends Controller
             'estimatedCompletionDate' => ['nullable', 'date'],
             'actionTaken' => ['nullable', 'string', 'max:500'],
             'categoryId' => ['nullable', 'integer'],
-            'statusId' => ['nullable', 'integer'],
+            'statusId' => [
+                'nullable',
+                'integer',
+                Rule::exists('reference_values', 'id')->where('group_key', ReferenceValueGroup::Status->value),
+            ],
             'equipmentNetworkDetails' => ['nullable', 'array'],
             'equipmentNetworkDetails.rj45' => ['nullable', 'string', 'max:255'],
             'equipmentNetworkDetails.fiberOpticHeatShrink' => ['nullable', 'string', 'max:255'],
@@ -751,7 +797,7 @@ class TicketRequestController extends Controller
             }
         }
 
-        $ticketRequest->update([
+        $updatePayload = [
             'nature_of_request_id' => $natureOfRequestId,
             'remarks_id' => $remarksId,
             'assigned_staff_id' => $assignedStaffId,
@@ -764,9 +810,27 @@ class TicketRequestController extends Controller
             'status_id' => $resolvedStatusId,
             'category_id' => $validated['categoryId'] ?? null,
             'equipment_network_details' => $this->normalizeEquipmentNetworkDetails($validated['equipmentNetworkDetails'] ?? []),
-        ]);
+        ];
+        $isCompletedStatus = $resolvedStatusId && ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Status)
+            ->where('id', $resolvedStatusId)
+            ->where('name', 'Completed')
+            ->exists();
+        if ($isCompletedStatus) {
+            $updatePayload['archived'] = true;
+        }
+        $ticketRequest->update($updatePayload);
 
         $this->syncTicketRequestToEnrollment($ticketRequest);
+
+        $ticketRequest->load(['natureOfRequest', 'status']);
+        $isBorrowCompleted = $ticketRequest->natureOfRequest?->name === 'Borrow Unit'
+            && $ticketRequest->status?->name === 'Completed';
+
+        if ($isBorrowCompleted) {
+            return redirect()->route('inventory', ['status' => 'borrowed'])
+                ->with('success', 'Borrow marked as completed. The item has been removed from the active borrowed list.');
+        }
 
         return redirect()->route('requests.equipment-network.show', $ticketRequest)
             ->with('success', 'Equipment and network request updated successfully.');

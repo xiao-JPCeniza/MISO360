@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, reactive } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -27,6 +27,10 @@ type GroupConfig = {
 const props = defineProps<{
     groups: Record<GroupKey, ReferenceRow[]>;
 }>();
+
+const page = usePage();
+const flashSuccess = computed(() => (page.props.flash as { status?: string })?.status ?? null);
+const flashError = computed(() => (page.props.flash as { error?: string })?.error ?? null);
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -165,16 +169,17 @@ function remove(groupKey: GroupKey, row: ReferenceRow) {
 }
 
 function restore(groupKey: GroupKey, row: ReferenceRow) {
-    forms[groupKey].patch(
-        `/admin/status/${row.id}`,
-        {
-            name: row.name,
-            is_active: true,
+    router.patch(`/admin/status/${row.id}`, {
+        name: row.name,
+        is_active: true,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            if (editingId[groupKey] === row.id) {
+                startCreate(groupKey);
+            }
         },
-        {
-            preserveScroll: true,
-        },
-    );
+    });
 }
 
 function labelFor(groupKey: GroupKey): string {
@@ -197,6 +202,22 @@ function labelFor(groupKey: GroupKey): string {
                         Centralize the status, category, office designation, and remark
                         options used throughout the platform.
                     </p>
+                </div>
+                <div
+                    v-if="flashSuccess"
+                    class="mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-200"
+                    role="status"
+                >
+                    <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                    {{ flashSuccess }}
+                </div>
+                <div
+                    v-if="flashError"
+                    class="mt-4 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-200"
+                    role="alert"
+                >
+                    <span class="h-2 w-2 shrink-0 rounded-full bg-rose-500" />
+                    {{ flashError }}
                 </div>
             </section>
 

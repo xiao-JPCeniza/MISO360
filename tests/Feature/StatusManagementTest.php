@@ -141,6 +141,72 @@ class StatusManagementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_admin_can_restore_inactive_reference_value(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $csrfToken = 'test-token';
+
+        $referenceValue = ReferenceValue::create([
+            'group_key' => ReferenceValueGroup::OfficeDesignation->value,
+            'name' => 'HQ',
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => $csrfToken])
+            ->patch("/admin/status/{$referenceValue->id}", [
+                '_token' => $csrfToken,
+                'name' => 'HQ',
+                'is_active' => true,
+            ])
+            ->assertRedirect('/admin/status');
+
+        $this->assertDatabaseHas('reference_values', [
+            'id' => $referenceValue->id,
+            'name' => 'HQ',
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_restore_redirects_with_success_flash(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $csrfToken = 'test-token';
+
+        $referenceValue = ReferenceValue::create([
+            'group_key' => ReferenceValueGroup::Remarks->value,
+            'name' => 'Remote',
+            'is_active' => false,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['_token' => $csrfToken])
+            ->patch("/admin/status/{$referenceValue->id}", [
+                '_token' => $csrfToken,
+                'name' => 'Remote',
+                'is_active' => true,
+            ]);
+
+        $response->assertRedirect('/admin/status');
+        $response->assertSessionHas('status');
+        $this->assertStringContainsString('restored', (string) $response->getSession()->get('status'));
+    }
+
+    public function test_update_nonexistent_reference_value_returns_404(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $csrfToken = 'test-token';
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => $csrfToken])
+            ->patch('/admin/status/99999', [
+                '_token' => $csrfToken,
+                'name' => 'Any',
+                'is_active' => true,
+            ])
+            ->assertNotFound();
+    }
+
     public function test_options_endpoint_returns_active_reference_values(): void
     {
         $user = User::factory()->create();

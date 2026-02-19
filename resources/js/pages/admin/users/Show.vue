@@ -132,7 +132,7 @@ const passwordForm = useForm({
                         />
 
                         <form
-                            @submit.prevent="profileForm.patch(`/admin/users/${props.user.id}`)"
+                            @submit.prevent="profileForm.post(`/admin/users/${props.user.id}`)"
                             class="mt-6 space-y-6"
                         >
                             <div class="grid gap-2">
@@ -167,7 +167,7 @@ const passwordForm = useForm({
                         />
 
                         <form
-                            @submit.prevent="workForm.patch(`/admin/users/${props.user.id}/work`)"
+                            @submit.prevent="workForm.post(`/admin/users/${props.user.id}/work`)"
                             class="mt-6 space-y-6"
                         >
                             <div class="grid gap-2">
@@ -211,7 +211,7 @@ const passwordForm = useForm({
                         />
 
                         <form
-                            @submit.prevent="roleForm.patch(`/admin/users/${props.user.id}/role`)"
+                            @submit.prevent="roleForm.post(`/admin/users/${props.user.id}/role`)"
                             class="mt-6 space-y-4"
                         >
                             <div class="grid gap-2">
@@ -240,7 +240,7 @@ const passwordForm = useForm({
                         </form>
 
                         <form
-                            @submit.prevent="statusForm.patch(`/admin/users/${props.user.id}/status`)"
+                            @submit.prevent="statusForm.post(`/admin/users/${props.user.id}/status`)"
                             class="mt-6 space-y-4"
                         >
                             <div class="flex items-center gap-3 text-sm">
@@ -274,7 +274,7 @@ const passwordForm = useForm({
                         />
 
                         <form
-                            @submit.prevent="passwordForm.patch(`/admin/users/${props.user.id}/password`)"
+                            @submit.prevent="passwordForm.post(`/admin/users/${props.user.id}/password`)"
                             class="mt-6 space-y-4"
                         >
                             <div class="grid gap-2">

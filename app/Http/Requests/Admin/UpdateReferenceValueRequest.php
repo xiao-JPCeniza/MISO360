@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\ReferenceValue;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,7 +23,7 @@ class UpdateReferenceValueRequest extends FormRequest
      */
     public function rules(): array
     {
-        $referenceValue = $this->route('referenceValue');
+        $referenceValue = $this->resolveReferenceValue();
 
         return [
             'name' => [
@@ -35,6 +36,21 @@ class UpdateReferenceValueRequest extends FormRequest
             ],
             'is_active' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /**
+     * Resolve the ReferenceValue from the route. During Form Request validation the
+     * route parameter may still be the raw ID, so we resolve the model manually.
+     */
+    private function resolveReferenceValue(): ReferenceValue
+    {
+        $value = $this->route('referenceValue');
+
+        if ($value instanceof ReferenceValue) {
+            return $value;
+        }
+
+        return ReferenceValue::query()->findOrFail($value);
     }
 
     public function messages(): array

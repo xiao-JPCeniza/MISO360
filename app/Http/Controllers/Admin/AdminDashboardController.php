@@ -19,13 +19,13 @@ class AdminDashboardController extends Controller
     {
         $user = $request->user();
 
-        $activeCount = TicketRequest::query()->active()->count();
+        $activeCount = TicketRequest::query()->pending()->count();
         $totalReceived = TicketRequest::query()->count();
         // Assigned-to-admin is not stored on ticket_requests; display 0 until schema supports it.
         $assignedToMe = 0;
 
         $activeQuery = TicketRequest::query()
-            ->active()
+            ->pending()
             ->with([
                 'natureOfRequest:id,name',
                 'officeDesignation:id,name',
@@ -103,7 +103,7 @@ class AdminDashboardController extends Controller
                 'control_ticket_number' => $request->string('control_ticket_number')->trim()->toString() ?: null,
             ],
             'sort' => [
-                'by' => $request->string('sort_by')->trim()->toString() ?: 'control_ticket_number',
+                'by' => $request->string('sort_by')->trim()->toString() ?: 'created_at',
                 'dir' => $request->string('sort_dir')->trim()->toString() === 'desc' ? 'desc' : 'asc',
             ],
             'archiveSearch' => $request->string('archive_search')->trim()->toString() ?: null,
@@ -184,13 +184,15 @@ class AdminDashboardController extends Controller
 
     private function applyQueueSort($query, Request $request): void
     {
-        $by = $request->string('sort_by')->trim()->toString() ?: 'control_ticket_number';
+        $by = $request->string('sort_by')->trim()->toString() ?: 'created_at';
         $dir = $request->string('sort_dir')->trim()->toString() === 'desc' ? 'desc' : 'asc';
-        $allowed = ['control_ticket_number', 'requester_name'];
+        $allowed = ['created_at', 'control_ticket_number', 'requester_name'];
         if (! in_array($by, $allowed, true)) {
-            $by = 'control_ticket_number';
+            $by = 'created_at';
         }
-        if ($by === 'control_ticket_number') {
+        if ($by === 'created_at') {
+            $query->orderBy('ticket_requests.created_at', $dir);
+        } elseif ($by === 'control_ticket_number') {
             $query->orderBy('control_ticket_number', $dir);
         } else {
             $query->leftJoin('users as sort_requester', 'ticket_requests.requested_for_user_id', '=', 'sort_requester.id')

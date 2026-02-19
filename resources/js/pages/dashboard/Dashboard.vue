@@ -136,7 +136,7 @@ function displayText(value: string | null, fallback = '—'): string {
                     Current Queue
                 </h2>
                 <p class="text-xs text-muted-foreground">
-                    Latest 15 active requests (pending and ongoing), oldest first by date filed.
+                    Pending requests only (FIFO—oldest first). Requests with no status are not shown. Latest 15.
                 </p>
                 <div
                     class="overflow-hidden rounded-xl border border-sidebar-border/60 bg-card shadow-sm dark:border-white/10"

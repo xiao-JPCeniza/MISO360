@@ -61,15 +61,15 @@ Route::middleware([
             ->name('admin.users.index');
         Route::get('admin/users/{user}', [UserManagementController::class, 'show'])
             ->name('admin.users.show');
-        Route::patch('admin/users/{user}', [UserManagementController::class, 'update'])
+        Route::match(['post', 'patch'], 'admin/users/{user}', [UserManagementController::class, 'update'])
             ->name('admin.users.update');
-        Route::patch('admin/users/{user}/work', [UserManagementController::class, 'updateWork'])
+        Route::match(['post', 'patch'], 'admin/users/{user}/work', [UserManagementController::class, 'updateWork'])
             ->name('admin.users.work');
-        Route::patch('admin/users/{user}/role', [UserManagementController::class, 'updateRole'])
+        Route::match(['post', 'patch'], 'admin/users/{user}/role', [UserManagementController::class, 'updateRole'])
             ->name('admin.users.role');
-        Route::patch('admin/users/{user}/status', [UserManagementController::class, 'updateStatus'])
+        Route::match(['post', 'patch'], 'admin/users/{user}/status', [UserManagementController::class, 'updateStatus'])
             ->name('admin.users.status');
-        Route::patch('admin/users/{user}/password', [UserManagementController::class, 'updatePassword'])
+        Route::match(['post', 'patch'], 'admin/users/{user}/password', [UserManagementController::class, 'updatePassword'])
             ->name('admin.users.password');
 
         Route::get('admin/audit-logs', [AuditLogController::class, 'index'])
@@ -103,6 +103,9 @@ Route::middleware([
     Route::post('admin/status', [StatusManagementController::class, 'store'])
         ->middleware('admin')
         ->name('admin.status.store');
+    Route::get('admin/status/{referenceValue}', fn () => redirect()->route('admin.status.index'))
+        ->middleware('admin')
+        ->name('admin.status.show');
     Route::patch('admin/status/{referenceValue}', [StatusManagementController::class, 'update'])
         ->middleware('admin')
         ->name('admin.status.update');
@@ -149,11 +152,15 @@ Route::middleware([
 
     Route::get('requests', [TicketRequestController::class, 'index'])
         ->name('requests');
+    Route::get('requests/archive', [TicketRequestController::class, 'archive'])
+        ->name('requests.archive');
     Route::get('requests/it-governance', fn () => Inertia::render('requests/ItGovernanceRequest'))
         ->name('requests.it-governance');
     Route::get('requests/{ticketRequest}/it-governance', [TicketRequestController::class, 'itGovernance'])
+        ->middleware('admin')
         ->name('requests.it-governance.show');
     Route::patch('requests/{ticketRequest}/it-governance', [TicketRequestController::class, 'updateItGovernance'])
+        ->middleware('admin')
         ->name('requests.it-governance.update');
     Route::get('requests/equipment-and-network', fn () => redirect()->route('requests'))
         ->name('requests.equipment-network');

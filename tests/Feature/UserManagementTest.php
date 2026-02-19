@@ -25,7 +25,7 @@ class UserManagementTest extends TestCase
                 '_token' => 'test-token',
                 'two_factor.verified_at' => Carbon::now()->timestamp,
             ])
-            ->patch("/admin/users/{$superAdmin->id}/role", [
+            ->post("/admin/users/{$superAdmin->id}/role", [
                 '_token' => 'test-token',
                 'role' => Role::ADMIN->value,
             ]);
@@ -49,7 +49,7 @@ class UserManagementTest extends TestCase
                 '_token' => 'test-token',
                 'two_factor.verified_at' => Carbon::now()->timestamp,
             ])
-            ->patch("/admin/users/{$user->id}/role", [
+            ->post("/admin/users/{$user->id}/role", [
                 '_token' => 'test-token',
                 'role' => Role::ADMIN->value,
             ])
@@ -60,7 +60,7 @@ class UserManagementTest extends TestCase
                 '_token' => 'test-token',
                 'two_factor.verified_at' => Carbon::now()->timestamp,
             ])
-            ->patch("/admin/users/{$user->id}/status", [
+            ->post("/admin/users/{$user->id}/status", [
                 '_token' => 'test-token',
                 'is_active' => false,
             ])
@@ -94,7 +94,7 @@ class UserManagementTest extends TestCase
                 '_token' => 'test-token',
                 'two_factor.verified_at' => Carbon::now()->timestamp,
             ])
-            ->patch("/admin/users/{$user->id}/work", [
+            ->post("/admin/users/{$user->id}/work", [
                 '_token' => 'test-token',
                 'position_title' => 'Updated Position',
                 'office_designation_id' => $nextOffice->id,

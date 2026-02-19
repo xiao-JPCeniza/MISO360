@@ -198,7 +198,14 @@ const filteredRequests = computed(() => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div v-if="props.isAdmin" class="flex flex-1 flex-col bg-background p-5 sm:p-6">
-            <div class="flex flex-col gap-2">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <Link
+                    href="/requests/archive"
+                    class="inline-flex w-fit items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition hover:bg-muted dark:border-white/20 dark:hover:bg-white/10"
+                >
+                    <Icon name="archive" class="h-3.5 w-3.5" />
+                    Archive
+                </Link>
                 <label class="relative w-full max-w-xs">
                     <span class="sr-only">Search Request Here</span>
                     <input
@@ -212,10 +219,10 @@ const filteredRequests = computed(() => {
                         class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                     />
                 </label>
-                <p class="text-[11px] text-muted-foreground">
-                    Showing {{ filteredRequests.length }} of {{ props.requests.length }} requests
-                </p>
             </div>
+            <p class="mt-1 text-[11px] text-muted-foreground">
+                Showing {{ filteredRequests.length }} of {{ props.requests.length }} active requests (most recent 20, FIFO).
+            </p>
 
             <div class="mt-3 rounded-md border border-border bg-card shadow-sm dark:border-white/10">
                 <div class="max-h-[560px] overflow-auto">
@@ -338,6 +345,13 @@ const filteredRequests = computed(() => {
                 </div>
 
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <Link
+                        href="/requests/archive"
+                        class="inline-flex w-fit items-center gap-1.5 rounded-full border border-sidebar-border/70 bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/30 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                    >
+                        <Icon name="archive" class="h-4 w-4" />
+                        Archive
+                    </Link>
                     <label class="relative w-full sm:max-w-sm">
                         <span class="sr-only">Search Request Here</span>
                         <input
@@ -352,7 +366,7 @@ const filteredRequests = computed(() => {
                         />
                     </label>
                     <p class="text-xs text-muted-foreground">
-                        Showing {{ filteredRequests.length }} of {{ props.requests.length }} requests
+                        Showing {{ filteredRequests.length }} of {{ props.requests.length }} active requests (most recent 20).
                     </p>
                 </div>
             </div>

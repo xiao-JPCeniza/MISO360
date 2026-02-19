@@ -23,6 +23,7 @@ class TicketRequest extends Model
         'requested_for_user_id',
         'office_designation_id',
         'status_id',
+        'archived',
         'category_id',
         'remarks_id',
         'assigned_staff_id',
@@ -39,6 +40,7 @@ class TicketRequest extends Model
         'attachments' => 'array',
         'equipment_network_details' => 'array',
         'has_qr_code' => 'boolean',
+        'archived' => 'boolean',
         'date_received' => 'date',
         'date_started' => 'date',
         'time_started' => 'datetime',
@@ -101,10 +103,42 @@ class TicketRequest extends Model
         })->orWhereNull('status_id');
     }
 
+    /**
+     * Requests that appear in the queue: Pending status only.
+     * Excludes requests with no status selected (null status_id).
+     */
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->whereHas('status', fn (Builder $q) => $q->where('name', 'Pending'));
+    }
+
     public function scopeCompleted(Builder $query): Builder
     {
         return $query->whereHas('status', function (Builder $q) {
             $q->where('name', 'Completed');
+        });
+    }
+
+    public function scopeArchived(Builder $query): Builder
+    {
+        return $query->where('archived', true);
+    }
+
+    public function scopeNotArchived(Builder $query): Builder
+    {
+        return $query->where('archived', false);
+    }
+
+    /**
+     * Borrow requests that are still active (not completed/returned).
+     * Used for inventory "Borrowed" list so completed/returned items disappear.
+     */
+    public function scopeActivelyBorrowed(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->whereHas('status', function (Builder $statusQuery) {
+                $statusQuery->whereNotIn('name', ['Completed', 'Returned']);
+            })->orWhereNull('status_id');
         });
     }
 }

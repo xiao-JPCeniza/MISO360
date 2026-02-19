@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
@@ -90,6 +90,36 @@ function setStatus(nextStatus: string) {
     status.value = nextStatus;
     applyFilters();
 }
+
+const borrowedPollIntervalMs = 45_000;
+let borrowedPollTimer: ReturnType<typeof setInterval> | null = null;
+
+function startBorrowedPolling() {
+    if (borrowedPollTimer) return;
+    borrowedPollTimer = window.setInterval(() => {
+        applyFilters();
+    }, borrowedPollIntervalMs);
+}
+
+function stopBorrowedPolling() {
+    if (borrowedPollTimer) {
+        window.clearInterval(borrowedPollTimer);
+        borrowedPollTimer = null;
+    }
+}
+
+onMounted(() => {
+    if (status.value === 'borrowed') startBorrowedPolling();
+});
+
+onUnmounted(() => {
+    stopBorrowedPolling();
+});
+
+watch(status, (next) => {
+    if (next === 'borrowed') startBorrowedPolling();
+    else stopBorrowedPolling();
+});
 </script>
 
 <template>

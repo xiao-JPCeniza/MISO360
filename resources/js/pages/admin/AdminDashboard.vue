@@ -301,7 +301,7 @@ function displayText(value: string | null, fallback = '—'): string {
                     Requests Queue
                 </h2>
                 <p class="text-xs text-muted-foreground">
-                    Latest 15 active requests (excluding Completed). Sort by name or control ticket, and filter below.
+                    Pending requests only (FIFO—oldest first). Requests with no status are not shown. Sort by date filed, control ticket, or requester; filter below.
                 </p>
 
                 <!-- Filters -->
@@ -357,6 +357,20 @@ function displayText(value: string | null, fallback = '—'): string {
                                         <button
                                             type="button"
                                             class="flex items-center gap-1 hover:text-foreground"
+                                            @click="sortBy('created_at')"
+                                        >
+                                            Date filed
+                                            <Icon
+                                                v-if="sort.by === 'created_at'"
+                                                :name="sort.dir === 'asc' ? 'chevronUp' : 'chevronDown'"
+                                                class="h-3.5 w-3.5"
+                                            />
+                                        </button>
+                                    </th>
+                                    <th class="px-3 py-2.5 text-left font-semibold">
+                                        <button
+                                            type="button"
+                                            class="flex items-center gap-1 hover:text-foreground"
                                             @click="sortBy('control_ticket_number')"
                                         >
                                             Control ticket
@@ -393,9 +407,6 @@ function displayText(value: string | null, fallback = '—'): string {
                                     <th class="max-w-[160px] px-3 py-2.5 text-left font-semibold">
                                         Remarks
                                     </th>
-                                    <th class="px-3 py-2.5 text-left font-semibold">
-                                        Date filed
-                                    </th>
                                 </tr>
                             </thead>
                             <tbody
@@ -406,6 +417,9 @@ function displayText(value: string | null, fallback = '—'): string {
                                     :key="row.id"
                                     class="hover:bg-muted/30 dark:hover:bg-white/5"
                                 >
+                                    <td class="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                                        {{ formatDate(row.dateFiled) }}
+                                    </td>
                                     <td class="px-3 py-2 font-medium">
                                         <Link
                                             v-if="row.showUrl"
@@ -454,16 +468,13 @@ function displayText(value: string | null, fallback = '—'): string {
                                     >
                                         {{ displayText(row.remarks, '—') }}
                                     </td>
-                                    <td class="whitespace-nowrap px-3 py-2 text-muted-foreground">
-                                        {{ formatDate(row.dateFiled) }}
-                                    </td>
                                 </tr>
                                 <tr v-if="activeQueue.length === 0">
                                     <td
-                                        colspan="7"
+                                        colspan="8"
                                         class="px-4 py-8 text-center text-xs text-muted-foreground"
                                     >
-                                        No active requests in the queue.
+                                        No pending requests in the queue.
                                     </td>
                                 </tr>
                             </tbody>
