@@ -27,6 +27,14 @@ type StoredBatch = {
     dataUrls: string[];
 };
 
+type ServerBatch = {
+    id: number;
+    start: number;
+    end: number;
+    createdAt: string;
+    count: number;
+};
+
 const perPage = 20;
 const storageKeys = {
     lastBatch: 'miso.qr.lastBatch',
@@ -46,11 +54,17 @@ const errorMessage = ref('');
 const qrItems = ref<QrItem[]>([]);
 const nextStart = ref(props.nextStart ?? 1);
 const totalGenerated = ref(props.totalGenerated ?? 0);
-const pdfMode = ref(false);
 const printArea = ref<HTMLElement | null>(null);
 const lastBatchAvailable = ref(false);
 const batchHistory = ref<StoredBatch[]>([]);
+const serverBatches = ref<ServerBatch[]>([]);
+const loadingServerBatches = ref(false);
+const loadingBatchIds = ref(false);
 const isRecallOpen = ref(false);
+
+function handleAfterPrint() {
+    printRequired.value = false;
+}
 
 onMounted(() => {
     if (typeof window === 'undefined') {
@@ -74,10 +88,6 @@ onUnmounted(() => {
 
     window.removeEventListener('afterprint', handleAfterPrint);
 });
-
-function handleAfterPrint() {
-    printRequired.value = false;
-}
 
 const rangeLabel = computed(() => {
     const total = Math.max(1, Math.min(quantity.value, 500));
@@ -255,54 +265,125 @@ function printBatch() {
     if (!qrItems.value.length) {
         return;
     }
-
     window.print();
 }
 
-function openRecallModal() {
-    if (!batchHistory.value.length && typeof window !== 'undefined') {
-        const storedHistory = window.localStorage.getItem(storageKeys.batchHistory);
-        batchHistory.value = storedHistory
-            ? (JSON.parse(storedHistory) as StoredBatch[])
-            : [];
-    }
-
+async function openRecallModal() {
     isRecallOpen.value = true;
+    serverBatches.value = [];
+    loadingServerBatches.value = true;
+    try {
+        const res = await fetch('/admin/qr-generator/batches', {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        });
+        if (res.ok) {
+            const data = (await res.json()) as { batches: ServerBatch[] };
+            serverBatches.value = data.batches ?? [];
+        }
+    } catch {
+        // keep serverBatches empty
+    } finally {
+        loadingServerBatches.value = false;
+    }
 }
 
-function recallBatch(batch: StoredBatch) {
-    qrItems.value = batch.ids.map((id, index) => ({
-        id,
-        dataUrl: batch.dataUrls[index],
-    }));
-    printRequired.value = true;
+async function loadServerBatch(batch: ServerBatch) {
+    loadingBatchIds.value = true;
     errorMessage.value = '';
-    isRecallOpen.value = false;
+    try {
+        const res = await fetch(`/admin/qr-generator/batches/${batch.id}`, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        });
+        if (!res.ok) {
+            errorMessage.value = 'Could not load batch. Please try again.';
+            return;
+        }
+        const data = (await res.json()) as { ids: string[] };
+        const ids = data.ids ?? [];
+        const dataUrls = await Promise.all(
+            ids.map((id) =>
+                QRCode.toDataURL(id, {
+                    errorCorrectionLevel: 'M',
+                    margin: 0,
+                    width: 240,
+                }),
+            ),
+        );
+        qrItems.value = ids.map((id, index) => ({
+            id,
+            dataUrl: dataUrls[index],
+        }));
+        printRequired.value = true;
+        isRecallOpen.value = false;
+    } catch {
+        errorMessage.value = 'Could not load batch. Please try again.';
+    } finally {
+        loadingBatchIds.value = false;
+    }
 }
 
 async function downloadPdf() {
-    if (!qrItems.value.length || !printArea.value) {
+    if (!qrItems.value.length) {
         return;
     }
 
-    pdfMode.value = true;
-    await nextTick();
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageW = 210;
+    const pageH = 297;
+    const cols = 4;
+    const rows = 5;
+    const perSheet = cols * rows;
+    const cellW = pageW / cols;
+    const cellH = pageH / rows;
+    const labelH = 8;
+    const qrAreaH = cellH - labelH;
+    const imgSize = Math.min(cellW, qrAreaH) * 0.78;
 
-    const html2pdf = (await import('html2pdf.js')).default;
-    await html2pdf()
-        .set({
-            margin: 0,
-            filename: 'miso-qr-batch.pdf',
-            image: { type: 'png', quality: 1 },
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'] },
-        })
-        .from(printArea.value)
-        .save();
+    const greyRgb = 200;
+    doc.setDrawColor(greyRgb, greyRgb, greyRgb);
+    doc.setLineWidth(0.2);
+    doc.setTextColor(0, 0, 0);
 
-    pdfMode.value = false;
-    printRequired.value = false;
+    const allItems = qrItems.value;
+    const totalPages = Math.ceil(allItems.length / perSheet);
+
+    for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+        if (pageIndex > 0) {
+            doc.addPage();
+        }
+
+        const pageItems = allItems.slice(
+            pageIndex * perSheet,
+            pageIndex * perSheet + perSheet,
+        );
+
+        for (let cr = 0; cr < rows; cr++) {
+            for (let cc = 0; cc < cols; cc++) {
+                doc.rect(cc * cellW, cr * cellH, cellW, cellH);
+            }
+        }
+
+        for (let j = 0; j < pageItems.length; j++) {
+            const item = pageItems[j];
+            const col = j % cols;
+            const row = Math.floor(j / cols);
+            const cellX = col * cellW;
+            const cellY = row * cellH;
+            const qrX = cellX + (cellW - imgSize) / 2;
+            const qrY = cellY + (qrAreaH - imgSize) / 2;
+            doc.addImage(item.dataUrl, 'PNG', qrX, qrY, imgSize, imgSize);
+            doc.setFontSize(7);
+            doc.text(item.id, cellX + cellW / 2, cellY + qrAreaH + labelH / 2, {
+                align: 'center',
+                maxWidth: cellW - 2,
+            });
+        }
+    }
+
+    doc.save('miso-qr-batch.pdf');
 }
 </script>
 
@@ -310,7 +391,7 @@ async function downloadPdf() {
     <Head title="QR Code Generator" />
 
     <AppLayout>
-        <div class="qr-print-root flex flex-1 flex-col gap-6" :class="{ 'pdf-mode': pdfMode }">
+        <div class="qr-print-root flex flex-1 flex-col gap-6">
             <div
                 class="flex flex-col gap-4 rounded-2xl border border-sidebar-border/60 bg-background p-6 lg:flex-row lg:items-center lg:justify-between"
             >
@@ -328,13 +409,13 @@ async function downloadPdf() {
                 <div class="flex flex-wrap gap-3">
                     <Link
                         href="/admin/dashboard"
-                        class="rounded-full border border-sidebar-border/70 px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/40"
+                        class="rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground dark:border-white/20 dark:hover:bg-white/10"
                     >
                         Back to Admin Dashboard
                     </Link>
                     <button
                         type="button"
-                        class="rounded-full bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60"
+                        class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                         :disabled="!qrItems.length"
                         @click="printBatch"
                     >
@@ -342,7 +423,7 @@ async function downloadPdf() {
                     </button>
                     <button
                         type="button"
-                        class="rounded-full border border-[#2563eb] px-4 py-2 text-sm font-semibold text-[#2563eb] transition-colors hover:bg-[#2563eb]/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        class="rounded-full border border-primary/50 bg-background px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-primary/40 dark:hover:bg-primary/20"
                         :disabled="!qrItems.length"
                         @click="downloadPdf"
                     >
@@ -391,7 +472,7 @@ async function downloadPdf() {
 
                         <button
                             type="button"
-                            class="w-full rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-60"
+                            class="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                             :disabled="isGenerating || printRequired"
                             @click="generateBatch"
                         >
@@ -399,18 +480,23 @@ async function downloadPdf() {
                         </button>
                         <button
                             type="button"
-                            class="w-full rounded-xl border border-[#0f172a]/20 px-4 py-2.5 text-sm font-semibold text-[#0f172a] transition-colors hover:bg-[#0f172a]/5 disabled:cursor-not-allowed disabled:opacity-60"
-                            :disabled="!lastBatchAvailable"
+                            class="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted/50 dark:border-white/20 dark:hover:bg-white/10"
                             @click="openRecallModal"
                         >
-                            Recall last batch
+                            View previous batches
                         </button>
 
-                        <p v-if="printRequired" class="text-sm text-amber-600">
+                        <p
+                            v-if="printRequired"
+                            class="text-sm text-amber-600 dark:text-amber-400"
+                        >
                             Print the current batch before generating a new one.
                         </p>
 
-                        <p v-if="errorMessage" class="text-sm text-red-500">
+                        <p
+                            v-if="errorMessage"
+                            class="text-sm text-red-500 dark:text-red-400"
+                        >
                             {{ errorMessage }}
                         </p>
 
@@ -446,7 +532,7 @@ async function downloadPdf() {
                         Generate a batch to see the print preview.
                     </div>
 
-                    <div v-else ref="printArea" class="mt-6 space-y-10">
+                    <div v-else ref="printArea" class="qr-print-area mt-6 space-y-10">
                         <div
                             v-for="(page, pageIndex) in pages"
                             :key="`page-${pageIndex}`"
@@ -481,34 +567,46 @@ async function downloadPdf() {
             <Dialog :open="isRecallOpen" @update:open="isRecallOpen = $event">
                 <DialogContent class="sm:max-w-lg">
                     <DialogHeader class="space-y-3">
-                        <DialogTitle>Recall batch</DialogTitle>
+                        <DialogTitle>Previous QR code batches</DialogTitle>
                         <DialogDescription>
-                            Select a batch range to load it back into the preview.
+                            Load a batch from the database to reprint or download. Batches are available on any device.
                         </DialogDescription>
                     </DialogHeader>
-                    <div class="mt-4 max-h-[320px] space-y-2 overflow-y-auto">
-                        <p v-if="!batchHistory.length" class="text-sm text-muted-foreground">
-                            No batches saved yet.
-                        </p>
-                        <button
-                            v-for="batch in batchHistory"
-                            :key="batch.id"
-                            type="button"
-                            class="flex w-full items-center justify-between rounded-lg border border-sidebar-border/60 px-3 py-2 text-left text-sm font-semibold text-[#0f172a] transition-colors hover:bg-muted/40"
-                            @click="recallBatch(batch)"
+                    <div class="mt-4 max-h-[400px] overflow-y-auto">
+                        <p
+                            v-if="loadingServerBatches"
+                            class="text-sm text-muted-foreground"
                         >
-                            <span>
-                                Batch {{ batchNumber(batch.start) }}:
-                                {{ formatId(batch.start) }} - {{ formatId(batch.end) }}
-                            </span>
-                            <span class="text-xs text-muted-foreground">{{
-                                new Date(batch.createdAt).toLocaleDateString()
-                            }}</span>
-                        </button>
+                            Loading…
+                        </p>
+                        <p
+                            v-else-if="!serverBatches.length"
+                            class="text-sm text-muted-foreground"
+                        >
+                            No batches in the database yet. Generate a batch to create one.
+                        </p>
+                        <div v-else class="space-y-2">
+                            <button
+                                v-for="batch in serverBatches"
+                                :key="'server-' + batch.id"
+                                type="button"
+                                class="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-left text-sm font-semibold text-foreground transition-colors hover:bg-muted/50 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
+                                :disabled="loadingBatchIds"
+                                @click="loadServerBatch(batch)"
+                            >
+                                <span>
+                                    {{ formatId(batch.start) }} – {{ formatId(batch.end) }}
+                                    ({{ batch.count }} labels)
+                                </span>
+                                <span class="text-xs text-muted-foreground">{{
+                                    new Date(batch.createdAt).toLocaleDateString()
+                                }}</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="mt-4 flex justify-end">
                         <DialogClose
-                            class="rounded-full border border-sidebar-border/70 px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/40"
+                            class="rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground dark:border-white/20 dark:hover:bg-white/10"
                         >
                             Close
                         </DialogClose>
@@ -566,13 +664,51 @@ async function downloadPdf() {
         margin: 0;
     }
 
+    html,
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        height: 297mm !important;
+        max-height: 297mm !important;
+        overflow: hidden !important;
+        background: #ffffff;
+        color: #000000;
+    }
+
+    body * {
+        visibility: hidden;
+    }
+
+    .qr-print-area,
+    .qr-print-area .qr-print-page:first-child,
+    .qr-print-area .qr-print-page:first-child * {
+        visibility: visible;
+    }
+
+    .qr-print-area {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff;
+        overflow: hidden;
+    }
+
+    .qr-print-area .qr-print-page:not(:first-child) {
+        display: none !important;
+    }
+
     header,
     nav,
     ol,
     .qr-controls,
     .qr-preview > h2,
     .qr-preview > p,
-    .qr-print-root > div:first-child {
+    .qr-print-root > div:first-child,
+    .qr-preview .mt-8 {
         display: none !important;
     }
 
@@ -582,38 +718,38 @@ async function downloadPdf() {
         margin: 0 !important;
     }
 
-    body {
-        background: #ffffff;
-        color: #000000;
-        margin: 0;
-    }
-
     .qr-preview {
         border: none !important;
         padding: 0 !important;
+        margin: 0 !important;
     }
 
     .qr-print-page {
         border: none !important;
         padding: 0 !important;
         margin: 0 !important;
-        page-break-after: always;
+    }
+
+    .qr-print-page:not(:first-child) {
+        display: none !important;
     }
 
     .qr-grid {
         gap: 0;
-        grid-template-rows: repeat(5, 1fr);
-        width: 200mm;
-        height: 287mm;
+        grid-template-rows: repeat(5, minmax(0, 1fr));
+        width: 210mm;
+        height: 297mm;
         margin: 0;
+        min-height: 0;
         border-right: 0.25mm solid #000000;
         border-bottom: 0.25mm solid #000000;
     }
 
     .qr-card {
         display: grid;
-        grid-template-rows: 1fr auto;
+        grid-template-rows: 1fr minmax(4mm, auto);
         justify-items: center;
+        align-items: center;
         padding: 0;
         box-shadow: none;
         border-left: 0.25mm solid #000000;
@@ -622,6 +758,7 @@ async function downloadPdf() {
         box-sizing: border-box;
         background: #ffffff;
         border-radius: 0;
+        min-height: 0;
     }
 
     .qr-card--empty {
@@ -631,65 +768,23 @@ async function downloadPdf() {
         border-radius: 0;
     }
 
-    .qr-image {
+    .qr-card .qr-image {
         width: 100%;
         max-height: 100%;
+        min-height: 0;
         object-fit: contain;
     }
 
-    .qr-label {
+    .qr-card .qr-label {
         font-size: 6pt;
         letter-spacing: 0.06em;
         line-height: 1.1;
+        min-height: 4mm;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
     }
 }
 
-.pdf-mode .qr-print-page {
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    page-break-after: always;
-}
-
-.pdf-mode .qr-grid {
-    gap: 0;
-    grid-template-rows: repeat(5, 1fr);
-    width: 200mm;
-    height: 287mm;
-    margin: 0;
-    border-right: 0.25mm solid #000000;
-    border-bottom: 0.25mm solid #000000;
-}
-
-.pdf-mode .qr-card {
-    display: grid;
-    grid-template-rows: 1fr auto;
-    justify-items: center;
-    padding: 0;
-    box-shadow: none;
-    border-left: 0.25mm solid #000000;
-    border-top: 0.25mm solid #000000;
-    box-sizing: border-box;
-    background: #ffffff;
-    border-radius: 0;
-}
-
-.pdf-mode .qr-card--empty {
-    border-left: 0.25mm solid #000000;
-    border-top: 0.25mm solid #000000;
-    background: #ffffff;
-    border-radius: 0;
-}
-
-.pdf-mode .qr-image {
-    width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-}
-
-.pdf-mode .qr-label {
-    font-size: 6pt;
-    letter-spacing: 0.06em;
-    line-height: 1.1;
-}
 </style>

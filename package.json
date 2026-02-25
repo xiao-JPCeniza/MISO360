@@ -32,13 +32,14 @@
         "vue-tsc": "^2.2.4"
     },
     "dependencies": {
-        "alpinejs": "^3.14.7",
         "@inertiajs/vue3": "^2.3.7",
         "@vueuse/core": "^12.8.2",
         "@zxing/browser": "^0.1.5",
+        "alpinejs": "^3.14.7",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "html2pdf.js": "^0.14.0",
+        "jspdf": "^4.2.0",
         "laravel-vite-plugin": "^2.0.0",
         "lucide-vue-next": "^0.468.0",
         "qrcode": "^1.5.4",

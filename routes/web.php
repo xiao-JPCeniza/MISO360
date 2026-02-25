@@ -146,6 +146,12 @@ Route::middleware([
     Route::post('admin/qr-generator/batch', [QrCodeController::class, 'store'])
         ->middleware('admin')
         ->name('admin.qr-generator.batch');
+    Route::get('admin/qr-generator/batches', [QrCodeController::class, 'index'])
+        ->middleware('admin')
+        ->name('admin.qr-generator.batches.index');
+    Route::get('admin/qr-generator/batches/{batch}', [QrCodeController::class, 'show'])
+        ->middleware('admin')
+        ->name('admin.qr-generator.batches.show');
     Route::get('admin/qr-generator/validate/{uid}', [QrCodeController::class, 'validateUid'])
         ->middleware('admin')
         ->name('admin.qr-generator.validate');
@@ -164,6 +170,8 @@ Route::middleware([
         ->name('requests.it-governance.update');
     Route::get('requests/equipment-and-network', fn () => redirect()->route('requests'))
         ->name('requests.equipment-network');
+    Route::get('requests/system-error-bug-report', fn () => Inertia::render('requests/System_error_bug_report_Form'))
+        ->name('requests.system-error-bug-report');
     Route::get('requests/{ticketRequest}/equipment-and-network', [TicketRequestController::class, 'equipmentAndNetwork'])
         ->name('requests.equipment-network.show');
     Route::match(['post', 'patch'], 'requests/{ticketRequest}/equipment-and-network', [TicketRequestController::class, 'updateEquipmentAndNetwork'])
