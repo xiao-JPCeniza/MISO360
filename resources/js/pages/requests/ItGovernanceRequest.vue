@@ -45,6 +45,12 @@ type TicketDetails = {
     actionTaken?: string | null;
     categoryId?: number | string | null;
     statusId?: number | string | null;
+    hasQrCode?: boolean;
+    qrCodeNumber?: string | null;
+    qrCodePattern?: string;
+    validateQrUrl?: string;
+    generateQrUrl?: string;
+    inventoryEditUrl?: string | null;
 };
 
 const props = defineProps<{
@@ -68,8 +74,8 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/requests',
     },
     {
-        title: 'IT Governance Request',
-        href: '/requests/it-governance',
+        title: 'Request',
+        href: '/requests',
     },
 ];
 

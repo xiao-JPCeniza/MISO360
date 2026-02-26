@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\Role;
 use App\Exports\ArchivedRequestsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ExportArchivedRequestsRequest;
 use App\Models\IssuedUid;
 use App\Models\TicketRequest;
+use App\Models\User;
 use App\Services\AuditLogger;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,8 +24,13 @@ class AdminDashboardController extends Controller
 
         $activeCount = TicketRequest::query()->pending()->count();
         $totalReceived = TicketRequest::query()->count();
-        // Assigned-to-admin is not stored on ticket_requests; display 0 until schema supports it.
-        $assignedToMe = 0;
+        $assignedToMe = TicketRequest::query()
+            ->where('assigned_staff_id', $user->id)
+            ->where(function (Builder $q) {
+                $q->whereHas('status', fn (Builder $sq) => $sq->where('name', '!=', 'Completed'))
+                    ->orWhereNull('status_id');
+            })
+            ->count();
 
         $activeQuery = TicketRequest::query()
             ->pending()
@@ -89,6 +97,15 @@ class AdminDashboardController extends Controller
                 'showUrl' => route('requests.show', $t),
             ]);
 
+        $staffOptions = User::query()
+            ->where('is_active', true)
+            ->whereIn('role', [Role::ADMIN, Role::SUPER_ADMIN])
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])
+            ->values()
+            ->all();
+
         return Inertia::render('admin/AdminDashboard', [
             'totalGenerated' => IssuedUid::count(),
             'activeQueueTotal' => $activeQueueTotal,
@@ -108,6 +125,7 @@ class AdminDashboardController extends Controller
             ],
             'archiveSearch' => $request->string('archive_search')->trim()->toString() ?: null,
             'archivePanelOpen' => $request->filled('archive_page') || $request->filled('archive_search'),
+            'staffOptions' => $staffOptions,
         ]);
     }
 
@@ -124,6 +142,7 @@ class AdminDashboardController extends Controller
             'archive_search' => $request->string('archive_search')->trim()->toString() ?: null,
             'date_from' => $request->date('date_from')?->toDateString(),
             'date_to' => $request->date('date_to')?->toDateString(),
+            'assigned_staff_id' => $request->filled('assigned_staff_id') ? (int) $request->input('assigned_staff_id') : null,
             'rows_exported' => $count,
         ]);
 
@@ -166,6 +185,10 @@ class AdminDashboardController extends Controller
         }
         if ($request->filled('date_to')) {
             $query->whereDate('ticket_requests.updated_at', '<=', $request->date('date_to'));
+        }
+
+        if ($request->filled('assigned_staff_id')) {
+            $query->where('ticket_requests.assigned_staff_id', (int) $request->input('assigned_staff_id'));
         }
 
         $query->latest('ticket_requests.updated_at');

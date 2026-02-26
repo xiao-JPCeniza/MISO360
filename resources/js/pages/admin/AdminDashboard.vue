@@ -44,6 +44,7 @@ const props = defineProps<{
     sort: { by: string; dir: string };
     archiveSearch: string | null;
     archivePanelOpen?: boolean;
+    staffOptions: { id: number; name: string }[];
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -65,6 +66,7 @@ const archiveSearchForm = useForm({
 
 const exportDateFrom = ref('');
 const exportDateTo = ref('');
+const exportStaffId = ref<string>('');
 
 const exportArchiveUrl = computed(() => {
     const params = new URLSearchParams();
@@ -73,6 +75,7 @@ const exportArchiveUrl = computed(() => {
     }
     if (exportDateFrom.value) params.set('date_from', exportDateFrom.value);
     if (exportDateTo.value) params.set('date_to', exportDateTo.value);
+    if (exportStaffId.value) params.set('assigned_staff_id', exportStaffId.value);
     const qs = params.toString();
     return `/admin/dashboard/archive-export${qs ? `?${qs}` : ''}`;
 });
@@ -541,8 +544,28 @@ function displayText(value: string | null, fallback = '—'): string {
 
                     <div class="flex flex-wrap items-end gap-3 rounded-lg border border-sidebar-border/40 bg-muted/30 p-3 dark:border-white/10 dark:bg-white/5">
                         <p class="w-full text-[11px] font-medium uppercase text-muted-foreground">
-                            Download report 
+                            Download report
                         </p>
+                        <div class="min-w-[180px]">
+                            <label
+                                class="mb-1 block text-[11px] font-medium uppercase text-muted-foreground"
+                            >
+                                MIS staff (optional)
+                            </label>
+                            <select
+                                v-model="exportStaffId"
+                                class="w-full rounded-md border border-sidebar-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground dark:border-white/10"
+                            >
+                                <option value="">All staff</option>
+                                <option
+                                    v-for="staff in staffOptions"
+                                    :key="staff.id"
+                                    :value="String(staff.id)"
+                                >
+                                    {{ staff.name }}
+                                </option>
+                            </select>
+                        </div>
                         <div class="min-w-[120px]">
                             <label
                                 class="mb-1 block text-[11px] font-medium uppercase text-muted-foreground"
@@ -575,7 +598,7 @@ function displayText(value: string | null, fallback = '—'): string {
                             Download Report
                         </a>
                         <p class="w-full text-[11px] text-muted-foreground">
-                            Exports completed requests. Optional date range (max 365 days). Current search filter is applied.
+                            Exports completed requests. Filter by Management Information System staff, optional date range (max 365 days). Current search filter is applied.
                         </p>
                     </div>
 

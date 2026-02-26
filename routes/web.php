@@ -168,6 +168,9 @@ Route::middleware([
     Route::patch('requests/{ticketRequest}/it-governance', [TicketRequestController::class, 'updateItGovernance'])
         ->middleware('admin')
         ->name('requests.it-governance.update');
+    Route::post('requests/{ticketRequest}/it-governance/generate-qr', [TicketRequestController::class, 'generateQrForRequest'])
+        ->middleware('admin')
+        ->name('requests.it-governance.generate-qr');
     Route::get('requests/equipment-and-network', fn () => redirect()->route('requests'))
         ->name('requests.equipment-network');
     Route::get('requests/system-error-bug-report', fn () => Inertia::render('requests/System_error_bug_report_Form'))

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\ReferenceValueGroup;
+use App\Models\IssuedUid;
 use App\Models\NatureOfRequest;
 use App\Models\ReferenceValue;
 use App\Models\TicketRequest;
@@ -76,9 +77,9 @@ class TicketRequestSubmissionTest extends TestCase
             'control_ticket_number' => $controlTicketNumber,
             'nature_of_request_id' => $natureOfRequest->id,
             'user_id' => $user->id,
-            'has_qr_code' => true,
-            'qr_code_number' => 'MIS-UID-00001',
         ]);
+        $this->assertFalse($ticketRequest->has_qr_code);
+        $this->assertNull($ticketRequest->qr_code_number);
 
         $this->assertNotEmpty($ticketRequest->attachments);
         $fileAttachment = collect($ticketRequest->attachments)
@@ -198,6 +199,43 @@ class TicketRequestSubmissionTest extends TestCase
                 'qrCodeNumber' => '',
             ])
             ->assertSessionHasErrors(['qrCodeNumber']);
+    }
+
+    public function test_admin_can_submit_ticket_with_unit_qr_code(): void
+    {
+        IssuedUid::create(['uid' => 'MIS-UID-00050', 'sequence' => 50]);
+        $admin = User::factory()->admin()->create();
+        $office = ReferenceValue::create([
+            'group_key' => ReferenceValueGroup::OfficeDesignation->value,
+            'name' => 'ICT Unit',
+            'system_seeded' => true,
+            'is_active' => true,
+        ]);
+        $officeUser = User::factory()->create(['office_designation_id' => $office->id]);
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer repair',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-0050', now()->format('Ymd'));
+
+        $response = $this->actingAs($admin)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'officeDesignationId' => $office->id,
+                'requestedForUserId' => $officeUser->id,
+                'description' => 'Repair keyboard and assign unit QR.',
+                'hasQrCode' => true,
+                'qrCodeNumber' => 'MIS-UID-00050',
+            ]);
+
+        $response->assertRedirect();
+        $ticketRequest = TicketRequest::firstOrFail();
+        $this->assertTrue($ticketRequest->has_qr_code);
+        $this->assertSame('MIS-UID-00050', $ticketRequest->qr_code_number);
     }
 
     public function test_ticket_request_requires_description_minimum_length(): void

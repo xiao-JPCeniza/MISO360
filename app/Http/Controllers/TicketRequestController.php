@@ -4,13 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Enums\ReferenceValueGroup;
 use App\Http\Requests\StoreTicketRequestRequest;
+use App\Models\IssuedUid;
 use App\Models\NatureOfRequest;
+use App\Models\QrBatch;
 use App\Models\ReferenceValue;
+use App\Models\TicketArchive;
+use App\Models\TicketEnrollment;
 use App\Models\TicketRequest;
 use App\Models\User;
 use App\Services\AuditLogger;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -342,12 +348,13 @@ class TicketRequestController extends Controller
             }
         }
 
+        $allowUnitQr = $requester->isAdmin();
         $ticketRequest = TicketRequest::create([
             'control_ticket_number' => $resolvedControlTicketNumber,
             'nature_of_request_id' => (int) $validated['natureOfRequestId'],
             'description' => $validated['description'],
-            'has_qr_code' => (bool) $validated['hasQrCode'],
-            'qr_code_number' => $validated['hasQrCode']
+            'has_qr_code' => $allowUnitQr && (bool) $validated['hasQrCode'],
+            'qr_code_number' => $allowUnitQr && ! empty(trim((string) ($validated['qrCodeNumber'] ?? '')))
                 ? strtoupper(trim((string) $validated['qrCodeNumber']))
                 : null,
             'attachments' => $attachments ?: null,
@@ -373,6 +380,10 @@ class TicketRequestController extends Controller
         }
         if (! $user->isAdmin() && $ticketRequest->user_id !== $user->id && $ticketRequest->requested_for_user_id !== $user->id) {
             abort(403, 'You do not have permission to view this request.');
+        }
+
+        if ($user->isAdmin()) {
+            return $this->renderRequestEditPage($ticketRequest);
         }
 
         $ticketRequest->load('natureOfRequest');
@@ -415,10 +426,20 @@ class TicketRequestController extends Controller
         ]);
     }
 
+    /**
+     * Redirect to the request show page so admins always view and edit at /requests/{id}.
+     */
     public function itGovernance(Request $request, TicketRequest $ticketRequest)
     {
-        // Access restricted to admin/super_admin via middleware.
+        return redirect()->route('requests.show', $ticketRequest);
+    }
 
+    /**
+     * Build and render the admin edit page (ItGovernanceRequest) for a ticket.
+     * Ensures every request can have a unit QR assigned directly on /requests/{id}.
+     */
+    private function renderRequestEditPage(TicketRequest $ticketRequest): Response
+    {
         $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaff', 'requestedForUser', 'user']);
 
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
@@ -463,6 +484,14 @@ class TicketRequestController extends Controller
             'categoryId' => $ticketRequest->category_id,
             'statusId' => $ticketRequest->status_id,
             'equipmentNetworkDetails' => $ticketRequest->equipment_network_details ?? [],
+            'hasQrCode' => $ticketRequest->has_qr_code,
+            'qrCodeNumber' => $ticketRequest->qr_code_number,
+            'qrCodePattern' => '^MIS-UID-\\d{5}$',
+            'validateQrUrl' => route('admin.qr-generator.validate', ['uid' => '__UID__']),
+            'generateQrUrl' => route('requests.it-governance.generate-qr', $ticketRequest),
+            'inventoryEditUrl' => $ticketRequest->qr_code_number
+                ? route('inventory.edit', ['uniqueId' => $ticketRequest->qr_code_number])
+                : null,
         ];
 
         $staffOptions = User::query()
@@ -556,6 +585,7 @@ class TicketRequestController extends Controller
             'systemIssueReport.approvedBy' => ['nullable', 'string', 'max:255'],
             'systemIssueReport.approvedByDate' => ['nullable', 'string', 'max:50'],
             'systemIssueReport.approvedBySignature' => ['nullable', 'string', 'max:255'],
+            'qrCodeNumber' => ['nullable', 'string', 'max:20', 'regex:/^MIS-UID-\d{5}$/'],
         ]);
 
         $this->validateRequestDateOrder($validated, 'dateReceived', 'dateStarted', 'estimatedCompletionDate');
@@ -575,6 +605,25 @@ class TicketRequestController extends Controller
             ->where('name', 'Completed')
             ->exists();
 
+        $qrCodeNumber = isset($validated['qrCodeNumber']) && trim((string) $validated['qrCodeNumber']) !== ''
+            ? strtoupper(trim((string) $validated['qrCodeNumber']))
+            : null;
+        if ($qrCodeNumber) {
+            if (! IssuedUid::where('uid', $qrCodeNumber)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'qrCodeNumber' => ['The selected QR code (UID) was not issued by the system. Generate one from this page or use an existing issued UID.'],
+                ]);
+            }
+            if (TicketArchive::where('unique_id', $qrCodeNumber)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'qrCodeNumber' => ['This QR code is archived and cannot be assigned to a request.'],
+                ]);
+            }
+        }
+        if ($qrCodeNumber) {
+            $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
+        }
+
         $updatePayload = [
             'nature_of_request_id' => $natureOfRequestId,
             'remarks_id' => $remarksId,
@@ -585,11 +634,15 @@ class TicketRequestController extends Controller
             'action_taken' => $validated['actionTaken'] ?? null,
             'status_id' => $statusId,
             'category_id' => $validated['categoryId'] ?? null,
+            'has_qr_code' => (bool) $qrCodeNumber,
+            'qr_code_number' => $qrCodeNumber,
         ];
         if ($isCompleted) {
             $updatePayload['archived'] = true;
         }
         $ticketRequest->update($updatePayload);
+
+        $this->syncTicketRequestToEnrollment($ticketRequest);
 
         if (isset($validated['systemDevelopmentSurvey']) && is_array($validated['systemDevelopmentSurvey'])) {
             $this->updateSystemDevelopmentSurvey($ticketRequest, $validated['systemDevelopmentSurvey']);
@@ -601,8 +654,54 @@ class TicketRequestController extends Controller
             $this->updateSystemIssueReport($ticketRequest, $validated['systemIssueReport'], $request, $auditLogger);
         }
 
-        return redirect()->route('requests.it-governance.show', $ticketRequest)
-            ->with('success', 'IT Governance request updated successfully.');
+        return redirect()->route('requests.show', $ticketRequest)
+            ->with('success', 'Request updated successfully.');
+    }
+
+    /**
+     * Generate a single QR code (UID), create a minimal unit enrollment, and assign it to this request.
+     * Admin only. Ensures every request can be linked to a unit QR for tracking.
+     */
+    public function generateQrForRequest(Request $request, TicketRequest $ticketRequest): JsonResponse
+    {
+        $uid = DB::transaction(function () use ($ticketRequest) {
+            $currentMax = IssuedUid::lockForUpdate()->max('sequence') ?? 0;
+            $sequence = $currentMax + 1;
+            $uid = sprintf('MIS-UID-%05d', $sequence);
+            $timestamp = now();
+
+            IssuedUid::insert([
+                'uid' => $uid,
+                'sequence' => $sequence,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ]);
+
+            QrBatch::create([
+                'start_sequence' => $sequence,
+                'end_sequence' => $sequence,
+            ]);
+
+            $equipmentName = 'Unit – Request '.$ticketRequest->control_ticket_number;
+            TicketEnrollment::create([
+                'unique_id' => $uid,
+                'equipment_name' => $equipmentName,
+            ]);
+
+            $ticketRequest->update([
+                'has_qr_code' => true,
+                'qr_code_number' => $uid,
+            ]);
+
+            $this->syncTicketRequestToEnrollment($ticketRequest);
+
+            return $uid;
+        });
+
+        return response()->json([
+            'qrCodeNumber' => $uid,
+            'inventoryEditUrl' => route('inventory.edit', ['uniqueId' => $uid]),
+        ], 201);
     }
 
     public function equipmentAndNetwork(Request $request, TicketRequest $ticketRequest)
@@ -663,6 +762,13 @@ class TicketRequestController extends Controller
             'categoryId' => $ticketRequest->category_id,
             'statusId' => $ticketRequest->status_id,
             'equipmentNetworkDetails' => $ticketRequest->equipment_network_details ?? [],
+            'hasQrCode' => $ticketRequest->has_qr_code,
+            'qrCodeNumber' => $ticketRequest->qr_code_number,
+            'qrCodePattern' => '^MIS-UID-\\d{5}$',
+            'generateQrUrl' => route('requests.it-governance.generate-qr', $ticketRequest),
+            'inventoryEditUrl' => $ticketRequest->qr_code_number
+                ? route('inventory.edit', ['uniqueId' => $ticketRequest->qr_code_number])
+                : null,
         ];
 
         $staffOptions = User::query()
@@ -767,9 +873,27 @@ class TicketRequestController extends Controller
             'equipmentNetworkDetails.apBeamBrand' => ['nullable', 'string', 'max:255'],
             'equipmentNetworkDetails.apBeamSerial' => ['nullable', 'string', 'max:255'],
             'equipmentNetworkDetails.apBeamModel' => ['nullable', 'string', 'max:255'],
+            'qrCodeNumber' => ['nullable', 'string', 'max:20', 'regex:/^MIS-UID-\d{5}$/'],
         ]);
 
         $this->validateRequestDateOrder($validated, 'dateReceived', 'dateStarted', 'estimatedCompletionDate');
+
+        $qrCodeNumber = isset($validated['qrCodeNumber']) && trim((string) $validated['qrCodeNumber']) !== ''
+            ? strtoupper(trim((string) $validated['qrCodeNumber']))
+            : null;
+        if ($qrCodeNumber) {
+            if (! IssuedUid::where('uid', $qrCodeNumber)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'qrCodeNumber' => ['The selected QR code (UID) was not issued by the system. Generate one from this page or use an existing issued UID.'],
+                ]);
+            }
+            if (TicketArchive::where('unique_id', $qrCodeNumber)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'qrCodeNumber' => ['This QR code is archived and cannot be assigned to a request.'],
+                ]);
+            }
+            $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
+        }
 
         $remarksId = isset($validated['remarksId']) && $validated['remarksId'] !== '' ? (int) $validated['remarksId'] : null;
         $assignedStaffId = isset($validated['assignedStaffId']) && $validated['assignedStaffId'] !== '' ? (int) $validated['assignedStaffId'] : null;
@@ -810,6 +934,8 @@ class TicketRequestController extends Controller
             'status_id' => $resolvedStatusId,
             'category_id' => $validated['categoryId'] ?? null,
             'equipment_network_details' => $this->normalizeEquipmentNetworkDetails($validated['equipmentNetworkDetails'] ?? []),
+            'has_qr_code' => (bool) $qrCodeNumber,
+            'qr_code_number' => $qrCodeNumber,
         ];
         $isCompletedStatus = $resolvedStatusId && ReferenceValue::query()
             ->forGroup(ReferenceValueGroup::Status)
@@ -879,13 +1005,29 @@ class TicketRequestController extends Controller
         return $out;
     }
 
+    /**
+     * Ensure a unit enrollment exists for the given UID so the request can link to it.
+     * Creates a minimal enrollment if none exists (e.g. when admin assigns an existing issued UID).
+     */
+    private function ensureEnrollmentForUid(string $uid, string $controlTicketNumber): void
+    {
+        if (TicketEnrollment::where('unique_id', $uid)->exists()) {
+            return;
+        }
+
+        TicketEnrollment::create([
+            'unique_id' => $uid,
+            'equipment_name' => 'Unit – Request '.$controlTicketNumber,
+        ]);
+    }
+
     private function syncTicketRequestToEnrollment(TicketRequest $ticketRequest): void
     {
         if (! $ticketRequest->qr_code_number) {
             return;
         }
 
-        $enrollment = \App\Models\TicketEnrollment::where('unique_id', $ticketRequest->qr_code_number)->first();
+        $enrollment = TicketEnrollment::where('unique_id', $ticketRequest->qr_code_number)->first();
         if (! $enrollment) {
             return;
         }

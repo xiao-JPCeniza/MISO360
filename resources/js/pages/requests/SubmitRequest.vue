@@ -907,13 +907,18 @@ function submitTicket() {
                                 </p>
                             </div>
 
-                            <div class="grid gap-3 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5">
+                            <div
+                                v-if="isAdmin"
+                                class="grid gap-3 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5"
+                            >
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                             QR Code for Unit
                                         </p>
-                                        <p class="text-xs text-muted-foreground">Optional asset tag</p>
+                                        <p class="text-xs text-muted-foreground">
+                                            Only admins/super admin can add a MIS-UID. Optional asset tag.
+                                        </p>
                                     </div>
                                     <label class="relative inline-flex cursor-pointer items-center focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring rounded">
                                         <input
@@ -927,7 +932,7 @@ function submitTicket() {
 
                                 <div v-if="form.hasQrCode" class="grid gap-2">
                                     <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        QR Code Number
+                                        QR Code Number (MIS-UID)
                                     </label>
                                     <input
                                         v-model="form.qrCodeNumber"

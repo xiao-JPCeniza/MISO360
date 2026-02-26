@@ -43,6 +43,13 @@ return new class extends Migration
             $table->longText('exception');
             $table->timestamp('failed_at')->useCurrent();
         });
+
+        Schema::create('qr_batches', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('start_sequence')->index();
+            $table->unsignedInteger('end_sequence')->index();
+            $table->timestamps();
+        });
     }
 
     /**
@@ -50,6 +57,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('qr_batches');
         Schema::dropIfExists('jobs');
         Schema::dropIfExists('job_batches');
         Schema::dropIfExists('failed_jobs');

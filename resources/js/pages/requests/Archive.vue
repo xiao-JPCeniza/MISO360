@@ -142,8 +142,10 @@ const isEquipmentAndNetworkRequest = (value: string | null): boolean => {
 };
 
 const resolveActionUrl = (request: TicketRequestRow): string | null => {
-    if (isItGovernanceRequest(request.natureOfRequest)) return `/requests/${request.id}/it-governance`;
-    if (isEquipmentAndNetworkRequest(request.natureOfRequest)) return `/requests/${request.id}/equipment-and-network`;
+    if (props.isAdmin && isEquipmentAndNetworkRequest(request.natureOfRequest)) {
+        return `/requests/${request.id}/equipment-and-network`;
+    }
+    if (props.isAdmin) return `/requests/${request.id}`;
     return request.showUrl;
 };
 

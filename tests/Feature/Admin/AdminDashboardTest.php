@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Enums\ReferenceValueGroup;
+use App\Models\ReferenceValue;
+use App\Models\TicketRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -42,6 +45,7 @@ class AdminDashboardTest extends TestCase
             ->has('archive')
             ->has('filters')
             ->has('sort')
+            ->has('staffOptions')
         );
     }
 
@@ -69,5 +73,63 @@ class AdminDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+
+    public function test_archive_export_accepts_assigned_staff_id_filter(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $staff = User::factory()->admin()->create(['name' => 'MIS Staff One']);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.dashboard.archive-export', ['assigned_staff_id' => $staff->id]));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+
+    public function test_assigned_to_me_count_reflects_active_requests_assigned_to_logged_in_admin(): void
+    {
+        foreach (['Pending', 'Ongoing', 'Completed'] as $name) {
+            ReferenceValue::updateOrCreate(
+                [
+                    'group_key' => ReferenceValueGroup::Status->value,
+                    'name' => $name,
+                ],
+                ['is_active' => true, 'system_seeded' => false],
+            );
+        }
+        $pendingStatus = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Status)
+            ->where('name', 'Pending')
+            ->firstOrFail();
+        $completedStatus = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Status)
+            ->where('name', 'Completed')
+            ->firstOrFail();
+
+        $admin = User::factory()->admin()->create();
+        $otherAdmin = User::factory()->admin()->create(['name' => 'Other Admin']);
+
+        TicketRequest::factory()->create([
+            'assigned_staff_id' => $admin->id,
+            'status_id' => $pendingStatus->id,
+        ]);
+        TicketRequest::factory()->create([
+            'assigned_staff_id' => $admin->id,
+            'status_id' => $completedStatus->id,
+        ]);
+        TicketRequest::factory()->create([
+            'assigned_staff_id' => $otherAdmin->id,
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.dashboard'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('admin/AdminDashboard')
+            ->has('stats')
+            ->where('stats.assignedToMe', 1)
+        );
     }
 }

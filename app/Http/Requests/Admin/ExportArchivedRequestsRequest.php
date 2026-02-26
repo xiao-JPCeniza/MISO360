@@ -28,6 +28,7 @@ class ExportArchivedRequestsRequest extends FormRequest
             'archive_search' => ['nullable', 'string', 'max:255'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'assigned_staff_id' => ['nullable', 'integer', 'exists:users,id'],
         ];
     }
 

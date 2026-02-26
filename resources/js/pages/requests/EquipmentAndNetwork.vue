@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onUnmounted, onMounted, ref } from 'vue';
 
 import Icon from '@/components/Icon.vue';
@@ -40,6 +40,11 @@ type TicketDetails = {
     categoryId?: number | string | null;
     statusId?: number | string | null;
     equipmentNetworkDetails?: Record<string, string>;
+    hasQrCode?: boolean;
+    qrCodeNumber?: string | null;
+    qrCodePattern?: string;
+    generateQrUrl?: string;
+    inventoryEditUrl?: string | null;
 };
 
 const props = defineProps<{
@@ -126,6 +131,7 @@ type FormFields = {
     actionTaken: string;
     categoryId: number | string;
     statusId: number | string;
+    qrCodeNumber: string;
     equipmentNetworkDetails: Record<string, string>;
 };
 
@@ -142,12 +148,55 @@ const form = useForm<FormFields>({
     actionTaken: props.ticket.actionTaken ?? '',
     categoryId: props.ticket.categoryId != null ? String(props.ticket.categoryId) : '',
     statusId: props.ticket.statusId != null ? String(props.ticket.statusId) : '',
+    qrCodeNumber: props.ticket.qrCodeNumber ?? '',
     equipmentNetworkDetails: equipmentNetworkDetailsFromTicket(),
 });
 
 const localErrors = ref<Partial<Record<FieldName, string>>>({});
+const generatingQr = ref(false);
+const qrGenerateError = ref('');
 
 const fieldError = (field: FieldName) => form.errors[field] ?? localErrors.value[field] ?? '';
+
+function getCsrfToken(): string {
+    if (typeof document === 'undefined') return '';
+    const meta = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null;
+    if (meta?.content) return meta.content;
+    const tokenMatch = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+    if (tokenMatch?.[1]) return decodeURIComponent(tokenMatch[1]);
+    return '';
+}
+
+async function generateQrForUnit() {
+    const url = props.ticket.generateQrUrl;
+    if (!url || !isEditable.value) return;
+    generatingQr.value = true;
+    qrGenerateError.value = '';
+    try {
+        const csrfToken = getCsrfToken();
+        const headers: Record<string, string> = {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        };
+        if (csrfToken) {
+            headers['X-CSRF-TOKEN'] = csrfToken;
+            headers['X-XSRF-TOKEN'] = csrfToken;
+        }
+        const res = await fetch(url, { method: 'POST', headers, credentials: 'same-origin' });
+        const data = (await res.json()) as { qrCodeNumber?: string; message?: string };
+        if (!res.ok) {
+            qrGenerateError.value = data.message ?? 'Unable to generate QR code. Please try again.';
+            return;
+        }
+        form.qrCodeNumber = data.qrCodeNumber ?? '';
+        router.reload({ only: ['ticket'] });
+    } catch {
+        qrGenerateError.value = 'Unable to generate QR code. Please try again.';
+    } finally {
+        generatingQr.value = false;
+    }
+}
 
 function formatDateTime(iso: string | null | undefined): string {
     if (!iso) return '—';
@@ -375,6 +424,81 @@ function submitForm() {
                                 class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
                             />
                         </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm">
+                    <h2 class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                        Unit QR Code
+                    </h2>
+                    <p class="mb-3 text-[11px] text-white/80">
+                        Each request should be linked to a QR code for the unit (asset) for tracking. If no QR is assigned yet, generate one or assign an existing issued UID.
+                    </p>
+                    <div
+                        v-if="!ticket.hasQrCode || !ticket.qrCodeNumber"
+                        class="mb-3 rounded-md border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100"
+                    >
+                        This request has no unit QR code. Assign or generate one below to complete the link for tracking.
+                    </div>
+                    <div v-if="ticket.hasQrCode && ticket.qrCodeNumber" class="flex flex-wrap items-center gap-3">
+                        <span class="font-mono text-sm font-medium text-white">{{ ticket.qrCodeNumber }}</span>
+                        <a
+                            v-if="ticket.inventoryEditUrl"
+                            :href="ticket.inventoryEditUrl"
+                            class="text-[11px] font-medium text-blue-300 underline hover:text-blue-200"
+                        >
+                            Edit unit in inventory
+                        </a>
+                    </div>
+                    <template v-else>
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                            <div class="flex-1">
+                                <button
+                                    type="button"
+                                    class="rounded-md bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                                    :disabled="generatingQr || !isEditable"
+                                    @click="generateQrForUnit"
+                                >
+                                    {{ generatingQr ? 'Generating…' : 'Generate QR for this unit' }}
+                                </button>
+                                <p v-if="qrGenerateError" class="mt-1 text-[10px] text-red-300">
+                                    {{ qrGenerateError }}
+                                </p>
+                            </div>
+                            <span class="text-[10px] text-white/60 sm:self-center">or assign existing:</span>
+                            <div class="flex flex-1 flex-col gap-1 sm:flex-row sm:items-end">
+                                <div class="min-w-0 flex-1">
+                                    <input
+                                        v-model="form.qrCodeNumber"
+                                        type="text"
+                                        :pattern="ticket.qrCodePattern"
+                                        placeholder="MIS-UID-00001"
+                                        class="h-8 w-full rounded border border-white/30 bg-white px-2 font-mono text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
+                                        :disabled="!isEditable"
+                                    />
+                                    <p v-if="form.errors.qrCodeNumber" class="mt-0.5 text-[10px] text-red-300">
+                                        {{ form.errors.qrCodeNumber }}
+                                    </p>
+                                </div>
+                                <span class="text-[10px] text-white/60">Then save the form below.</span>
+                            </div>
+                        </div>
+                    </template>
+                    <div v-if="ticket.hasQrCode && ticket.qrCodeNumber && isEditable" class="mt-3 border-t border-white/15 pt-3">
+                        <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">Change QR code</label>
+                        <div class="mt-1 flex flex-wrap items-center gap-2">
+                            <input
+                                v-model="form.qrCodeNumber"
+                                type="text"
+                                :pattern="ticket.qrCodePattern"
+                                placeholder="MIS-UID-00001"
+                                class="h-8 max-w-48 rounded border border-white/30 bg-white px-2 font-mono text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                            />
+                            <span class="text-[10px] text-white/60">Save form to assign a different UID.</span>
+                        </div>
+                        <p v-if="form.errors.qrCodeNumber" class="mt-0.5 text-[10px] text-red-300">
+                            {{ form.errors.qrCodeNumber }}
+                        </p>
                     </div>
                 </div>
 
