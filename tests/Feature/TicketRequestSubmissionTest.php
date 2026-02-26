@@ -6,6 +6,7 @@ use App\Enums\ReferenceValueGroup;
 use App\Models\IssuedUid;
 use App\Models\NatureOfRequest;
 use App\Models\ReferenceValue;
+use App\Models\TicketEnrollment;
 use App\Models\TicketRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -386,5 +387,41 @@ class TicketRequestSubmissionTest extends TestCase
             ->first(fn (array $a) => ($a['type'] ?? null) === 'system_issue_report_attachment');
         $this->assertNotNull($screenshotAttachment);
         $this->assertTrue(Storage::disk('public')->exists($screenshotAttachment['path']));
+    }
+
+    public function test_admin_submit_with_uid_creates_enrollment(): void
+    {
+        IssuedUid::create(['uid' => 'MIS-UID-00099', 'sequence' => 99]);
+        $admin = User::factory()->admin()->create();
+        $office = ReferenceValue::create([
+            'group_key' => ReferenceValueGroup::OfficeDesignation->value,
+            'name' => 'ICT Unit',
+            'system_seeded' => true,
+            'is_active' => true,
+        ]);
+        $officeUser = User::factory()->create(['office_designation_id' => $office->id]);
+        $natureOfRequest = NatureOfRequest::create(['name' => 'Computer repair', 'is_active' => true]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-9999', now()->format('Ymd'));
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'officeDesignationId' => $office->id,
+                'requestedForUserId' => $officeUser->id,
+                'description' => 'New unit with QR code.',
+                'hasQrCode' => true,
+                'qrCodeNumber' => 'MIS-UID-00099',
+            ])
+            ->assertRedirect();
+
+        $ticketRequest = TicketRequest::firstOrFail();
+        $this->assertSame('MIS-UID-00099', $ticketRequest->qr_code_number);
+
+        $enrollment = TicketEnrollment::where('unique_id', 'MIS-UID-00099')->first();
+        $this->assertNotNull($enrollment);
     }
 }

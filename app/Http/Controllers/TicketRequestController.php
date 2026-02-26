@@ -102,6 +102,8 @@ class TicketRequestController extends Controller
             'category' => $ticketRequest->category?->name,
             'estimatedCompletionDate' => $ticketRequest->estimated_completion_date?->toDateString(),
             'showUrl' => route('requests.show', $ticketRequest),
+            'hasQrCode' => $ticketRequest->has_qr_code,
+            'qrCodeNumber' => $ticketRequest->qr_code_number,
         ];
     }
 
@@ -349,19 +351,25 @@ class TicketRequestController extends Controller
         }
 
         $allowUnitQr = $requester->isAdmin();
+        $qrCodeNumber = $allowUnitQr && ! empty(trim((string) ($validated['qrCodeNumber'] ?? '')))
+            ? strtoupper(trim((string) $validated['qrCodeNumber']))
+            : null;
+
         $ticketRequest = TicketRequest::create([
             'control_ticket_number' => $resolvedControlTicketNumber,
             'nature_of_request_id' => (int) $validated['natureOfRequestId'],
             'description' => $validated['description'],
             'has_qr_code' => $allowUnitQr && (bool) $validated['hasQrCode'],
-            'qr_code_number' => $allowUnitQr && ! empty(trim((string) ($validated['qrCodeNumber'] ?? '')))
-                ? strtoupper(trim((string) $validated['qrCodeNumber']))
-                : null,
+            'qr_code_number' => $qrCodeNumber,
             'attachments' => $attachments ?: null,
             'user_id' => $requester->id,
             'requested_for_user_id' => $requestedForUserId,
             'office_designation_id' => $officeDesignationId !== null && $officeDesignationId !== '' ? (int) $officeDesignationId : null,
         ]);
+
+        if ($qrCodeNumber) {
+            $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
+        }
 
         if (is_array($systemIssueReport)) {
             $auditLogger->log($request, 'ticket_request.system_issue_report.submitted', $ticketRequest, [

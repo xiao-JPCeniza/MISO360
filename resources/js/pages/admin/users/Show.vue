@@ -26,6 +26,7 @@ type ManagedUser = {
     id: number;
     name: string;
     email: string;
+    email_verified_at?: string | null;
     phone?: string | null;
     role: string;
     is_active: boolean;
@@ -83,6 +84,8 @@ const passwordForm = useForm({
     password: '',
     password_confirmation: '',
 });
+
+const verifyEmailForm = useForm({});
 </script>
 
 <template>
@@ -304,6 +307,39 @@ const passwordForm = useForm({
                                 Password updated.
                             </p>
                         </form>
+
+                        <div class="mt-6 border-t border-sidebar-border/60 pt-6">
+                            <p class="mb-2 text-sm font-medium text-foreground">
+                                Email verification
+                            </p>
+                            <p class="mb-3 text-sm text-muted-foreground">
+                                {{ props.user.email_verified_at
+                                    ? 'This account\'s email is verified. The user can sign in without verifying.'
+                                    : 'Mark this account\'s email as verified so the user can sign in without following the verification link.' }}
+                            </p>
+                            <form
+                                v-if="!props.user.email_verified_at"
+                                @submit.prevent="verifyEmailForm.post(`/admin/users/${props.user.id}/verify-email`)"
+                                class="inline"
+                            >
+                                <Button
+                                    type="submit"
+                                    variant="outline"
+                                    :disabled="verifyEmailForm.processing"
+                                >
+                                    {{ verifyEmailForm.processing ? 'Verifying…' : 'Force verify email' }}
+                                </Button>
+                            </form>
+                            <p
+                                v-else
+                                class="text-sm text-emerald-600"
+                            >
+                                Email verified
+                            </p>
+                            <p v-if="verifyEmailForm.recentlySuccessful" class="mt-2 text-sm text-emerald-600">
+                                Email marked as verified.
+                            </p>
+                        </div>
                     </div>
 
                     <div class="rounded-3xl border border-sidebar-border/60 bg-background p-6">

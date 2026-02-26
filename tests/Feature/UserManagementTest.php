@@ -120,4 +120,34 @@ class UserManagementTest extends TestCase
         $this->assertSame('Old Position', $changes['position_title']['from']);
         $this->assertSame('Updated Position', $changes['position_title']['to']);
     }
+
+    public function test_admin_can_force_verify_user_email(): void
+    {
+        $superAdmin = User::factory()->superAdmin()->create();
+        $user = User::factory()->create([
+            'role' => Role::USER,
+            'email_verified_at' => null,
+        ]);
+
+        $this->assertNull($user->email_verified_at);
+
+        $this->actingAs($superAdmin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => Carbon::now()->timestamp,
+            ])
+            ->post("/admin/users/{$user->id}/verify-email", [
+                '_token' => 'test-token',
+            ])
+            ->assertRedirect();
+
+        $user->refresh();
+        $this->assertNotNull($user->email_verified_at);
+
+        $auditLog = AuditLog::query()->latest()->first();
+        $this->assertNotNull($auditLog);
+        $this->assertSame('user.email.force_verified', $auditLog->action);
+        $this->assertSame($user->id, $auditLog->target_id);
+        $this->assertSame($superAdmin->id, $auditLog->actor_id);
+    }
 }

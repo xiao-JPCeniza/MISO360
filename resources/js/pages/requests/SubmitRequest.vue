@@ -908,7 +908,6 @@ function submitTicket() {
                             </div>
 
                             <div
-                                v-if="isAdmin"
                                 class="grid gap-3 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5"
                             >
                                 <div class="flex items-center justify-between">
@@ -917,10 +916,12 @@ function submitTicket() {
                                             QR Code for Unit
                                         </p>
                                         <p class="text-xs text-muted-foreground">
-                                            Only admins/super admin can add a MIS-UID. Optional asset tag.
+                                            Only admins/super admin can add a MIS-UID. If no QR code UID is available, an admin can assign one later.
                                         </p>
                                     </div>
-                                    <label class="relative inline-flex cursor-pointer items-center focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring rounded">
+                                    <label
+                                        class="relative inline-flex cursor-pointer items-center focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring rounded"
+                                    >
                                         <input
                                             v-model="form.hasQrCode"
                                             type="checkbox"

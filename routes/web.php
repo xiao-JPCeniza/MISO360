@@ -71,6 +71,8 @@ Route::middleware([
             ->name('admin.users.status');
         Route::match(['post', 'patch'], 'admin/users/{user}/password', [UserManagementController::class, 'updatePassword'])
             ->name('admin.users.password');
+        Route::post('admin/users/{user}/verify-email', [UserManagementController::class, 'forceVerifyEmail'])
+            ->name('admin.users.verify-email');
 
         Route::get('admin/audit-logs', [AuditLogController::class, 'index'])
             ->name('admin.audit-logs.index');

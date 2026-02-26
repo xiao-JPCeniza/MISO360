@@ -27,6 +27,8 @@ type TicketRequestRow = {
     category: string | null;
     estimatedCompletionDate: string | null;
     showUrl: string | null;
+    hasQrCode: boolean;
+    qrCodeNumber: string | null;
 };
 
 const props = defineProps<{
@@ -227,7 +229,7 @@ const filteredRequests = computed(() => {
                     <table class="w-full min-w-[980px] text-[11px] text-foreground">
                         <thead class="border-b border-border bg-muted/50 text-[11px] uppercase text-foreground dark:border-white/10 dark:bg-white/5">
                             <tr>
-                                <th colspan="10" class="px-3 py-2 text-center text-xs font-semibold">
+                                <th colspan="11" class="px-3 py-2 text-center text-xs font-semibold">
                                     REQUEST FORM
                                 </th>
                             </tr>
@@ -241,6 +243,7 @@ const filteredRequests = computed(() => {
                                 <th class="px-3 py-2 text-left font-semibold">Request Description</th>
                                 <th class="px-3 py-2 text-left font-semibold">Status</th>
                                 <th class="px-3 py-2 text-left font-semibold">Category</th>
+                                <th class="px-3 py-2 text-left font-semibold">QR Code</th>
                                 <th class="px-3 py-2 text-left font-semibold">Action</th>
                             </tr>
                         </thead>
@@ -300,6 +303,16 @@ const filteredRequests = computed(() => {
                                         {{ displayBadge(request.category) }}
                                     </span>
                                 </td>
+                                <td class="px-3 py-2 text-muted-foreground">
+                                    <span
+                                        v-if="request.hasQrCode && request.qrCodeNumber"
+                                        class="font-mono text-[11px]"
+                                        :title="request.qrCodeNumber"
+                                    >
+                                        {{ request.qrCodeNumber }}
+                                    </span>
+                                    <span v-else class="text-[11px]">No QR code</span>
+                                </td>
                                 <td class="px-3 py-2">
                                     <Link
                                         v-if="resolveActionUrl(request)"
@@ -318,7 +331,7 @@ const filteredRequests = computed(() => {
                                 </td>
                             </tr>
                             <tr v-if="filteredRequests.length === 0">
-                                <td colspan="10" class="px-4 py-10 text-center text-xs text-muted-foreground">
+                                <td colspan="11" class="px-4 py-10 text-center text-xs text-muted-foreground">
                                     No requests match your search yet.
                                 </td>
                             </tr>
@@ -393,6 +406,7 @@ const filteredRequests = computed(() => {
                                 </th>
                                 <th class="px-3 py-3 text-left font-semibold">Status</th>
                                 <th class="px-3 py-3 text-left font-semibold">Category</th>
+                                <th class="px-3 py-3 text-left font-semibold">QR Code</th>
                                 <th class="px-3 py-3 text-left font-semibold">
                                     Est. Completion
                                 </th>
@@ -465,11 +479,21 @@ const filteredRequests = computed(() => {
                                     </span>
                                 </td>
                                 <td class="px-3 py-2 text-muted-foreground">
+                                    <span
+                                        v-if="request.hasQrCode && request.qrCodeNumber"
+                                        class="font-mono text-xs"
+                                        :title="request.qrCodeNumber"
+                                    >
+                                        {{ request.qrCodeNumber }}
+                                    </span>
+                                    <span v-else class="text-xs">No QR code</span>
+                                </td>
+                                <td class="px-3 py-2 text-muted-foreground">
                                     {{ formatDate(request.estimatedCompletionDate) }}
                                 </td>
                             </tr>
                             <tr v-if="filteredRequests.length === 0">
-                                <td colspan="10" class="px-4 py-10 text-center text-sm text-muted-foreground">
+                                <td colspan="11" class="px-4 py-10 text-center text-sm text-muted-foreground">
                                     No requests match your search yet.
                                 </td>
                             </tr>

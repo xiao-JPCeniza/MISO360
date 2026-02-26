@@ -71,6 +71,7 @@ class UserManagementController extends Controller
                 'id',
                 'name',
                 'email',
+                'email_verified_at',
                 'phone',
                 'role',
                 'is_active',
@@ -201,5 +202,16 @@ class UserManagementController extends Controller
         $auditLogger->log($request, 'user.password.updated', $user);
 
         return back()->with('status', 'Password updated.');
+    }
+
+    public function forceVerifyEmail(Request $request, User $user, AuditLogger $auditLogger): RedirectResponse
+    {
+        Gate::authorize('update', $user);
+
+        $user->update(['email_verified_at' => now()]);
+
+        $auditLogger->log($request, 'user.email.force_verified', $user);
+
+        return back()->with('status', 'Email marked as verified.');
     }
 }
