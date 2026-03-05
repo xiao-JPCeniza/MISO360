@@ -92,30 +92,34 @@ const homeRoute = computed(() => (isAdmin.value ? '/admin/dashboard' : dashboard
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset" class="text-white">
-        <SidebarHeader class="border-b border-white/10 px-4 pb-4 pt-5">
+    <Sidebar
+        collapsible="icon"
+        variant="inset"
+        class="text-sidebar-foreground"
+    >
+        <SidebarHeader class="border-b border-sidebar-border/70 px-4 pb-4 pt-5">
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton
                         size="lg"
                         as-child
-                        class="h-auto justify-start rounded-2xl px-2 py-2 text-white transition-colors hover:bg-white/10"
+                        class="h-auto justify-start rounded-2xl px-2 py-2 text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
                     >
                         <Link :href="homeRoute" class="flex items-center gap-3">
                             <img
                                 src="/storage/logos/IT_Logo.gif"
                                 alt="System logo"
-                                class="h-11 w-11 rounded-full bg-white/90 p-1 shadow-sm shadow-black/20"
+                                class="h-11 w-11 rounded-full bg-white/90 p-1 shadow-sm shadow-black/15 dark:bg-white/90 dark:shadow-black/20"
                             />
                             <div
                                 class="grid text-left leading-tight group-data-[collapsible=icon]/sidebar-wrapper:hidden"
                             >
                                 <span
-                                    class="text-xs uppercase tracking-[0.2em] text-[#93c5fd]"
+                                    class="text-xs uppercase tracking-[0.2em] text-primary/80 dark:text-[#93c5fd]"
                                 >
                                     MISO 360
                                 </span>
-                                <span class="text-sm font-semibold text-white">
+                                <span class="text-sm font-semibold text-sidebar-foreground">
                                     Management Information Systems Office
                                 </span>
                             </div>
@@ -129,7 +133,7 @@ const homeRoute = computed(() => (isAdmin.value ? '/admin/dashboard' : dashboard
             <NavMain :items="mainNavItems" />
         </SidebarContent>
 
-        <SidebarFooter class="border-t border-white/10 px-2 pb-3 pt-3">
+        <SidebarFooter class="border-t border-sidebar-border/70 px-2 pb-3 pt-3">
             <NavUser />
         </SidebarFooter>
     </Sidebar>

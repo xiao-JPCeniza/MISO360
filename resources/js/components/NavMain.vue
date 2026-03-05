@@ -21,7 +21,7 @@ const { urlIsActive } = useActiveUrl();
 <template>
     <SidebarGroup class="px-2 py-0">
         <SidebarGroupLabel
-            class="text-[0.65rem] uppercase tracking-[0.25em] text-[#93c5fd]"
+            class="text-[0.65rem] uppercase tracking-[0.25em] text-primary/70 dark:text-[#93c5fd]"
         >
             Main Menu
         </SidebarGroupLabel>
@@ -31,7 +31,7 @@ const { urlIsActive } = useActiveUrl();
                     as-child
                     :is-active="urlIsActive(item.href)"
                     :tooltip="item.title"
-                    class="text-white/80 transition-colors duration-200 hover:bg-white/10 hover:text-white data-[active=true]:bg-white/15 data-[active=true]:text-white data-[active=true]:shadow-[inset_0_0_0_1px_rgba(147,197,253,0.35)]"
+                    class="text-sidebar-foreground/85 transition-colors duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:shadow-[inset_0_0_0_1px_rgba(37,99,235,0.25)] dark:data-[active=true]:shadow-[inset_0_0_0_1px_rgba(147,197,253,0.35)]"
                 >
                     <Link :href="item.href">
                         <component :is="item.icon" />

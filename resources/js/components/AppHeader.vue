@@ -157,7 +157,7 @@ const isAdminPanelActive = computed(() =>
                         </SheetTrigger>
                         <SheetContent
                             side="left"
-                            class="w-[300px] border-r border-white/10 bg-[#0b1b3a] p-6 text-white"
+                            class="w-[300px] border-r border-border bg-card p-6 text-card-foreground dark:border-white/10 dark:bg-[#0b1b3a] dark:text-white"
                         >
                             <SheetTitle class="sr-only"
                                 >Navigation Menu</SheetTitle
@@ -170,9 +170,7 @@ const isAdminPanelActive = computed(() =>
                                         class="h-10 w-10 rounded-full bg-white p-1"
                                     />
                                     <div>
-                                        <p
-                                            class="text-xs uppercase tracking-[0.2em] text-[#93c5fd]"
-                                        >
+                                        <p class="text-xs uppercase tracking-[0.2em] text-primary/80 dark:text-[#93c5fd]">
                                             MISO 360
                                         </p>
                                         <p class="text-sm font-semibold">
@@ -187,11 +185,11 @@ const isAdminPanelActive = computed(() =>
                                     :key="item.title"
                                     :href="item.href"
                                     class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors"
-                                    :class="[
-                                        urlIsActive(item.href)
-                                            ? 'bg-white/15 text-white'
-                                            : 'text-white/80 hover:bg-white/10 hover:text-white',
-                                    ]"
+                                        :class="[
+                                            urlIsActive(item.href)
+                                                ? 'bg-primary/12 text-primary dark:bg-white/15 dark:text-white'
+                                                : 'text-foreground/80 hover:bg-primary/10 hover:text-foreground dark:text-white/80 dark:hover:bg-white/10 dark:hover:text-white',
+                                        ]"
                                 >
                                     <component
                                         v-if="item.icon"
@@ -201,7 +199,7 @@ const isAdminPanelActive = computed(() =>
                                     {{ item.title }}
                                 </Link>
                                 <div v-if="adminPanelItems.length" class="space-y-2 pt-4">
-                                    <p class="px-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
+                                    <p class="px-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground dark:text-white/60">
                                         Admin Panel
                                     </p>
                                     <Link
@@ -211,8 +209,8 @@ const isAdminPanelActive = computed(() =>
                                         class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors"
                                         :class="[
                                             urlIsActive(item.href)
-                                                ? 'bg-white/15 text-white'
-                                                : 'text-white/80 hover:bg-white/10 hover:text-white',
+                                                ? 'bg-primary/12 text-primary dark:bg-white/15 dark:text-white'
+                                                : 'text-foreground/80 hover:bg-primary/10 hover:text-foreground dark:text-white/80 dark:hover:bg-white/10 dark:hover:text-white',
                                         ]"
                                     >
                                         <component

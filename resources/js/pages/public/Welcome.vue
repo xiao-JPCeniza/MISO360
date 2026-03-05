@@ -253,6 +253,9 @@ type Division = {
         | { group?: string; items: string[] }[];
 };
 
+type EquipmentServiceGroup = { group?: string; items: string[] };
+type SystemServiceItem = { name: string; formRequired: boolean };
+
 const divisions: Division[] = [
     {
         id: 'equipment',
@@ -384,6 +387,21 @@ function getFilteredServicesForDivision(division: Division) {
         );
     }
     return division.services;
+}
+
+function getEquipmentServicesForDivision(division: Division): EquipmentServiceGroup[] {
+    if (division.id !== 'equipment') return [];
+    return getFilteredServicesForDivision(division) as EquipmentServiceGroup[];
+}
+
+function getSystemServicesForDivision(division: Division): SystemServiceItem[] {
+    if (division.id !== 'system') return [];
+    return getFilteredServicesForDivision(division) as SystemServiceItem[];
+}
+
+function getGovernanceServicesForDivision(division: Division): string[] {
+    if (division.id !== 'governance') return [];
+    return getFilteredServicesForDivision(division) as string[];
 }
 </script>
 
@@ -872,27 +890,25 @@ function getFilteredServicesForDivision(division: Division) {
                                     <template
                                         v-if="
                                             division.id === 'equipment' &&
-                                            getFilteredServicesForDivision(
-                                                division,
-                                            ).length
+                                            getEquipmentServicesForDivision(division).length
                                         "
                                     >
                                         <div
-                                            v-for="(group, gIdx) in getFilteredServicesForDivision(division)"
+                                            v-for="(group, gIdx) in getEquipmentServicesForDivision(division)"
                                             :key="'eq-' + gIdx"
                                             class="space-y-2"
                                         >
                                             <span
-                                                v-if="(group as { group?: string }).group"
+                                                v-if="group.group"
                                                 class="text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-white/50"
                                             >
-                                                {{ (group as { group: string }).group }}
+                                                {{ group.group }}
                                             </span>
                                             <div
                                                 class="flex flex-wrap gap-2"
                                             >
                                                 <button
-                                                    v-for="item in (group as { items: string[] }).items"
+                                                    v-for="item in group.items"
                                                     :key="item"
                                                     type="button"
                                                     class="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6] cursor-pointer"
@@ -908,22 +924,20 @@ function getFilteredServicesForDivision(division: Division) {
                                     <template
                                         v-else-if="
                                             division.id === 'system' &&
-                                            getFilteredServicesForDivision(
-                                                division,
-                                            ).length
+                                            getSystemServicesForDivision(division).length
                                         "
                                     >
                                         <div class="flex flex-wrap gap-2">
                                             <button
-                                                v-for="s in getFilteredServicesForDivision(division)"
-                                                :key="(s as { name: string }).name"
+                                                v-for="service in getSystemServicesForDivision(division)"
+                                                :key="service.name"
                                                 type="button"
                                                 class="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6] cursor-pointer"
-                                                @click="goToSubmitRequest((s as { name: string }).name)"
+                                                @click="goToSubmitRequest(service.name)"
                                             >
-                                                {{ (s as { name: string }).name }}
+                                                {{ service.name }}
                                                 <span
-                                                    v-if="(s as { formRequired: boolean }).formRequired"
+                                                    v-if="service.formRequired"
                                                     class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-500/20 dark:text-amber-300/90"
                                                 >
                                                     Form Required
@@ -936,18 +950,16 @@ function getFilteredServicesForDivision(division: Division) {
                                     <template
                                         v-else-if="
                                             division.id === 'governance' &&
-                                            getFilteredServicesForDivision(
-                                                division,
-                                            ).length
+                                            getGovernanceServicesForDivision(division).length
                                         "
                                     >
                                         <div class="flex flex-wrap gap-2">
                                             <button
-                                                v-for="item in getFilteredServicesForDivision(division)"
-                                                :key="item as string"
+                                                v-for="item in getGovernanceServicesForDivision(division)"
+                                                :key="item"
                                                 type="button"
                                                 class="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6] cursor-pointer"
-                                                @click="goToSubmitRequest(item as string)"
+                                                @click="goToSubmitRequest(item)"
                                             >
                                                 {{ item }}
                                             </button>
