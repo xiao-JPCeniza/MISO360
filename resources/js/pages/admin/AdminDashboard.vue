@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 import Icon from '@/components/Icon.vue';
@@ -47,6 +47,9 @@ const props = defineProps<{
     staffOptions: { id: number; name: string }[];
 }>();
 
+const page = usePage();
+const isSuperAdmin = computed(() => (page.props.auth?.user?.role ?? '') === 'super_admin');
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Admin Dashboard',
@@ -78,6 +81,11 @@ const exportArchiveUrl = computed(() => {
     if (exportStaffId.value) params.set('assigned_staff_id', exportStaffId.value);
     const qs = params.toString();
     return `/admin/dashboard/archive-export${qs ? `?${qs}` : ''}`;
+});
+
+const natureOfRequestsReportUrl = computed(() => {
+    const year = new Date().getFullYear();
+    return `/admin/reports/nature-of-requests?year=${year}`;
 });
 
 const hasActiveFilters = computed(() => !!filterForm.control_ticket_number);
@@ -295,6 +303,27 @@ function displayText(value: string | null, fallback = '—'): string {
                             </p>
                         </div>
                     </Link>
+                    <a
+                        v-if="isSuperAdmin"
+                        :href="natureOfRequestsReportUrl"
+                        target="_blank"
+                        rel="noopener"
+                        class="flex items-center gap-3 rounded-xl border border-sidebar-border/60 bg-card p-4 shadow-sm hover:bg-muted/30 dark:border-white/10 dark:hover:bg-white/5"
+                    >
+                        <div
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                        >
+                            <Icon name="fileText" class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-foreground">
+                                Print Nature of Requests report
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                Printable monthly summary
+                            </p>
+                        </div>
+                    </a>
                 </div>
             </div>
 

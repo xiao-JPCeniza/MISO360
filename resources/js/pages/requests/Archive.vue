@@ -63,7 +63,6 @@ const normalizeValue = (value: string | null | undefined): string =>
 
 const resolveNatureBadgeTone = (value: string | null) => {
     const n = normalizeValue(value);
-    const emerald = 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
     const blue = 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300';
     const amber = 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300';
     const purple = 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300';
@@ -105,15 +104,6 @@ const displayText = (value: string | null, fallback = '—'): string =>
 const displayBadge = (value: string | null, fallback = 'Not set'): string =>
     value && value.trim().length > 0 ? value : fallback;
 
-const itGovernanceTypes = [
-    'system account creation',
-    'system modification',
-    'password reset or account recovery (gov mail)',
-    'system error / bug report',
-    'request for new system module or enhancement',
-    'system development',
-];
-
 const equipmentAndNetworkTypes = [
     'software license or activation request',
     'computer repair',
@@ -132,11 +122,6 @@ const equipmentAndNetworkTypes = [
     'borrow unit',
     'data recovery',
 ];
-
-const isItGovernanceRequest = (value: string | null): boolean => {
-    const normalized = normalizeValue(value);
-    return itGovernanceTypes.some((type) => normalized === type);
-};
 
 const isEquipmentAndNetworkRequest = (value: string | null): boolean => {
     const normalized = normalizeValue(value);

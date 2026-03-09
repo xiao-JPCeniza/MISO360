@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\NatureOfRequestController;
+use App\Http\Controllers\Admin\NatureOfRequestsReportController;
 use App\Http\Controllers\Admin\ProfileSlideController;
 use App\Http\Controllers\Admin\StatusManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
@@ -79,6 +80,10 @@ Route::middleware([
 
         Route::get('admin/dashboard/archive-export', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'exportArchived'])
             ->name('admin.dashboard.archive-export');
+
+        Route::get('admin/reports/nature-of-requests', NatureOfRequestsReportController::class)
+            ->middleware('super_admin')
+            ->name('admin.reports.nature-of-requests');
     });
 
     Route::get('admin/enrollments/create', [EnrollmentController::class, 'create'])

@@ -5,7 +5,7 @@ import { SidebarInset } from '@/components/ui/sidebar';
 
 interface Props {
     variant?: 'header' | 'sidebar';
-    class?: string;
+    class?: string | string[] | Record<string, boolean>;
 }
 
 const props = defineProps<Props>();

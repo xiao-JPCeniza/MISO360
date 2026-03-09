@@ -105,15 +105,6 @@ const displayText = (value: string | null, fallback = '—'): string =>
 const displayBadge = (value: string | null, fallback = 'Not set'): string =>
     value && value.trim().length > 0 ? value : fallback;
 
-const itGovernanceTypes = [
-    'system account creation',
-    'system modification',
-    'password reset or account recovery (gov mail)',
-    'system error / bug report',
-    'request for new system module or enhancement',
-    'system development',
-];
-
 const equipmentAndNetworkTypes = [
     'software license or activation request',
     'computer repair',
@@ -132,11 +123,6 @@ const equipmentAndNetworkTypes = [
     'borrow unit',
     'data recovery',
 ];
-
-const isItGovernanceRequest = (value: string | null): boolean => {
-    const normalized = normalizeValue(value);
-    return itGovernanceTypes.some((type) => normalized === type);
-};
 
 const isEquipmentAndNetworkRequest = (value: string | null): boolean => {
     const normalized = normalizeValue(value);

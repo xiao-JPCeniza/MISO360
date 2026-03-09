@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import QRCode from 'qrcode';
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import {
     Dialog,
@@ -111,10 +111,6 @@ const totalPages = computed(() => pages.value.length);
 
 function formatId(value: number) {
     return `MIS-UID-${value.toString().padStart(5, '0')}`;
-}
-
-function batchNumber(start: number) {
-    return Math.floor((start - 1) / perPage) + 1;
 }
 
 function emptySlots(page: QrItem[]) {
