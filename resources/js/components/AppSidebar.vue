@@ -13,6 +13,7 @@ import { computed } from 'vue';
 
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import {
     Sidebar,
     SidebarContent,
@@ -27,9 +28,9 @@ import { type NavItem } from '@/types';
 
 const page = usePage();
 const isAdmin = computed(() =>
-    ['admin', 'super_admin'].includes(page.props.auth.user?.role ?? ''),
+    ['admin', 'super_admin'].includes(page.props.auth?.user?.role ?? ''),
 );
-const isSuperAdmin = computed(() => (page.props.auth.user?.role ?? '') === 'super_admin');
+const isSuperAdmin = computed(() => (page.props.auth?.user?.role ?? '') === 'super_admin');
 
 const mainNavItems = computed<NavItem[]>(() => {
     const items: NavItem[] = [
@@ -134,6 +135,10 @@ const homeRoute = computed(() => (isAdmin.value ? '/admin/dashboard' : dashboard
         </SidebarContent>
 
         <SidebarFooter class="border-t border-sidebar-border/70 px-2 pb-3 pt-3">
+            <div class="mb-2 flex items-center justify-between gap-2 group-data-[collapsible=icon]/sidebar-wrapper:justify-center">
+                <span class="text-xs font-medium text-sidebar-foreground/80 group-data-[collapsible=icon]/sidebar-wrapper:hidden">Theme</span>
+                <ThemeSwitcher />
+            </div>
             <NavUser />
         </SidebarFooter>
     </Sidebar>

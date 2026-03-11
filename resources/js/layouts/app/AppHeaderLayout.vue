@@ -31,7 +31,7 @@ const contentBottomPadding = computed(() => (canAccessFooter.value ? 'pb-24' : '
 <template>
     <AppShell class="flex-col" variant="header">
         <AppHeader :breadcrumbs="breadcrumbs" />
-        <AppContent :class="['px-6 md:pt-24', contentPadding, contentBottomPadding]">
+        <AppContent :class="['px-4 sm:px-6 md:pt-24', contentPadding, contentBottomPadding]">
             <slot />
         </AppContent>
         <AppFooter v-if="canAccessFooter" />

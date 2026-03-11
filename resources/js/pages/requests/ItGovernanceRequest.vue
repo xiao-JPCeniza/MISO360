@@ -36,6 +36,7 @@ type TicketDetails = {
     systemDevelopmentSurvey?: Record<string, unknown> | null;
     systemChangeRequestForm?: Record<string, unknown> | null;
     systemIssueReport?: Record<string, unknown> | null;
+    systemIssueReportPdfUrl?: string | null;
     systemIssueReportAttachments?: SystemIssueReportAttachment[];
     remarksId?: number | string | null;
     assignedStaffId?: number | string | null;
@@ -687,9 +688,18 @@ function submitForm() {
                     v-if="isSystemErrorBugReport && systemIssueReport"
                     class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm"
                 >
-                    <h2 class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/70">
-                        System Issue Report
-                    </h2>
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h2 class="text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                            System Issue Report
+                        </h2>
+                        <a
+                            v-if="props.ticket.systemIssueReportPdfUrl"
+                            :href="props.ticket.systemIssueReportPdfUrl"
+                            class="inline-flex items-center rounded border border-white/35 bg-white/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white hover:bg-white/25"
+                        >
+                            Download PDF
+                        </a>
+                    </div>
                     <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         <div class="grid gap-0.5">
                             <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">

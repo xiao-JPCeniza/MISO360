@@ -10,6 +10,10 @@ use Illuminate\Validation\Validator;
 
 class StoreTicketRequestRequest extends FormRequest
 {
+    private const PASSWORD_RESET_ACCOUNT_RECOVERY_NATURE = 'password reset or account recovery (gov mail)';
+
+    private const SYSTEM_ACCOUNT_CREATION_NATURE = 'system account creation';
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -39,6 +43,12 @@ class StoreTicketRequestRequest extends FormRequest
         if (isset($files['systemDevelopmentSurveyFormAttachments'])) {
             $att = $files['systemDevelopmentSurveyFormAttachments'];
             $normalized['systemDevelopmentSurveyFormAttachments'] = is_array($att)
+                ? $att
+                : [0 => $att];
+        }
+        if (isset($files['systemChangeRequestFormAttachments'])) {
+            $att = $files['systemChangeRequestFormAttachments'];
+            $normalized['systemChangeRequestFormAttachments'] = is_array($att)
                 ? $att
                 : [0 => $att];
         }
@@ -96,6 +106,20 @@ class StoreTicketRequestRequest extends FormRequest
             ],
             'officeDesignationId' => $officeRules,
             'requestedForUserId' => $requestedUserRules,
+            'personalEmail' => [
+                'nullable',
+                'string',
+                'email:rfc',
+                'max:255',
+                Rule::requiredIf($this->isPasswordResetOrAccountRecovery()),
+            ],
+            'officeEmail' => [
+                'nullable',
+                'string',
+                'email:rfc',
+                'max:255',
+                Rule::requiredIf($this->isSystemAccountCreation()),
+            ],
             'description' => ['required', 'string', 'min:10', 'max:1000'],
             'hasQrCode' => ['required', 'boolean'],
             'qrCodeNumber' => [
@@ -114,7 +138,13 @@ class StoreTicketRequestRequest extends FormRequest
             'systemDevelopmentSurveyFormAttachments' => ['nullable', 'array', 'max:5'],
             'systemDevelopmentSurveyFormAttachments.*' => [
                 'file',
-                'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,webp',
+                'mimes:pdf',
+                'max:10240',
+            ],
+            'systemChangeRequestFormAttachments' => ['nullable', 'array', 'max:5'],
+            'systemChangeRequestFormAttachments.*' => [
+                'file',
+                'mimes:pdf',
                 'max:10240',
             ],
             'systemDevelopmentSurvey' => ['nullable', 'array'],
@@ -191,10 +221,19 @@ class StoreTicketRequestRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            if (! $this->isSystemDevelopment()) {
-                if ($this->isSystemModification()) {
-                    $this->validateSystemChangeRequestForm($validator);
+            if ($this->isSystemModification()) {
+                $attachments = $this->input('systemChangeRequestFormAttachments');
+                if (! is_array($attachments) || count($attachments) === 0) {
+                    $validator->errors()->add(
+                        'systemChangeRequestFormAttachments',
+                        'Completed System Change Request Form (PDF) is required. Download the form, complete it offline, then upload it here.',
+                    );
                 }
+
+                return;
+            }
+
+            if (! $this->isSystemDevelopment()) {
                 if ($this->isSystemErrorBugReport()) {
                     $this->validateSystemIssueReport($validator);
                 }
@@ -202,84 +241,12 @@ class StoreTicketRequestRequest extends FormRequest
                 return;
             }
 
-            $survey = $this->input('systemDevelopmentSurvey');
-
-            if (! is_array($survey)) {
+            $attachments = $this->input('systemDevelopmentSurveyFormAttachments');
+            if (! is_array($attachments) || count($attachments) === 0) {
                 $validator->errors()->add(
-                    'systemDevelopmentSurvey',
-                    'Systems Development Survey Form is required for System Development requests.',
+                    'systemDevelopmentSurveyFormAttachments',
+                    'Completed Systems Development Survey Form (PDF) is required. Download the form from the submit page, complete it offline, then upload it here.',
                 );
-
-                return;
-            }
-
-            $this->requireSurveyField($validator, $survey, 'titleOfProposedSystem', 'Title of Proposed System is required.');
-            $this->requireSurveyField($validator, $survey, 'flowSop', 'Flow (SOP) is required.');
-            $this->requireSurveyField($validator, $survey, 'headOfOffice', 'Head of Office is required.');
-
-            $services = $survey['servicesOrFeatures'] ?? null;
-            if (! is_array($services) || count($services) === 0) {
-                $validator->errors()->add(
-                    'systemDevelopmentSurvey.servicesOrFeatures',
-                    'At least one service/feature entry is required.',
-                );
-            } else {
-                foreach ($services as $index => $row) {
-                    if (! is_array($row)) {
-                        continue;
-                    }
-
-                    $this->requireSurveyRowField(
-                        $validator,
-                        $row,
-                        "systemDevelopmentSurvey.servicesOrFeatures.{$index}.serviceFeature",
-                        'serviceFeature',
-                        'Service/Feature is required.',
-                    );
-                    $this->requireSurveyRowField(
-                        $validator,
-                        $row,
-                        "systemDevelopmentSurvey.servicesOrFeatures.{$index}.specifics",
-                        'specifics',
-                        'Specifics is required.',
-                    );
-                    $this->requireSurveyRowField(
-                        $validator,
-                        $row,
-                        "systemDevelopmentSurvey.servicesOrFeatures.{$index}.accessibility",
-                        'accessibility',
-                        'Accessibility is required.',
-                    );
-                }
-            }
-
-            $data = $survey['dataGathering'] ?? null;
-            if (! is_array($data) || count($data) === 0) {
-                $validator->errors()->add(
-                    'systemDevelopmentSurvey.dataGathering',
-                    'At least one data gathering entry is required.',
-                );
-            } else {
-                foreach ($data as $index => $row) {
-                    if (! is_array($row)) {
-                        continue;
-                    }
-
-                    $this->requireSurveyRowField(
-                        $validator,
-                        $row,
-                        "systemDevelopmentSurvey.dataGathering.{$index}.dataRequired",
-                        'dataRequired',
-                        'Data required is required.',
-                    );
-                    $this->requireSurveyRowField(
-                        $validator,
-                        $row,
-                        "systemDevelopmentSurvey.dataGathering.{$index}.specifics",
-                        'specifics',
-                        'Specifics is required.',
-                    );
-                }
             }
         });
     }
@@ -291,6 +258,10 @@ class StoreTicketRequestRequest extends FormRequest
             'officeDesignationId.required' => 'Please select an office designation.',
             'requestedForUserId.required' => 'Please select a user for this request.',
             'requestedForUserId.exists' => 'Please select a valid user for the selected office.',
+            'personalEmail.required' => 'Personal email is required for password reset/account recovery requests.',
+            'personalEmail.email' => 'Please enter a valid personal email address.',
+            'officeEmail.required' => 'Office email is required for system account creation requests.',
+            'officeEmail.email' => 'Please enter a valid office email address.',
             'qrCodeNumber.required' => 'QR Code Number is required when a QR code is provided.',
             'qrCodeNumber.regex' => 'QR Code Number must match MIS-UID-00000 format.',
             'description.min' => 'Description must be at least 10 characters.',
@@ -298,6 +269,36 @@ class StoreTicketRequestRequest extends FormRequest
             'systemDevelopmentSurveyFormAttachments.max' => 'You may upload up to 5 system development form attachments.',
             'systemIssueReportAttachments.max' => 'You may upload up to 5 system issue report attachments.',
         ];
+    }
+
+    private function isPasswordResetOrAccountRecovery(): bool
+    {
+        $natureId = $this->integer('natureOfRequestId');
+        if (! $natureId) {
+            return false;
+        }
+
+        $name = NatureOfRequest::query()
+            ->whereKey($natureId)
+            ->value('name');
+
+        return is_string($name)
+            && strtolower(trim($name)) === self::PASSWORD_RESET_ACCOUNT_RECOVERY_NATURE;
+    }
+
+    private function isSystemAccountCreation(): bool
+    {
+        $natureId = $this->integer('natureOfRequestId');
+        if (! $natureId) {
+            return false;
+        }
+
+        $name = NatureOfRequest::query()
+            ->whereKey($natureId)
+            ->value('name');
+
+        return is_string($name)
+            && strtolower(trim($name)) === self::SYSTEM_ACCOUNT_CREATION_NATURE;
     }
 
     private function isSystemDevelopment(): bool
@@ -425,35 +426,6 @@ class StoreTicketRequestRequest extends FormRequest
             'detailedDescriptionOfRequestedChange',
             'Detailed Description of the Requested Change is required.',
         );
-    }
-
-    /**
-     * @param  array<string, mixed>  $survey
-     */
-    private function requireSurveyField(Validator $validator, array $survey, string $key, string $message): void
-    {
-        $value = $survey[$key] ?? null;
-
-        if (! is_string($value) || trim($value) === '') {
-            $validator->errors()->add("systemDevelopmentSurvey.{$key}", $message);
-        }
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private function requireSurveyRowField(
-        Validator $validator,
-        array $row,
-        string $errorKey,
-        string $key,
-        string $message,
-    ): void {
-        $value = $row[$key] ?? null;
-
-        if (! is_string($value) || trim($value) === '') {
-            $validator->errors()->add($errorKey, $message);
-        }
     }
 
     /**

@@ -459,7 +459,7 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                             Services
                         </a>
                         <Link
-                            v-if="$page.props.auth.user"
+                            v-if="$page.props.auth?.user"
                             :href="dashboard()"
                             class="rounded-full border border-primary bg-primary px-4 py-2 text-primary-foreground transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         >
@@ -496,7 +496,7 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                         Services
                     </a>
                     <Link
-                        v-if="$page.props.auth.user"
+                        v-if="$page.props.auth?.user"
                         :href="dashboard()"
                         class="rounded-full border border-primary bg-primary px-3 py-1.5 text-primary-foreground transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >

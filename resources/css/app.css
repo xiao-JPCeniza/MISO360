@@ -182,7 +182,8 @@
         @apply border-border;
     }
     body {
-        @apply bg-background text-foreground transition-colors duration-200;
+        @apply min-h-screen bg-background text-foreground transition-colors duration-200;
+        overflow-x: hidden;
     }
     [data-sidebar='sidebar'] {
         --sidebar-background: hsl(210 20% 98%);

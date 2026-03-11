@@ -39,29 +39,8 @@ class TicketRequestSubmissionTest extends TestCase
                 'description' => 'Please help with a system development request.',
                 'hasQrCode' => true,
                 'qrCodeNumber' => 'MIS-UID-00001',
-                'systemDevelopmentSurvey' => [
-                    'titleOfProposedSystem' => 'Sample Proposed System',
-                    'servicesOrFeatures' => [
-                        [
-                            'serviceFeature' => 'User Management',
-                            'specifics' => 'Add roles and permissions.',
-                            'accessibility' => 'Admin/User View Only',
-                        ],
-                    ],
-                    'dataGathering' => [
-                        [
-                            'dataRequired' => 'Employee records',
-                            'specifics' => 'Name, ID number, office.',
-                        ],
-                    ],
-                    'forms' => [
-                        [
-                            'titleOfForm' => 'User Registration Form',
-                            'description' => 'Reference form for user onboarding.',
-                        ],
-                    ],
-                    'flowSop' => 'Requester submits -> IT reviews -> Approval -> Development',
-                    'headOfOffice' => 'Head of Office Name',
+                'systemDevelopmentSurveyFormAttachments' => [
+                    0 => UploadedFile::fake()->create('systems-development-survey.pdf', 100, 'application/pdf'),
                 ],
                 'attachments' => [
                     UploadedFile::fake()->image('photo.jpg')->size(512),
@@ -89,7 +68,7 @@ class TicketRequestSubmissionTest extends TestCase
         $this->assertTrue(Storage::disk('public')->exists($fileAttachment['path']));
     }
 
-    public function test_system_development_requires_survey_form(): void
+    public function test_system_development_requires_uploaded_form(): void
     {
         /** @var User $user */
         $user = User::factory()->create();
@@ -110,16 +89,16 @@ class TicketRequestSubmissionTest extends TestCase
                 'hasQrCode' => false,
             ])
             ->assertSessionHasErrors([
-                'systemDevelopmentSurvey',
+                'systemDevelopmentSurveyFormAttachments',
             ]);
     }
 
-    public function test_system_modification_requires_system_change_request_form(): void
+    public function test_system_modification_requires_system_change_request_form_upload(): void
     {
         /** @var User $user */
         $user = User::factory()->create();
         $natureOfRequest = NatureOfRequest::create([
-            'name' => 'System modification',
+            'name' => 'System Modification',
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
@@ -135,7 +114,7 @@ class TicketRequestSubmissionTest extends TestCase
                 'hasQrCode' => false,
             ])
             ->assertSessionHasErrors([
-                'systemChangeRequestForm',
+                'systemChangeRequestFormAttachments',
             ]);
     }
 
@@ -200,6 +179,112 @@ class TicketRequestSubmissionTest extends TestCase
                 'qrCodeNumber' => '',
             ])
             ->assertSessionHasErrors(['qrCodeNumber']);
+    }
+
+    public function test_password_reset_or_account_recovery_requires_personal_email(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Password reset or account recovery (gov mail)',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-0101', now()->format('Ymd'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'personalEmail' => '',
+                'description' => 'Password reset needed for my account.',
+                'hasQrCode' => false,
+            ])
+            ->assertSessionHasErrors(['personalEmail']);
+    }
+
+    public function test_password_reset_or_account_recovery_saves_personal_email(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Password reset or account recovery (gov mail)',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-0102', now()->format('Ymd'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'personalEmail' => 'personal@example.com',
+                'description' => 'Password reset needed for my account.',
+                'hasQrCode' => false,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('ticket_requests', [
+            'control_ticket_number' => $controlTicketNumber,
+            'personal_email' => 'personal@example.com',
+        ]);
+    }
+
+    public function test_system_account_creation_requires_office_email(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'System account creation',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-0201', now()->format('Ymd'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'officeEmail' => '',
+                'description' => 'Request for new system account.',
+                'hasQrCode' => false,
+            ])
+            ->assertSessionHasErrors(['officeEmail']);
+    }
+
+    public function test_system_account_creation_saves_office_email(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'System account creation',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-0202', now()->format('Ymd'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'officeEmail' => 'newuser@agency.gov.ph',
+                'description' => 'Request for new system account.',
+                'hasQrCode' => false,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('ticket_requests', [
+            'control_ticket_number' => $controlTicketNumber,
+            'office_email' => 'newuser@agency.gov.ph',
+        ]);
     }
 
     public function test_admin_can_submit_ticket_with_unit_qr_code(): void
@@ -387,6 +472,19 @@ class TicketRequestSubmissionTest extends TestCase
             ->first(fn (array $a) => ($a['type'] ?? null) === 'system_issue_report_attachment');
         $this->assertNotNull($screenshotAttachment);
         $this->assertTrue(Storage::disk('public')->exists($screenshotAttachment['path']));
+
+        $pdfPath = 'ticket-requests/system-issue-reports/generated/system-issue-report-'.$ticketRequest->id.'.pdf';
+        $this->assertTrue(Storage::disk('public')->exists($pdfPath));
+
+        $downloadResponse = $this->actingAs($user)
+            ->get(route('requests.system-issue-report.pdf', $ticketRequest));
+
+        $downloadResponse->assertOk();
+        $downloadResponse->assertHeader('content-type', 'application/pdf');
+        $this->assertStringContainsString(
+            'System-Issue-Report-'.$controlTicketNumber.'.pdf',
+            (string) $downloadResponse->headers->get('content-disposition', ''),
+        );
     }
 
     public function test_admin_submit_with_uid_creates_enrollment(): void

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { LogOut, Settings } from 'lucide-vue-next';
+import { LogOut, Moon, Settings } from 'lucide-vue-next';
 
 import {
     DropdownMenuGroup,
@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import UserInfo from '@/components/UserInfo.vue';
 import { logout } from '@/routes';
+import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
 
@@ -36,6 +37,12 @@ defineProps<Props>();
             <Link class="block w-full cursor-pointer" :href="edit()" prefetch>
                 <Settings class="mr-2 h-4 w-4" />
                 Settings
+            </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem :as-child="true">
+            <Link class="block w-full cursor-pointer" :href="editAppearance().url" prefetch>
+                <Moon class="mr-2 h-4 w-4" />
+                Appearance
             </Link>
         </DropdownMenuItem>
     </DropdownMenuGroup>

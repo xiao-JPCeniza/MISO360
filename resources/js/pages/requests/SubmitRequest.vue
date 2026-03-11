@@ -76,23 +76,14 @@ type SystemChangeRequestForm = {
     remarks: string;
 };
 
-const TYPE_OF_REQUEST_OPTIONS = [
-    'System Crash',
-    'Display Issue',
-    'Login Problem',
-    'Data Error',
-    'Slow Performance',
-    'Others',
-] as const;
-
-const NATURE_OF_APPOINTMENT_OPTIONS = [
-    'Permanent',
-    'Casual',
-    'J.O.',
-    'O.J.T/Intern',
-    'Co-Terminus',
-    'Others',
-] as const;
+/** URL to download the required Systems Development Survey Form (PDF). */
+const SYSTEMS_DEVELOPMENT_SURVEY_FORM_PDF_URL = '/storage/Forms/Systems%20Development%20Survey%20Form.pdf';
+/** URL to download the Access Rights Enrolment Form (PDF). */
+const ACCESS_RIGHTS_ENROLMENT_FORM_PDF_URL = '/storage/Forms/Access%20Rights%20Enrolment%20Form.pdf';
+/** URL to download the System Issue Report Form (PDF). */
+const SYSTEM_ISSUE_REPORT_FORM_PDF_URL = '/storage/Forms/System%20Issue%20Report%20Form.pdf';
+/** URL to download the System Change Request Form (PDF) for System Modification requests. */
+const SYSTEM_CHANGE_REQUEST_FORM_PDF_URL = '/storage/Forms/System%20Change%20Request%20Form.docx.pdf';
 
 type SystemIssueReport = {
     controlNumber: string;
@@ -152,11 +143,14 @@ const form = useForm({
     natureOfRequestId: validPreSelectedId,
     officeDesignationId: '',
     requestedForUserId: '',
+    personalEmail: '',
+    officeEmail: '',
     description: '',
     hasQrCode: false,
     qrCodeNumber: '',
     attachments: [] as File[],
     systemDevelopmentSurveyFormAttachments: {} as Record<string, File>,
+    systemChangeRequestFormAttachments: {} as Record<string, File>,
     systemDevelopmentSurvey: {
         titleOfProposedSystem: '',
         targetCompletion: '',
@@ -200,14 +194,12 @@ const form = useForm({
         errorSummaryTitle: '',
         detailedDescription: '',
     } as SystemIssueReport,
-    systemIssueReportAttachments: [] as File[],
 });
 
 const attachmentEntries = ref<AttachmentEntry[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
 const uploadError = ref('');
-const systemIssueUploadError = ref('');
 const descriptionTouched = ref(false);
 const submitAttempted = ref(false);
 
@@ -262,6 +254,17 @@ const isSystemDevelopment = computed(() => {
     return selectedNatureName.value.trim().toLowerCase() === 'system development';
 });
 
+const isAccessRightsEnrolment = computed(() => {
+    const normalized = selectedNatureName.value.trim().toLowerCase();
+    return (
+        normalized === 'rights enrollment form' ||
+        normalized === 'rights enrolment form' ||
+        normalized.includes('rights enrollment') ||
+        normalized.includes('rights enrolment') ||
+        normalized.includes('access rights')
+    );
+});
+
 const isSystemModification = computed(() => {
     return selectedNatureName.value.trim().toLowerCase() === 'system modification';
 });
@@ -270,161 +273,78 @@ const isSystemErrorBugReport = computed(() => {
     return selectedNatureName.value.trim().toLowerCase() === 'system error / bug report';
 });
 
-const surveyErrors = computed(() => {
+const isPasswordResetOrAccountRecovery = computed(() => {
+    const normalized = selectedNatureName.value.trim().toLowerCase();
+    return normalized.includes('password reset') || normalized.includes('account recovery');
+});
+
+const isSystemAccountCreation = computed(() => {
+    return selectedNatureName.value.trim().toLowerCase() === 'system account creation';
+});
+
+/** No longer used for System Development (upload-only workflow). */
+const surveyErrors = computed(() => ({}));
+
+const personalEmailError = computed(() => {
+    if (!isPasswordResetOrAccountRecovery.value) {
+        return '';
+    }
+    if (!submitAttempted.value) {
+        return '';
+    }
+    if (!form.personalEmail.trim()) {
+        return 'Personal email is required for password reset/account recovery requests.';
+    }
+    return '';
+});
+
+const officeEmailError = computed(() => {
+    if (!isSystemAccountCreation.value) {
+        return '';
+    }
+    if (!submitAttempted.value) {
+        return '';
+    }
+    if (!form.officeEmail.trim()) {
+        return 'Office email is required for system account creation requests.';
+    }
+    return '';
+});
+
+const systemDevelopmentFormUploadErrors = computed(() => {
     if (!submitAttempted.value || !isSystemDevelopment.value) {
         return {};
     }
-
-    const s = form.systemDevelopmentSurvey as SystemDevelopmentSurvey;
-    const errors: Record<string, string> = {};
-
-    if (!s.titleOfProposedSystem.trim()) {
-        errors['systemDevelopmentSurvey.titleOfProposedSystem'] =
-            'Title of Proposed System is required.';
+    const attachments = form.systemDevelopmentSurveyFormAttachments;
+    const hasFile = attachments && typeof attachments === 'object' && Object.keys(attachments).length > 0
+        && Object.values(attachments).some((v) => v instanceof File);
+    if (hasFile) {
+        return {};
     }
-    if (!s.flowSop.trim()) {
-        errors['systemDevelopmentSurvey.flowSop'] = 'Flow (SOP) is required.';
-    }
-    if (!s.headOfOffice.trim()) {
-        errors['systemDevelopmentSurvey.headOfOffice'] = 'Head of Office is required.';
-    }
-
-    if (!s.servicesOrFeatures.length) {
-        errors['systemDevelopmentSurvey.servicesOrFeatures'] =
-            'At least one service/feature entry is required.';
-    } else {
-        s.servicesOrFeatures.forEach((row, index) => {
-            if (!row.serviceFeature.trim()) {
-                errors[`systemDevelopmentSurvey.servicesOrFeatures.${index}.serviceFeature`] =
-                    'Service/Feature is required.';
-            }
-            if (!row.specifics.trim()) {
-                errors[`systemDevelopmentSurvey.servicesOrFeatures.${index}.specifics`] =
-                    'Specifics is required.';
-            }
-            if (!row.accessibility) {
-                errors[`systemDevelopmentSurvey.servicesOrFeatures.${index}.accessibility`] =
-                    'Accessibility is required.';
-            }
-        });
-    }
-
-    if (!s.dataGathering.length) {
-        errors['systemDevelopmentSurvey.dataGathering'] =
-            'At least one data gathering entry is required.';
-    } else {
-        s.dataGathering.forEach((row, index) => {
-            if (!row.dataRequired.trim()) {
-                errors[`systemDevelopmentSurvey.dataGathering.${index}.dataRequired`] =
-                    'Data required is required.';
-            }
-            if (!row.specifics.trim()) {
-                errors[`systemDevelopmentSurvey.dataGathering.${index}.specifics`] =
-                    'Specifics is required.';
-            }
-        });
-    }
-
-    return errors;
+    return {
+        'systemDevelopmentSurveyFormAttachments.0':
+            'Completed Systems Development Survey Form (PDF) is required. Download the form above, complete it offline, then upload it here.',
+    };
 });
 
-const systemChangeRequestErrors = computed(() => {
+const systemChangeRequestFormUploadErrors = computed(() => {
     if (!submitAttempted.value || !isSystemModification.value) {
         return {};
     }
-
-    const s = form.systemChangeRequestForm as SystemChangeRequestForm;
-    const errors: Record<string, string> = {};
-
-    if (!s.controlNumber.trim()) {
-        errors['systemChangeRequestForm.controlNumber'] = 'Control Number is required.';
-    }
-    if (!s.date) {
-        errors['systemChangeRequestForm.date'] = 'Date is required.';
-    }
-    if (!s.officeDivision.trim()) {
-        errors['systemChangeRequestForm.officeDivision'] = 'Office/Division is required.';
-    }
-    if (!s.requestedByName.trim()) {
-        errors['systemChangeRequestForm.requestedByName'] = 'Requested by (Name) is required.';
-    }
-    if (!s.nameOfSoftware.trim()) {
-        errors['systemChangeRequestForm.nameOfSoftware'] = 'Name of Software is required.';
-    }
-    if (!s.typeOfRequest.trim()) {
-        errors['systemChangeRequestForm.typeOfRequest'] = 'Type of Request is required.';
-    }
-    if (!s.descriptionOfRequest.trim()) {
-        errors['systemChangeRequestForm.descriptionOfRequest'] = 'Description of Request is required.';
-    } else if (s.descriptionOfRequest.trim().length < 10) {
-        errors['systemChangeRequestForm.descriptionOfRequest'] =
-            'Description must be at least 10 characters.';
-    } else if (s.descriptionOfRequest.trim().length > 1000) {
-        errors['systemChangeRequestForm.descriptionOfRequest'] =
-            'Description may not exceed 1000 characters.';
-    }
-    if (!s.purposeObjectiveOfModification.trim()) {
-        errors['systemChangeRequestForm.purposeObjectiveOfModification'] =
-            'Purpose/Objective of Modification is required.';
-    }
-    if (!s.detailedDescriptionOfRequestedChange.trim()) {
-        errors['systemChangeRequestForm.detailedDescriptionOfRequestedChange'] =
-            'Detailed Description of the Requested Change is required.';
-    }
-
-    return errors;
-});
-
-const systemIssueReportErrors = computed(() => {
-    if (!submitAttempted.value || !isSystemErrorBugReport.value) {
+    const attachments = form.systemChangeRequestFormAttachments;
+    const hasFile = attachments && typeof attachments === 'object' && Object.keys(attachments).length > 0
+        && Object.values(attachments).some((v) => v instanceof File);
+    if (hasFile) {
         return {};
     }
-
-    const s = form.systemIssueReport as SystemIssueReport;
-    const errors: Record<string, string> = {};
-
-    if (!s.controlNumber.trim()) {
-        errors['systemIssueReport.controlNumber'] = 'Control Number is required.';
-    }
-    if (!s.requestingDepartment.trim()) {
-        errors['systemIssueReport.requestingDepartment'] = 'Requesting Department is required.';
-    }
-    if (!s.dateFiled.trim()) {
-        errors['systemIssueReport.dateFiled'] = 'Date Filed is required.';
-    }
-    if (!s.requestingEmployee.trim()) {
-        errors['systemIssueReport.requestingEmployee'] = 'Requesting Employee is required.';
-    }
-    if (!s.employeeContactNo.trim()) {
-        errors['systemIssueReport.employeeContactNo'] = 'Employee Contact No. is required.';
-    }
-    if (!s.employeeId.trim()) {
-        errors['systemIssueReport.employeeId'] = 'Employee ID is required.';
-    }
-    if (!s.signatureOfEmployee.trim()) {
-        errors['systemIssueReport.signatureOfEmployee'] = 'Signature of Employee is required.';
-    }
-    if (!s.natureOfAppointment.trim()) {
-        errors['systemIssueReport.natureOfAppointment'] = 'Nature of Appointment is required.';
-    }
-    if (!s.nameOfSoftware.trim()) {
-        errors['systemIssueReport.nameOfSoftware'] = 'Name of Software is required.';
-    }
-    if (!Array.isArray(s.typeOfRequest) || s.typeOfRequest.length === 0) {
-        errors['systemIssueReport.typeOfRequest'] = 'At least one Type of Request must be selected.';
-    }
-    if (!s.errorSummaryTitle.trim()) {
-        errors['systemIssueReport.errorSummaryTitle'] = 'Error Summary/Title is required.';
-    }
-    if (!s.detailedDescription.trim()) {
-        errors['systemIssueReport.detailedDescription'] = 'Detailed Description is required.';
-    } else if (s.detailedDescription.trim().length < 10) {
-        errors['systemIssueReport.detailedDescription'] =
-            'Detailed Description must be at least 10 characters.';
-    }
-
-    return errors;
+    return {
+        'systemChangeRequestFormAttachments.0':
+            'Completed System Change Request Form (PDF) is required. Download the form above, complete it offline, then upload it here.',
+    };
 });
+
+/** System Issue Report in-page form removed; use download + description only. No validation. */
+const systemIssueReportErrors = computed(() => ({}));
 
 const filteredOfficeUsers = computed(() => {
     if (!form.officeDesignationId) {
@@ -454,20 +374,6 @@ watch(
 );
 
 watch(
-    () => form.requestedForUserId,
-    () => {
-        if (!props.isAdmin) {
-            return;
-        }
-
-        const selectedUser = props.officeUsers.find(
-            (u) => String(u.id) === String(form.requestedForUserId),
-        );
-        form.systemChangeRequestForm.requestedByName = selectedUser?.name ?? '';
-    },
-);
-
-watch(
     () => [form.officeDesignationId, form.requestedForUserId],
     () => {
         const officeName = props.officeOptions.find(
@@ -476,7 +382,6 @@ watch(
 
         if (props.isAdmin) {
             form.systemDevelopmentSurvey.officeEndUser = officeName ?? '';
-            form.systemChangeRequestForm.officeDivision = officeName ?? '';
         }
     },
 );
@@ -484,9 +389,22 @@ watch(
 watch(
     () => form.natureOfRequestId,
     () => {
+        form.personalEmail = '';
+        form.officeEmail = '';
+        form.clearErrors('personalEmail');
+        form.clearErrors('officeEmail');
         form.clearErrors('systemDevelopmentSurvey');
         form.clearErrors('systemChangeRequestForm');
         form.clearErrors('systemIssueReport');
+    },
+);
+
+watch(
+    () => isPasswordResetOrAccountRecovery.value,
+    (isRecovery) => {
+        if (isRecovery) {
+            form.description = 'Password reset or account recovery request.';
+        }
     },
 );
 
@@ -497,6 +415,10 @@ watch(
             return;
         }
 
+        attachmentEntries.value = [];
+        form.attachments = [];
+        uploadError.value = '';
+
         if (!props.isAdmin) {
             form.systemDevelopmentSurvey.assignedSystemsEngineer = '';
             form.systemDevelopmentSurvey.targetCompletion = '';
@@ -505,43 +427,9 @@ watch(
 );
 
 watch(
-    () => isSystemModification.value,
-    (enabled) => {
-        if (!enabled) {
-            return;
-        }
-
-        form.systemChangeRequestForm.controlNumber = props.controlTicketNumber;
-        form.systemChangeRequestForm.date = new Date().toISOString().slice(0, 10);
-
-        if (!props.isAdmin) {
-            form.systemChangeRequestForm.officeDivision = props.defaultOfficeDivision ?? '';
-            form.systemChangeRequestForm.requestedByName = props.requesterName ?? '';
-        }
-
-        if (!form.systemChangeRequestForm.descriptionOfRequest.trim() && form.description.trim()) {
-            form.systemChangeRequestForm.descriptionOfRequest = form.description;
-        }
-    },
-);
-
-watch(
-    () => form.systemChangeRequestForm.descriptionOfRequest,
-    (value) => {
-        if (!isSystemModification.value) {
-            return;
-        }
-
-        form.description = value;
-    },
-);
-
-watch(
     () => isSystemErrorBugReport.value,
     (enabled) => {
         if (!enabled) {
-            form.systemIssueReportAttachments = [];
-            systemIssueUploadError.value = '';
             return;
         }
         form.systemIssueReport.controlNumber = props.controlTicketNumber;
@@ -587,24 +475,6 @@ watch(
     },
 );
 
-watch(
-    () => form.systemIssueReport.errorSummaryTitle,
-    (value) => {
-        if (isSystemErrorBugReport.value && value.trim()) {
-            form.description = value.trim().length >= 10 ? value : `${value} ${form.systemIssueReport.detailedDescription}`.trim().slice(0, 1000);
-        }
-    },
-);
-watch(
-    () => form.systemIssueReport.detailedDescription,
-    (value) => {
-        if (isSystemErrorBugReport.value && form.systemIssueReport.errorSummaryTitle.trim()) {
-            const combined = `${form.systemIssueReport.errorSummaryTitle}\n\n${value}`.trim().slice(0, 1000);
-            form.description = combined.length >= 10 ? combined : form.systemIssueReport.errorSummaryTitle;
-        }
-    },
-);
-
 const acceptedTypes = [
     'image/jpeg',
     'image/png',
@@ -613,8 +483,6 @@ const acceptedTypes = [
     'video/quicktime',
 ];
 const acceptedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'mov'];
-const issueAcceptedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const issueAcceptedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
 const acceptAttribute = acceptedExtensions.map((ext) => `.${ext}`).join(',');
 
 function formatSize(size: number) {
@@ -676,48 +544,6 @@ function handleFiles(files: File[]) {
     }
 }
 
-function handleSystemIssueReportFiles(files: File[]) {
-    systemIssueUploadError.value = '';
-    form.clearErrors('systemIssueReportAttachments');
-
-    if (!files.length) {
-        form.systemIssueReportAttachments = [];
-        return;
-    }
-
-    const limitedFiles = files.slice(0, maxAttachments.value);
-    const rejected: string[] = [];
-    const accepted: File[] = [];
-
-    limitedFiles.forEach((file) => {
-        const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
-        const isValidType =
-            issueAcceptedTypes.includes(file.type) || issueAcceptedExtensions.includes(extension);
-
-        if (!isValidType) {
-            rejected.push(`${file.name} (unsupported format)`);
-            return;
-        }
-
-        if (file.size > maxSizeBytes.value) {
-            rejected.push(`${file.name} (exceeds ${props.maxAttachmentSizeMb} MB)`);
-            return;
-        }
-
-        accepted.push(file);
-    });
-
-    if (files.length > maxAttachments.value) {
-        rejected.push(`Only the first ${maxAttachments.value} files were considered.`);
-    }
-
-    if (rejected.length) {
-        systemIssueUploadError.value = rejected.join(', ');
-    }
-
-    form.systemIssueReportAttachments = accepted;
-}
-
 function onFileChange(event: Event) {
     const target = event.target as HTMLInputElement;
     const files = target.files ? Array.from(target.files) : [];
@@ -757,15 +583,24 @@ function submitTicket() {
 
     if (
         natureError.value ||
+        personalEmailError.value ||
+        officeEmailError.value ||
         descriptionError.value ||
         officeError.value ||
         requestedUserError.value ||
         Object.keys(surveyErrors.value).length > 0 ||
-        Object.keys(systemChangeRequestErrors.value).length > 0 ||
+        Object.keys(systemDevelopmentFormUploadErrors.value).length > 0 ||
+        Object.keys(systemChangeRequestFormUploadErrors.value).length > 0 ||
         Object.keys(systemIssueReportErrors.value).length > 0
     ) {
         if (natureError.value) {
             form.setError('natureOfRequestId', natureError.value);
+        }
+        if (personalEmailError.value) {
+            form.setError('personalEmail', personalEmailError.value);
+        }
+        if (officeEmailError.value) {
+            form.setError('officeEmail', officeEmailError.value);
         }
         if (descriptionError.value) {
             form.setError('description', descriptionError.value);
@@ -780,7 +615,10 @@ function submitTicket() {
         Object.entries(surveyErrors.value).forEach(([key, message]) => {
             form.setError(key as never, message);
         });
-        Object.entries(systemChangeRequestErrors.value).forEach(([key, message]) => {
+        Object.entries(systemDevelopmentFormUploadErrors.value).forEach(([key, message]) => {
+            form.setError(key as never, message);
+        });
+        Object.entries(systemChangeRequestFormUploadErrors.value).forEach(([key, message]) => {
             form.setError(key as never, message);
         });
         Object.entries(systemIssueReportErrors.value).forEach(([key, message]) => {
@@ -950,353 +788,121 @@ function submitTicket() {
                         </div>
 
                         <div
+                            v-if="isPasswordResetOrAccountRecovery"
+                            class="grid gap-3 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5"
+                        >
+                            <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                Personal Email (Required)
+                            </label>
+                            <input
+                                v-model="form.personalEmail"
+                                type="email"
+                                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                placeholder="you@example.com"
+                                required
+                            />
+                            <p v-if="form.errors.personalEmail || personalEmailError" class="text-xs text-destructive">
+                                {{ form.errors.personalEmail || personalEmailError }}
+                            </p>
+                            <p v-else class="text-xs text-muted-foreground">
+                                We’ll use this to verify and contact you for account recovery.
+                            </p>
+                        </div>
+
+                        <div
+                            v-if="isSystemAccountCreation"
+                            class="grid gap-3 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5"
+                        >
+                            <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                Office Email (Required)
+                            </label>
+                            <input
+                                v-model="form.officeEmail"
+                                type="email"
+                                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                placeholder="name@agency.gov.ph"
+                                required
+                            />
+                            <p v-if="form.errors.officeEmail || officeEmailError" class="text-xs text-destructive">
+                                {{ form.errors.officeEmail || officeEmailError }}
+                            </p>
+                            <p v-else class="text-xs text-muted-foreground">
+                                Enter the office or government email for the new account.
+                            </p>
+                        </div>
+
+                        <div
                             v-if="isSystemDevelopment"
                             class="grid gap-5 rounded-2xl border border-border bg-muted/20 p-5 dark:border-white/10 dark:bg-white/5"
                         >
-                            <div class="space-y-1">
+                            <div class="space-y-3">
                                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Systems Development Survey Form (Required)
                                 </p>
                                 <p class="text-sm text-muted-foreground">
-                                    This form must be completed before the ticket can be submitted.
+                                    Download the form below, complete it offline, then upload the completed form before submitting your request.
                                 </p>
+                                <a
+                                    :href="SYSTEMS_DEVELOPMENT_SURVEY_FORM_PDF_URL"
+                                    download
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
+                                >
+                                    Download Systems Development Survey Form (PDF)
+                                </a>
                             </div>
 
-                            <div class="grid gap-4 md:grid-cols-2">
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Title of Proposed System
-                                    </label>
-                                    <input
-                                        v-model="form.systemDevelopmentSurvey.titleOfProposedSystem"
-                                        type="text"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p v-if="form.errors['systemDevelopmentSurvey.titleOfProposedSystem']" class="text-xs text-destructive">
-                                        {{ form.errors['systemDevelopmentSurvey.titleOfProposedSystem'] }}
-                                    </p>
-                                </div>
-
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Target Completion (Admin Only)
-                                    </label>
-                                    <input
-                                        v-model="form.systemDevelopmentSurvey.targetCompletion"
-                                        type="date"
-                                        :readonly="!isAdmin"
-                                        :disabled="!isAdmin"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p v-if="!isAdmin" class="text-xs text-muted-foreground">
-                                        Assigned by admin/super admin during evaluation.
-                                    </p>
-                                </div>
-
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Assigned Systems Engineer (Admin Only)
-                                    </label>
-                                    <div class="grid gap-2">
-                                        <select
-                                            v-model="form.systemDevelopmentSurvey.assignedSystemsEngineer"
-                                            :disabled="!isAdmin"
-                                            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                        >
-                                            <option disabled value="">Select engineer</option>
-                                            <option
-                                                v-for="engineer in systemsEngineerOptions"
-                                                :key="engineer.id"
-                                                :value="engineer.name"
-                                            >
-                                                {{ engineer.name }}
-                                            </option>
-                                        </select>
-                                    </div>
-                                    <p v-if="!isAdmin" class="text-xs text-muted-foreground">
-                                        Assigned by admin/super admin during evaluation.
-                                    </p>
-                                </div>
-
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Office End-User (Auto)
-                                    </label>
-                                    <input
-                                        v-model="form.systemDevelopmentSurvey.officeEndUser"
-                                        type="text"
-                                        readonly
-                                        class="h-9 w-full cursor-not-allowed rounded-md border border-input bg-muted/40 px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
-                                    />
-                                    <p class="text-xs text-muted-foreground">
-                                        Automatically set to the requester’s office.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <div class="flex items-center justify-between gap-3">
-                                    <h2 class="text-sm font-semibold text-foreground">I. Services or Features</h2>
-                                    <button
-                                        type="button"
-                                        class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-muted/40 dark:border-white/10"
-                                        @click="form.systemDevelopmentSurvey.servicesOrFeatures.push({ serviceFeature: '', specifics: '', accessibility: '' })"
-                                    >
-                                        Add row
-                                    </button>
-                                </div>
-                                <div class="grid gap-3">
-                                    <div
-                                        v-for="(row, index) in form.systemDevelopmentSurvey.servicesOrFeatures"
-                                        :key="`sof-${index}`"
-                                        class="grid gap-3 rounded-xl border border-border bg-card p-4 dark:border-white/10"
-                                    >
-                                        <div class="grid gap-3 md:grid-cols-3">
-                                            <div class="grid gap-2">
-                                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                                    Service/Feature
-                                                </label>
-                                                <input
-                                                    v-model="row.serviceFeature"
-                                                    type="text"
-                                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                                />
-                                                <p
-                                                    v-if="form.errors[`systemDevelopmentSurvey.servicesOrFeatures.${index}.serviceFeature`]"
-                                                    class="text-xs text-destructive"
-                                                >
-                                                    {{ form.errors[`systemDevelopmentSurvey.servicesOrFeatures.${index}.serviceFeature`] }}
-                                                </p>
-                                            </div>
-                                            <div class="grid gap-2 md:col-span-2">
-                                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                                    Specifics
-                                                </label>
-                                                <input
-                                                    v-model="row.specifics"
-                                                    type="text"
-                                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                                />
-                                                <p
-                                                    v-if="form.errors[`systemDevelopmentSurvey.servicesOrFeatures.${index}.specifics`]"
-                                                    class="text-xs text-destructive"
-                                                >
-                                                    {{ form.errors[`systemDevelopmentSurvey.servicesOrFeatures.${index}.specifics`] }}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div class="grid gap-2 md:grid-cols-3">
-                                            <div class="grid gap-2">
-                                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                                    Accessibility
-                                                </label>
-                                                <select
-                                                    v-model="row.accessibility"
-                                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                                >
-                                                    <option disabled value="">Select</option>
-                                                    <option value="Public View">Public View</option>
-                                                    <option value="Admin/User View Only">Admin/User View Only</option>
-                                                </select>
-                                                <p
-                                                    v-if="form.errors[`systemDevelopmentSurvey.servicesOrFeatures.${index}.accessibility`]"
-                                                    class="text-xs text-destructive"
-                                                >
-                                                    {{ form.errors[`systemDevelopmentSurvey.servicesOrFeatures.${index}.accessibility`] }}
-                                                </p>
-                                            </div>
-                                            <div class="flex items-end justify-end md:col-span-2">
-                                                <button
-                                                    type="button"
-                                                    class="text-xs font-semibold uppercase tracking-[0.2em] text-destructive hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                                                    :disabled="form.systemDevelopmentSurvey.servicesOrFeatures.length <= 1"
-                                                    @click="form.systemDevelopmentSurvey.servicesOrFeatures.splice(index, 1)"
-                                                >
-                                                    Remove row
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <p v-if="form.errors['systemDevelopmentSurvey.servicesOrFeatures']" class="text-xs text-destructive">
-                                    {{ form.errors['systemDevelopmentSurvey.servicesOrFeatures'] }}
-                                </p>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <div class="flex items-center justify-between gap-3">
-                                    <h2 class="text-sm font-semibold text-foreground">II. Data Gathering</h2>
-                                    <button
-                                        type="button"
-                                        class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-muted/40 dark:border-white/10"
-                                        @click="form.systemDevelopmentSurvey.dataGathering.push({ dataRequired: '', specifics: '' })"
-                                    >
-                                        Add row
-                                    </button>
-                                </div>
-                                <div class="grid gap-3">
-                                    <div
-                                        v-for="(row, index) in form.systemDevelopmentSurvey.dataGathering"
-                                        :key="`dg-${index}`"
-                                        class="grid gap-3 rounded-xl border border-border bg-card p-4 dark:border-white/10"
-                                    >
-                                        <div class="grid gap-3 md:grid-cols-3">
-                                            <div class="grid gap-2">
-                                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                                    Data Required
-                                                </label>
-                                                <input
-                                                    v-model="row.dataRequired"
-                                                    type="text"
-                                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                                />
-                                                <p
-                                                    v-if="form.errors[`systemDevelopmentSurvey.dataGathering.${index}.dataRequired`]"
-                                                    class="text-xs text-destructive"
-                                                >
-                                                    {{ form.errors[`systemDevelopmentSurvey.dataGathering.${index}.dataRequired`] }}
-                                                </p>
-                                            </div>
-                                            <div class="grid gap-2 md:col-span-2">
-                                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                                    Specifics
-                                                </label>
-                                                <input
-                                                    v-model="row.specifics"
-                                                    type="text"
-                                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                                />
-                                                <p
-                                                    v-if="form.errors[`systemDevelopmentSurvey.dataGathering.${index}.specifics`]"
-                                                    class="text-xs text-destructive"
-                                                >
-                                                    {{ form.errors[`systemDevelopmentSurvey.dataGathering.${index}.specifics`] }}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-end justify-end">
-                                            <button
-                                                type="button"
-                                                class="text-xs font-semibold uppercase tracking-[0.2em] text-destructive hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                                                :disabled="form.systemDevelopmentSurvey.dataGathering.length <= 1"
-                                                @click="form.systemDevelopmentSurvey.dataGathering.splice(index, 1)"
-                                            >
-                                                Remove row
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <p v-if="form.errors['systemDevelopmentSurvey.dataGathering']" class="text-xs text-destructive">
-                                    {{ form.errors['systemDevelopmentSurvey.dataGathering'] }}
-                                </p>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <div class="flex items-center justify-between gap-3">
-                                    <h2 class="text-sm font-semibold text-foreground">III. Forms</h2>
-                                    <button
-                                        type="button"
-                                        class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-muted/40 dark:border-white/10"
-                                        @click="form.systemDevelopmentSurvey.forms.push({ titleOfForm: '', description: '' })"
-                                    >
-                                        Add row
-                                    </button>
-                                </div>
-                                <div class="grid gap-3">
-                                    <div
-                                        v-for="(row, index) in form.systemDevelopmentSurvey.forms"
-                                        :key="`forms-${index}`"
-                                        class="grid gap-3 rounded-xl border border-border bg-card p-4 dark:border-white/10"
-                                    >
-                                        <div class="grid gap-2">
-                                            <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                                Attachment (uploaded by the user)
-                                            </label>
-                                            <input
-                                                type="file"
-                                                class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
-                                                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp"
-                                                @change="(e) => {
-                                                    const target = e.target as HTMLInputElement;
-                                                    const file = target.files?.[0];
-                                                    if (file) {
-                                                        form.systemDevelopmentSurveyFormAttachments[String(index)] = file;
-                                                    } else {
-                                                        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-                                                        delete form.systemDevelopmentSurveyFormAttachments[String(index)];
-                                                    }
-                                                }"
-                                            />
-                                            <p v-if="form.errors[`systemDevelopmentSurveyFormAttachments.${index}`]" class="text-xs text-destructive">
-                                                {{ form.errors[`systemDevelopmentSurveyFormAttachments.${index}`] }}
-                                            </p>
-                                        </div>
-                                        <div class="grid gap-3 md:grid-cols-2">
-                                            <div class="grid gap-2">
-                                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                                    Title of Form
-                                                </label>
-                                                <input
-                                                    v-model="row.titleOfForm"
-                                                    type="text"
-                                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                                />
-                                            </div>
-                                            <div class="grid gap-2 md:col-span-2">
-                                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                                    Description
-                                                </label>
-                                                <textarea
-                                                    v-model="row.description"
-                                                    rows="2"
-                                                    class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div class="flex items-end justify-end">
-                                            <button
-                                                type="button"
-                                                class="text-xs font-semibold uppercase tracking-[0.2em] text-destructive hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                                                :disabled="form.systemDevelopmentSurvey.forms.length <= 1"
-                                                @click="() => {
-                                                    form.systemDevelopmentSurvey.forms.splice(index, 1);
-                                                    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-                                                    delete form.systemDevelopmentSurveyFormAttachments[String(index)];
-                                                }"
-                                            >
-                                                Remove row
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <h2 class="text-sm font-semibold text-foreground">IV. Flow (SOP)</h2>
-                                <textarea
-                                    v-model="form.systemDevelopmentSurvey.flowSop"
-                                    rows="4"
-                                    class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                            <div class="grid gap-2">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Upload completed form (required)
+                                </label>
+                                <input
+                                    type="file"
+                                    accept=".pdf"
+                                    class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
+                                    @change="(e) => {
+                                        const target = e.target as HTMLInputElement;
+                                        const file = target.files?.[0];
+                                        if (file) {
+                                            form.systemDevelopmentSurveyFormAttachments = { '0': file };
+                                        } else {
+                                            form.systemDevelopmentSurveyFormAttachments = {};
+                                        }
+                                    }"
                                 />
-                                <p v-if="form.errors['systemDevelopmentSurvey.flowSop']" class="text-xs text-destructive">
-                                    {{ form.errors['systemDevelopmentSurvey.flowSop'] }}
+                                <p
+                                    v-if="form.errors['systemDevelopmentSurveyFormAttachments'] || form.errors['systemDevelopmentSurveyFormAttachments.0'] || systemDevelopmentFormUploadErrors['systemDevelopmentSurveyFormAttachments.0']"
+                                    class="text-xs text-destructive"
+                                >
+                                    {{ form.errors['systemDevelopmentSurveyFormAttachments'] || form.errors['systemDevelopmentSurveyFormAttachments.0'] || systemDevelopmentFormUploadErrors['systemDevelopmentSurveyFormAttachments.0'] }}
+                                </p>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    Upload the completed PDF. Only PDF is accepted.
                                 </p>
                             </div>
+                        </div>
 
-                            <div class="grid gap-3 md:grid-cols-2">
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Head of Office
-                                    </label>
-                                    <input
-                                        v-model="form.systemDevelopmentSurvey.headOfOffice"
-                                        type="text"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p v-if="form.errors['systemDevelopmentSurvey.headOfOffice']" class="text-xs text-destructive">
-                                        {{ form.errors['systemDevelopmentSurvey.headOfOffice'] }}
-                                    </p>
-                                </div>
+                        <div
+                            v-if="isAccessRightsEnrolment"
+                            class="grid gap-5 rounded-2xl border border-border bg-muted/20 p-5 dark:border-white/10 dark:bg-white/5"
+                        >
+                            <div class="space-y-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Access Rights Enrolment Form (PDF)
+                                </p>
+                                <p class="text-sm text-muted-foreground">
+                                    Download the form below and complete it offline.
+                                </p>
+                                <a
+                                    :href="ACCESS_RIGHTS_ENROLMENT_FORM_PDF_URL"
+                                    download
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
+                                >
+                                    Download Access Rights Enrolment Form (PDF)
+                                </a>
                             </div>
                         </div>
 
@@ -1304,165 +910,50 @@ function submitTicket() {
                             v-if="isSystemModification"
                             class="grid gap-5 rounded-2xl border border-border bg-muted/20 p-5 dark:border-white/10 dark:bg-white/5"
                         >
-                            <div class="space-y-1">
+                            <div class="space-y-3">
                                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    System Change Request Form (Required)
+                                    System Modification Request – System Change Request Form (Required)
                                 </p>
                                 <p class="text-sm text-muted-foreground">
-                                    This form must be completed before the ticket can be submitted.
+                                    Download the form below, complete it offline, then upload the completed form before submitting your request.
                                 </p>
+                                <a
+                                    :href="SYSTEM_CHANGE_REQUEST_FORM_PDF_URL"
+                                    download
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
+                                >
+                                    Download System Change Request Form (PDF)
+                                </a>
                             </div>
 
-                            <div class="grid gap-4 md:grid-cols-2">
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Control Number
-                                    </label>
-                                    <input
-                                        v-model="form.systemChangeRequestForm.controlNumber"
-                                        type="text"
-                                        readonly
-                                        class="h-9 w-full rounded-md border border-input bg-input px-3 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p v-if="form.errors['systemChangeRequestForm.controlNumber']" class="text-xs text-destructive">
-                                        {{ form.errors['systemChangeRequestForm.controlNumber'] }}
-                                    </p>
-                                </div>
-
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Date
-                                    </label>
-                                    <input
-                                        v-model="form.systemChangeRequestForm.date"
-                                        type="date"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p v-if="form.errors['systemChangeRequestForm.date']" class="text-xs text-destructive">
-                                        {{ form.errors['systemChangeRequestForm.date'] }}
-                                    </p>
-                                </div>
-
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Office/Division
-                                    </label>
-                                    <input
-                                        v-model="form.systemChangeRequestForm.officeDivision"
-                                        type="text"
-                                        readonly
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p class="text-xs text-muted-foreground">
-                                        Automatically set to the requester’s office.
-                                    </p>
-                                    <p v-if="form.errors['systemChangeRequestForm.officeDivision']" class="text-xs text-destructive">
-                                        {{ form.errors['systemChangeRequestForm.officeDivision'] }}
-                                    </p>
-                                </div>
-
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Requested by (Name)
-                                    </label>
-                                    <input
-                                        v-model="form.systemChangeRequestForm.requestedByName"
-                                        type="text"
-                                        readonly
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p v-if="form.errors['systemChangeRequestForm.requestedByName']" class="text-xs text-destructive">
-                                        {{ form.errors['systemChangeRequestForm.requestedByName'] }}
-                                    </p>
-                                </div>
-
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Name of Software
-                                    </label>
-                                    <input
-                                        v-model="form.systemChangeRequestForm.nameOfSoftware"
-                                        type="text"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p v-if="form.errors['systemChangeRequestForm.nameOfSoftware']" class="text-xs text-destructive">
-                                        {{ form.errors['systemChangeRequestForm.nameOfSoftware'] }}
-                                    </p>
-                                </div>
-
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Type of Request
-                                    </label>
-                                    <input
-                                        v-model="form.systemChangeRequestForm.typeOfRequest"
-                                        type="text"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                        placeholder="e.g., Enhancement / Change / Fix"
-                                    />
-                                    <p v-if="form.errors['systemChangeRequestForm.typeOfRequest']" class="text-xs text-destructive">
-                                        {{ form.errors['systemChangeRequestForm.typeOfRequest'] }}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <div class="flex items-center justify-between">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Description of Request
-                                    </label>
-                                    <span class="text-xs text-muted-foreground">
-                                        {{ (form.systemChangeRequestForm.descriptionOfRequest ?? '').length }}/1000
-                                    </span>
-                                </div>
-                                <textarea
-                                    v-model="form.systemChangeRequestForm.descriptionOfRequest"
-                                    rows="4"
-                                    class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    placeholder="Describe what you want to change..."
-                                    @blur="descriptionTouched = true"
+                            <div class="grid gap-2">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Upload completed form (required)
+                                </label>
+                                <input
+                                    type="file"
+                                    accept=".pdf"
+                                    class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
+                                    @change="(e) => {
+                                        const target = e.target as HTMLInputElement;
+                                        const file = target.files?.[0];
+                                        if (file) {
+                                            form.systemChangeRequestFormAttachments = { '0': file };
+                                        } else {
+                                            form.systemChangeRequestFormAttachments = {};
+                                        }
+                                    }"
                                 />
                                 <p
-                                    v-if="form.errors['systemChangeRequestForm.descriptionOfRequest'] || form.errors.description"
+                                    v-if="form.errors['systemChangeRequestFormAttachments'] || form.errors['systemChangeRequestFormAttachments.0'] || systemChangeRequestFormUploadErrors['systemChangeRequestFormAttachments.0']"
                                     class="text-xs text-destructive"
                                 >
-                                    {{
-                                        form.errors['systemChangeRequestForm.descriptionOfRequest'] ||
-                                        form.errors.description
-                                    }}
+                                    {{ form.errors['systemChangeRequestFormAttachments'] || form.errors['systemChangeRequestFormAttachments.0'] || systemChangeRequestFormUploadErrors['systemChangeRequestFormAttachments.0'] }}
                                 </p>
                                 <p v-else class="text-xs text-muted-foreground">
-                                    Minimum 10 characters. Maximum 1000 characters.
-                                </p>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    Purpose/Objective of Modification
-                                </label>
-                                <textarea
-                                    v-model="form.systemChangeRequestForm.purposeObjectiveOfModification"
-                                    rows="3"
-                                    class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    placeholder="Explain why this modification is needed..."
-                                />
-                                <p v-if="form.errors['systemChangeRequestForm.purposeObjectiveOfModification']" class="text-xs text-destructive">
-                                    {{ form.errors['systemChangeRequestForm.purposeObjectiveOfModification'] }}
-                                </p>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    Detailed Description of the Requested Change
-                                </label>
-                                <textarea
-                                    v-model="form.systemChangeRequestForm.detailedDescriptionOfRequestedChange"
-                                    rows="5"
-                                    class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    placeholder="Be specific about what should be modified and how it should behave..."
-                                />
-                                <p v-if="form.errors['systemChangeRequestForm.detailedDescriptionOfRequestedChange']" class="text-xs text-destructive">
-                                    {{ form.errors['systemChangeRequestForm.detailedDescriptionOfRequestedChange'] }}
+                                    Upload the completed PDF. Only PDF is accepted.
                                 </p>
                             </div>
                         </div>
@@ -1476,266 +967,24 @@ function submitTicket() {
                                     System Issue Report Form (Required)
                                 </p>
                                 <p class="text-sm text-muted-foreground">
-                                    This form must be completed before the ticket can be submitted.
+                                    This form must be completed before the ticket can be submitted. You may download the PDF form below for reference.
                                 </p>
-                            </div>
-
-                            <div class="grid gap-4 md:grid-cols-2">
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Control Number
-                                    </label>
-                                    <input
-                                        v-model="form.systemIssueReport.controlNumber"
-                                        type="text"
-                                        readonly
-                                        class="h-9 w-full rounded-md border border-input bg-input px-3 text-sm font-semibold text-foreground"
-                                    />
-                                    <p v-if="form.errors['systemIssueReport.controlNumber']" class="text-xs text-destructive">
-                                        {{ form.errors['systemIssueReport.controlNumber'] }}
-                                    </p>
-                                </div>
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Requesting Department
-                                    </label>
-                                    <input
-                                        v-model="form.systemIssueReport.requestingDepartment"
-                                        type="text"
-                                        readonly
-                                        class="h-9 w-full rounded-md border border-input bg-muted/40 px-3 text-sm text-foreground"
-                                    />
-                                    <p v-if="form.errors['systemIssueReport.requestingDepartment']" class="text-xs text-destructive">
-                                        {{ form.errors['systemIssueReport.requestingDepartment'] }}
-                                    </p>
-                                </div>
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Date Filed
-                                    </label>
-                                    <input
-                                        v-model="form.systemIssueReport.dateFiled"
-                                        type="date"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p v-if="form.errors['systemIssueReport.dateFiled']" class="text-xs text-destructive">
-                                        {{ form.errors['systemIssueReport.dateFiled'] }}
-                                    </p>
-                                </div>
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Requesting Employee
-                                    </label>
-                                    <input
-                                        v-model="form.systemIssueReport.requestingEmployee"
-                                        type="text"
-                                        readonly
-                                        class="h-9 w-full rounded-md border border-input bg-muted/40 px-3 text-sm text-foreground"
-                                    />
-                                    <p v-if="form.errors['systemIssueReport.requestingEmployee']" class="text-xs text-destructive">
-                                        {{ form.errors['systemIssueReport.requestingEmployee'] }}
-                                    </p>
-                                </div>
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Employee Contact No.
-                                    </label>
-                                    <input
-                                        v-model="form.systemIssueReport.employeeContactNo"
-                                        type="text"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                        placeholder="e.g. 09XX XXX XXXX"
-                                    />
-                                    <p v-if="form.errors['systemIssueReport.employeeContactNo']" class="text-xs text-destructive">
-                                        {{ form.errors['systemIssueReport.employeeContactNo'] }}
-                                    </p>
-                                </div>
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Employee ID
-                                    </label>
-                                    <input
-                                        v-model="form.systemIssueReport.employeeId"
-                                        type="text"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p v-if="form.errors['systemIssueReport.employeeId']" class="text-xs text-destructive">
-                                        {{ form.errors['systemIssueReport.employeeId'] }}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <p class="text-xs text-muted-foreground">
-                                I understand that the information I have provided in this System Issue Report is accurate to the best of my knowledge. I acknowledge that the ICT Unit will review, verify, and prioritize the issue based on its severity and impact on operations.
-                            </p>
-                            <div class="grid gap-2">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    Signature of Employee
-                                </label>
-                                <input
-                                    v-model="form.systemIssueReport.signatureOfEmployee"
-                                    type="text"
-                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    placeholder="Full name of signatory"
-                                />
-                                <p v-if="form.errors['systemIssueReport.signatureOfEmployee']" class="text-xs text-destructive">
-                                    {{ form.errors['systemIssueReport.signatureOfEmployee'] }}
-                                </p>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    Nature of Appointment
-                                </label>
-                                <div class="flex flex-wrap gap-4">
-                                    <label
-                                        v-for="opt in NATURE_OF_APPOINTMENT_OPTIONS"
-                                        :key="opt"
-                                        class="flex cursor-pointer items-center gap-2 text-sm"
-                                    >
-                                        <input
-                                            v-model="form.systemIssueReport.natureOfAppointment"
-                                            type="radio"
-                                            :value="opt"
-                                            class="rounded border-input"
-                                        />
-                                        <span>{{ opt }}</span>
-                                    </label>
-                                </div>
-                                <div v-if="form.systemIssueReport.natureOfAppointment === 'Co-Terminus'" class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Co-Terminus until Date
-                                    </label>
-                                    <input
-                                        v-model="form.systemIssueReport.coTerminusUntilDate"
-                                        type="date"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                                    />
-                                </div>
-                                <div v-if="form.systemIssueReport.natureOfAppointment === 'Others'" class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Others, specify
-                                    </label>
-                                    <input
-                                        v-model="form.systemIssueReport.natureOfAppointmentOthersSpecify"
-                                        type="text"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                                    />
-                                </div>
-                                <p v-if="form.errors['systemIssueReport.natureOfAppointment']" class="text-xs text-destructive">
-                                    {{ form.errors['systemIssueReport.natureOfAppointment'] }}
-                                </p>
-                            </div>
-
-                            <div class="grid gap-4 md:grid-cols-2">
-                                <div class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Name of Software
-                                    </label>
-                                    <input
-                                        v-model="form.systemIssueReport.nameOfSoftware"
-                                        type="text"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    />
-                                    <p v-if="form.errors['systemIssueReport.nameOfSoftware']" class="text-xs text-destructive">
-                                        {{ form.errors['systemIssueReport.nameOfSoftware'] }}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    Type of Request
-                                </label>
-                                <div class="flex flex-wrap gap-4">
-                                    <label
-                                        v-for="opt in TYPE_OF_REQUEST_OPTIONS"
-                                        :key="opt"
-                                        class="flex cursor-pointer items-center gap-2 text-sm"
-                                    >
-                                        <input
-                                            v-model="form.systemIssueReport.typeOfRequest"
-                                            type="checkbox"
-                                            :value="opt"
-                                            class="rounded border-input"
-                                        />
-                                        <span>{{ opt }}</span>
-                                    </label>
-                                </div>
-                                <div v-if="form.systemIssueReport.typeOfRequest.includes('Others')" class="grid gap-2">
-                                    <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                        Others, specify
-                                    </label>
-                                    <input
-                                        v-model="form.systemIssueReport.typeOfRequestOthersSpecify"
-                                        type="text"
-                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                                    />
-                                </div>
-                                <p v-if="form.errors['systemIssueReport.typeOfRequest']" class="text-xs text-destructive">
-                                    {{ form.errors['systemIssueReport.typeOfRequest'] }}
-                                </p>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    Error Summary/Title (short description of the problem)
-                                </label>
-                                <input
-                                    v-model="form.systemIssueReport.errorSummaryTitle"
-                                    type="text"
-                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    placeholder="Brief title of the error"
-                                />
-                                <p v-if="form.errors['systemIssueReport.errorSummaryTitle']" class="text-xs text-destructive">
-                                    {{ form.errors['systemIssueReport.errorSummaryTitle'] }}
-                                </p>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    Detailed Description (steps before the error, error message if any)
-                                </label>
-                                <textarea
-                                    v-model="form.systemIssueReport.detailedDescription"
-                                    rows="5"
-                                    class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    placeholder="Describe what happened, steps before the error appeared, and error message if any."
-                                />
-                                <p v-if="form.errors['systemIssueReport.detailedDescription']" class="text-xs text-destructive">
-                                    {{ form.errors['systemIssueReport.detailedDescription'] }}
-                                </p>
-                            </div>
-
-                            <div class="grid gap-3">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    Screenshot / Attachment (supporting evidence)
-                                </label>
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept=".jpg,.jpeg,.png,.webp,.pdf"
-                                    class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
-                                    @change="(e) => {
-                                        const target = e.target as HTMLInputElement;
-                                        const files = target.files ? Array.from(target.files) : [];
-                                        handleSystemIssueReportFiles(files);
-                                        target.value = '';
-                                    }"
-                                />
-                                <p v-if="form.systemIssueReportAttachments.length" class="text-xs text-muted-foreground">
-                                    {{ form.systemIssueReportAttachments.length }} file(s) selected.
-                                </p>
-                                <p v-if="systemIssueUploadError" class="text-xs text-destructive">
-                                    {{ systemIssueUploadError }}
-                                </p>
-                                <p v-if="form.errors['systemIssueReportAttachments']" class="text-xs text-destructive">
-                                    {{ form.errors['systemIssueReportAttachments'] }}
-                                </p>
+                                <a
+                                    :href="SYSTEM_ISSUE_REPORT_FORM_PDF_URL"
+                                    download
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
+                                >
+                                    Download System Issue Report Form (PDF)
+                                </a>
                             </div>
                         </div>
 
-                        <div v-if="!isSystemModification && !isSystemErrorBugReport" class="grid gap-3">
+                        <div
+                            v-if="!isSystemModification && !isPasswordResetOrAccountRecovery"
+                            class="grid gap-3"
+                        >
                             <div class="flex items-center justify-between">
                                 <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Description of Request
@@ -1759,7 +1008,7 @@ function submitTicket() {
                             </p>
                         </div>
 
-                        <div class="grid gap-3">
+                        <div v-if="!isSystemDevelopment && !isPasswordResetOrAccountRecovery" class="grid gap-3">
                             <div class="flex items-center justify-between">
                                 <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Upload Photo/Videos Here (optional)

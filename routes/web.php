@@ -84,6 +84,10 @@ Route::middleware([
         Route::get('admin/reports/nature-of-requests', NatureOfRequestsReportController::class)
             ->middleware('super_admin')
             ->name('admin.reports.nature-of-requests');
+
+        Route::get('admin/dashboard/nature-monthly-summary-export', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'exportNatureOfRequestsMonthlySummary'])
+            ->middleware('super_admin')
+            ->name('admin.dashboard.nature-monthly-summary-export');
     });
 
     Route::get('admin/enrollments/create', [EnrollmentController::class, 'create'])
@@ -208,6 +212,8 @@ Route::middleware([
     Route::post('submit-request', [TicketRequestController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('submit-request.store');
+    Route::get('requests/{ticketRequest}/system-issue-report/pdf', [TicketRequestController::class, 'downloadSystemIssueReportPdf'])
+        ->name('requests.system-issue-report.pdf');
     Route::get('requests/{ticketRequest}', [TicketRequestController::class, 'show'])
         ->name('requests.show');
 

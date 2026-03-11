@@ -13,14 +13,19 @@ use App\Models\TicketEnrollment;
 use App\Models\TicketRequest;
 use App\Models\User;
 use App\Services\AuditLogger;
+use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options as DompdfOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class TicketRequestController extends Controller
 {
@@ -230,26 +235,26 @@ class TicketRequestController extends Controller
             ->whereKey($requestedForUserId)
             ->value('name');
 
-        if (is_array($survey)) {
-            // Office End-User is the office of the requester (not editable).
-            if (is_string($officeName) && trim($officeName) !== '') {
-                $survey['officeEndUser'] = $officeName;
+        // System Development now uses upload-only workflow (no survey payload).
+
+        if ($request->hasFile('systemChangeRequestFormAttachments')) {
+            $files = $request->file('systemChangeRequestFormAttachments', []);
+            $files = is_array($files) ? $files : [$files];
+            foreach ($files as $file) {
+                if (! $file || ! $file->isValid()) {
+                    continue;
+                }
+                $path = $file->store('ticket-requests/system-change-request-forms', 'public');
+                $attachments[] = [
+                    'type' => 'system_change_request_form_attachment',
+                    'path' => $path,
+                    'name' => $file->getClientOriginalName(),
+                    'size' => $file->getSize() ?: 0,
+                    'mime' => $file->getMimeType() ?: 'application/octet-stream',
+                ];
             }
-
-            // Assigned engineer + target completion are admin-managed.
-            if (! $isAdmin) {
-                $survey['assignedSystemsEngineer'] = null;
-                $survey['targetCompletion'] = null;
-            }
-
-            array_unshift($attachments, [
-                'type' => 'system_development_survey',
-                'payload' => $survey,
-            ]);
-        }
-
-        if (is_array($systemChangeRequestForm)) {
-            // Mirror the header fields to the ticket context (server truth).
+        } elseif (is_array($systemChangeRequestForm)) {
+            // Legacy: fillable form data (no longer used in UI).
             $systemChangeRequestForm['controlNumber'] = $resolvedControlTicketNumber;
             if (is_string($officeName) && trim($officeName) !== '') {
                 $systemChangeRequestForm['officeDivision'] = $officeName;
@@ -358,6 +363,8 @@ class TicketRequestController extends Controller
         $ticketRequest = TicketRequest::create([
             'control_ticket_number' => $resolvedControlTicketNumber,
             'nature_of_request_id' => (int) $validated['natureOfRequestId'],
+            'personal_email' => $validated['personalEmail'] ?? null,
+            'office_email' => $validated['officeEmail'] ?? null,
             'description' => $validated['description'],
             'has_qr_code' => $allowUnitQr && (bool) $validated['hasQrCode'],
             'qr_code_number' => $qrCodeNumber,
@@ -372,12 +379,53 @@ class TicketRequestController extends Controller
         }
 
         if (is_array($systemIssueReport)) {
+            $issueReportAttachments = collect($attachments)
+                ->filter(fn (mixed $attachment): bool => is_array($attachment)
+                    && ($attachment['type'] ?? null) === 'system_issue_report_attachment')
+                ->values()
+                ->all();
+            $this->generateAndStoreSystemIssueReportPdf($ticketRequest, $systemIssueReport, $issueReportAttachments);
+
             $auditLogger->log($request, 'ticket_request.system_issue_report.submitted', $ticketRequest, [
                 'control_ticket_number' => $ticketRequest->control_ticket_number,
             ]);
         }
 
         return redirect()->route('requests.show', $ticketRequest);
+    }
+
+    public function downloadSystemIssueReportPdf(Request $request, TicketRequest $ticketRequest)
+    {
+        $user = $request->user();
+        if (! $user) {
+            abort(401, 'Authentication required.');
+        }
+        if (! $user->isAdmin() && $ticketRequest->user_id !== $user->id && $ticketRequest->requested_for_user_id !== $user->id) {
+            abort(403, 'You do not have permission to download this report.');
+        }
+
+        [, , , $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(
+            is_array($ticketRequest->attachments) ? $ticketRequest->attachments : [],
+        );
+
+        if (! is_array($systemIssueReport)) {
+            abort(404, 'System issue report data was not found for this request.');
+        }
+
+        $disk = Storage::disk('public');
+        $pdfPath = $this->systemIssueReportPdfPath($ticketRequest);
+        if (! $disk->exists($pdfPath)) {
+            $this->generateAndStoreSystemIssueReportPdf($ticketRequest, $systemIssueReport, $issueReportAttachments);
+        }
+        if (! $disk->exists($pdfPath)) {
+            abort(500, 'Unable to generate the system issue report PDF at this time.');
+        }
+
+        return $disk->download(
+            $pdfPath,
+            $this->systemIssueReportPdfFilename($ticketRequest),
+            ['Content-Type' => 'application/pdf'],
+        );
     }
 
     public function show(Request $request, TicketRequest $ticketRequest)
@@ -421,6 +469,9 @@ class TicketRequestController extends Controller
                 'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
                 'systemChangeRequestForm' => $systemChangeRequestForm,
                 'systemIssueReport' => $systemIssueReport,
+                'systemIssueReportPdfUrl' => is_array($systemIssueReport)
+                    ? route('requests.system-issue-report.pdf', $ticketRequest)
+                    : null,
                 'systemIssueReportAttachments' => collect($issueReportAttachments)
                     ->map(fn (array $a) => [
                         'name' => $a['name'] ?? basename($a['path'] ?? ''),
@@ -476,6 +527,9 @@ class TicketRequestController extends Controller
             'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
             'systemChangeRequestForm' => $systemChangeRequestForm,
             'systemIssueReport' => $systemIssueReport,
+            'systemIssueReportPdfUrl' => is_array($systemIssueReport)
+                ? route('requests.system-issue-report.pdf', $ticketRequest)
+                : null,
             'systemIssueReportAttachments' => collect($issueReportAttachments)
                 ->map(fn (array $a) => [
                     'name' => $a['name'] ?? basename($a['path'] ?? ''),
@@ -752,6 +806,9 @@ class TicketRequestController extends Controller
             'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
             'systemChangeRequestForm' => $systemChangeRequestForm,
             'systemIssueReport' => $systemIssueReport,
+            'systemIssueReportPdfUrl' => is_array($systemIssueReport)
+                ? route('requests.system-issue-report.pdf', $ticketRequest)
+                : null,
             'systemIssueReportAttachments' => collect($issueReportAttachments)
                 ->map(fn (array $a) => [
                     'name' => $a['name'] ?? basename($a['path'] ?? ''),
@@ -1052,6 +1109,227 @@ class TicketRequestController extends Controller
         ]);
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $issueReportAttachments
+     */
+    private function generateAndStoreSystemIssueReportPdf(
+        TicketRequest $ticketRequest,
+        array $systemIssueReport,
+        array $issueReportAttachments,
+    ): void {
+        try {
+            $pdfBinary = $this->renderSystemIssueReportPdf(
+                $this->buildSystemIssueReportPdfViewData($ticketRequest, $systemIssueReport, $issueReportAttachments),
+            );
+
+            Storage::disk('public')->put($this->systemIssueReportPdfPath($ticketRequest), $pdfBinary);
+        } catch (Throwable $exception) {
+            Log::error('Failed to generate system issue report PDF.', [
+                'ticket_request_id' => $ticketRequest->id,
+                'control_ticket_number' => $ticketRequest->control_ticket_number,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $viewData
+     */
+    private function renderSystemIssueReportPdf(array $viewData): string
+    {
+        $html = view('pdf.system-issue-report', $viewData)->render();
+
+        $options = new DompdfOptions;
+        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        // 8x13 inches (points: 72 per inch) to match the official form paper size.
+        $dompdf->setPaper([0, 0, 576, 936], 'portrait');
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->render();
+
+        return $dompdf->output();
+    }
+
+    /**
+     * @param  array<string, mixed>  $systemIssueReport
+     * @param  array<int, array<string, mixed>>  $issueReportAttachments
+     * @return array<string, mixed>
+     */
+    private function buildSystemIssueReportPdfViewData(
+        TicketRequest $ticketRequest,
+        array $systemIssueReport,
+        array $issueReportAttachments,
+    ): array {
+        $typeOfRequestSelections = collect(Arr::wrap($systemIssueReport['typeOfRequest'] ?? []))
+            ->filter(fn (mixed $value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn (string $value): string => trim($value))
+            ->values()
+            ->all();
+
+        $attachmentRows = collect($issueReportAttachments)
+            ->map(function (array $attachment): string {
+                $name = (string) ($attachment['name'] ?? basename((string) ($attachment['path'] ?? '')));
+                $size = $this->formatAttachmentSize($attachment['size'] ?? null);
+
+                if ($size !== '') {
+                    return $name.' ('.$size.')';
+                }
+
+                return $name;
+            })
+            ->values()
+            ->all();
+
+        $attachmentPreviews = collect($issueReportAttachments)
+            ->filter(function (array $attachment): bool {
+                $mime = strtolower((string) ($attachment['mime'] ?? ''));
+                $name = strtolower((string) ($attachment['name'] ?? ''));
+
+                return str_starts_with($mime, 'image/')
+                    || str_ends_with($name, '.jpg')
+                    || str_ends_with($name, '.jpeg')
+                    || str_ends_with($name, '.png')
+                    || str_ends_with($name, '.webp');
+            })
+            ->take(3)
+            ->map(function (array $attachment): ?array {
+                $path = (string) ($attachment['path'] ?? '');
+                if ($path === '') {
+                    return null;
+                }
+                $dataUri = $this->publicFileToDataUri($path);
+                if (! $dataUri) {
+                    return null;
+                }
+
+                return [
+                    'name' => (string) ($attachment['name'] ?? basename($path)),
+                    'dataUri' => $dataUri,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        return [
+            'headerImage' => $this->publicFileToDataUri('Header/Footer/miso header.png'),
+            'footerImage' => $this->publicFileToDataUri('Header/Footer/miso footer.png'),
+            'controlNumber' => (string) ($systemIssueReport['controlNumber'] ?? $ticketRequest->control_ticket_number),
+            'requestingDepartment' => (string) ($systemIssueReport['requestingDepartment'] ?? ''),
+            'dateFiled' => $this->formatHumanDate($systemIssueReport['dateFiled'] ?? $ticketRequest->created_at?->toDateString()),
+            'requestingEmployee' => (string) ($systemIssueReport['requestingEmployee'] ?? ''),
+            'employeeContactNo' => (string) ($systemIssueReport['employeeContactNo'] ?? ''),
+            'employeeId' => (string) ($systemIssueReport['employeeId'] ?? ''),
+            'signatureOfEmployee' => (string) ($systemIssueReport['signatureOfEmployee'] ?? ''),
+            'natureOfAppointment' => (string) ($systemIssueReport['natureOfAppointment'] ?? ''),
+            'natureOfAppointmentOthersSpecify' => (string) ($systemIssueReport['natureOfAppointmentOthersSpecify'] ?? ''),
+            'coTerminusUntilDate' => $this->formatHumanDate($systemIssueReport['coTerminusUntilDate'] ?? ''),
+            'nameOfSoftware' => (string) ($systemIssueReport['nameOfSoftware'] ?? ''),
+            'typeOfRequestSelections' => $typeOfRequestSelections,
+            'typeOfRequestOthersSpecify' => (string) ($systemIssueReport['typeOfRequestOthersSpecify'] ?? ''),
+            'errorSummaryTitle' => (string) ($systemIssueReport['errorSummaryTitle'] ?? ''),
+            'detailedDescription' => (string) ($systemIssueReport['detailedDescription'] ?? ''),
+            'attachmentRows' => $attachmentRows,
+            'attachmentPreviews' => $attachmentPreviews,
+            'reportedBy' => (string) ($systemIssueReport['reportedBy'] ?? ''),
+            'reportedByDate' => $this->formatHumanDate($systemIssueReport['reportedByDate'] ?? ''),
+            'reportedBySignature' => (string) ($systemIssueReport['reportedBySignature'] ?? ''),
+            'acceptedBy' => (string) ($systemIssueReport['acceptedBy'] ?? ''),
+            'acceptedByDate' => $this->formatHumanDate($systemIssueReport['acceptedByDate'] ?? ''),
+            'acceptedBySignature' => (string) ($systemIssueReport['acceptedBySignature'] ?? ''),
+            'evaluatedBy' => (string) ($systemIssueReport['evaluatedBy'] ?? ''),
+            'evaluatedByDate' => $this->formatHumanDate($systemIssueReport['evaluatedByDate'] ?? ''),
+            'evaluatedBySignature' => (string) ($systemIssueReport['evaluatedBySignature'] ?? ''),
+            'approvedBy' => (string) ($systemIssueReport['approvedBy'] ?? ''),
+            'approvedByDate' => $this->formatHumanDate($systemIssueReport['approvedByDate'] ?? ''),
+            'approvedBySignature' => (string) ($systemIssueReport['approvedBySignature'] ?? ''),
+            'natureOptions' => [
+                'Permanent',
+                'Casual',
+                'J.O.',
+                'O.J.T/Intern',
+                'Co-Terminus',
+                'Others',
+            ],
+            'typeRequestOptions' => [
+                'System Crash',
+                'Display Issue',
+                'Login Problem',
+                'Data Error',
+                'Slow Performance',
+                'Others',
+            ],
+            'generatedAt' => now()->format('F d, Y h:i A'),
+        ];
+    }
+
+    private function systemIssueReportPdfPath(TicketRequest $ticketRequest): string
+    {
+        return 'ticket-requests/system-issue-reports/generated/system-issue-report-'.$ticketRequest->id.'.pdf';
+    }
+
+    private function systemIssueReportPdfFilename(TicketRequest $ticketRequest): string
+    {
+        $safeControlNumber = preg_replace('/[^A-Za-z0-9\-]/', '-', $ticketRequest->control_ticket_number) ?: 'ticket';
+
+        return 'System-Issue-Report-'.$safeControlNumber.'.pdf';
+    }
+
+    private function publicFileToDataUri(string $path): ?string
+    {
+        $disk = Storage::disk('public');
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        $content = $disk->get($path);
+        if ($content === '') {
+            return null;
+        }
+
+        $mime = $disk->mimeType($path) ?: 'application/octet-stream';
+
+        return 'data:'.$mime.';base64,'.base64_encode($content);
+    }
+
+    private function formatHumanDate(mixed $value): string
+    {
+        if (! is_string($value)) {
+            return '';
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        try {
+            return Carbon::parse($trimmed)->format('F d, Y');
+        } catch (Throwable) {
+            return $trimmed;
+        }
+    }
+
+    private function formatAttachmentSize(mixed $bytes): string
+    {
+        if (! is_numeric($bytes) || (float) $bytes <= 0) {
+            return '';
+        }
+
+        $size = (float) $bytes;
+        if ($size < 1024) {
+            return (string) ((int) $size).' B';
+        }
+        if ($size < (1024 * 1024)) {
+            return number_format($size / 1024, 1).' KB';
+        }
+
+        return number_format($size / (1024 * 1024), 1).' MB';
+    }
+
     private function generateControlTicketNumber(): string
     {
         $date = now()->format('Ymd');
@@ -1299,6 +1577,13 @@ class TicketRequestController extends Controller
         $ticketRequest->update([
             'attachments' => $attachments,
         ]);
+
+        $issueReportAttachments = collect($attachments)
+            ->filter(fn (mixed $attachment): bool => is_array($attachment)
+                && ($attachment['type'] ?? null) === 'system_issue_report_attachment')
+            ->values()
+            ->all();
+        $this->generateAndStoreSystemIssueReportPdf($ticketRequest, $formPayload, $issueReportAttachments);
 
         $auditLogger->log($request, 'ticket_request.system_issue_report.staff_updated', $ticketRequest, [
             'control_ticket_number' => $ticketRequest->control_ticket_number,

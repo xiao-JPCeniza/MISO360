@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\Role;
 use App\Exports\ArchivedRequestsExport;
+use App\Exports\NatureOfRequestsMonthlySummaryExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ExportArchivedRequestsRequest;
+use App\Http\Requests\Admin\ExportNatureOfRequestsMonthlySummaryRequest;
 use App\Models\IssuedUid;
 use App\Models\TicketRequest;
 use App\Models\User;
 use App\Services\AuditLogger;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -149,6 +152,30 @@ class AdminDashboardController extends Controller
         $filename = 'archived-requests-'.now()->format('Y-m-d-His').'.xlsx';
 
         return (new ArchivedRequestsExport($query))->download($filename);
+    }
+
+    /**
+     * Export a monthly summary (by Nature of Request) to Excel.
+     * Super Admin only; audited; defaults to current year.
+     */
+    public function exportNatureOfRequestsMonthlySummary(
+        ExportNatureOfRequestsMonthlySummaryRequest $request,
+        AuditLogger $auditLogger
+    ): BinaryFileResponse {
+        $year = (int) ($request->input('year') ?: now()->year);
+
+        $from = CarbonImmutable::create($year, 1, 1, 0, 0, 0);
+        $to = CarbonImmutable::create($year, 12, 31, 23, 59, 59);
+
+        $auditLogger->log($request, 'admin.nature_monthly_summary_export.download', null, [
+            'year' => $year,
+        ]);
+
+        $filename = 'nature-of-requests-summary-'.$year.'-'.now()->format('Y-m-d-His').'.xlsx';
+
+        $user = $request->user();
+
+        return (new NatureOfRequestsMonthlySummaryExport($from, $to, $user, $user))->download($filename);
     }
 
     /**

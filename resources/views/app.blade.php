@@ -9,12 +9,14 @@
         <script>
             (function() {
                 const appearance = '{{ $appearance ?? "system" }}';
+                const root = document.documentElement;
 
                 if (appearance === 'system') {
                     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    document.documentElement.classList.toggle('dark', prefersDark);
+                    root.classList.toggle('dark', prefersDark);
+                } else {
+                    root.classList.toggle('dark', appearance === 'dark');
                 }
-                // When appearance is 'light' or 'dark', the server already set the class via @class below.
             })();
         </script>
 

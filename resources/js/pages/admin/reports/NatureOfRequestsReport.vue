@@ -2,8 +2,8 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-import AppLayout from '@/layouts/AppLayout.vue';
 import Icon from '@/components/Icon.vue';
+import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 
 type Month = {

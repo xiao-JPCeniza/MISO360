@@ -183,8 +183,8 @@ const filteredRequests = computed(() => {
     <Head :title="pageTitle" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div v-if="props.isAdmin" class="flex flex-1 flex-col bg-background p-5 sm:p-6">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div v-if="props.isAdmin" class="flex min-h-0 flex-1 flex-col bg-background p-5 sm:p-6">
+            <div class="shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <Link
                     href="/requests/archive"
                     class="inline-flex w-fit items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition hover:bg-muted dark:border-white/20 dark:hover:bg-white/10"
@@ -206,13 +206,13 @@ const filteredRequests = computed(() => {
                     />
                 </label>
             </div>
-            <p class="mt-1 text-[11px] text-muted-foreground">
+            <p class="mt-1 shrink-0 text-[11px] text-muted-foreground">
                 Showing {{ filteredRequests.length }} of {{ props.requests.length }} active requests (most recent 20, FIFO).
             </p>
 
-            <div class="mt-3 rounded-md border border-border bg-card shadow-sm dark:border-white/10">
-                <div class="max-h-[560px] overflow-auto">
-                    <table class="w-full min-w-[980px] text-[11px] text-foreground">
+            <div class="mt-3 flex min-h-0 flex-1 flex-col w-full rounded-md border border-border bg-card shadow-sm dark:border-white/10">
+                <div class="min-h-0 flex-1 w-full overflow-auto">
+                    <table class="w-full min-w-full table-fixed text-[11px] text-foreground">
                         <thead class="border-b border-border bg-muted/50 text-[11px] uppercase text-foreground dark:border-white/10 dark:bg-white/5">
                             <tr>
                                 <th colspan="11" class="px-3 py-2 text-center text-xs font-semibold">
@@ -327,8 +327,8 @@ const filteredRequests = computed(() => {
             </div>
         </div>
 
-        <div v-else class="flex flex-1 flex-col gap-5 p-6">
-            <div class="flex flex-col gap-3">
+        <div v-else class="flex min-h-0 flex-1 flex-col gap-5 p-6">
+            <div class="shrink-0 flex flex-col gap-3">
                 <div>
                     <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                         {{ pageTitle }}
@@ -368,9 +368,9 @@ const filteredRequests = computed(() => {
                 </div>
             </div>
 
-            <div class="rounded-2xl border border-sidebar-border/60 bg-background shadow-sm">
-                <div class="max-h-[560px] overflow-auto">
-                    <table class="w-full min-w-[1200px] text-sm">
+            <div class="flex min-h-0 flex-1 flex-col w-full rounded-2xl border border-sidebar-border/60 bg-background shadow-sm">
+                <div class="min-h-0 flex-1 w-full overflow-auto">
+                    <table class="w-full min-w-full table-fixed text-sm">
                         <thead
                             class="sticky top-0 z-10 border-b border-sidebar-border/70 bg-background/95 text-xs uppercase tracking-wide text-muted-foreground backdrop-blur"
                         >

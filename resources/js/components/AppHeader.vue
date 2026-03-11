@@ -16,6 +16,7 @@ import {
 import { computed } from 'vue';
 
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -150,7 +151,7 @@ const isAdminPanelActive = computed(() =>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                class="mr-2 h-9 w-9 text-[#0b1b3a] hover:bg-[#2563eb]/10 dark:text-white dark:hover:bg-white/10"
+                                class="mr-2 min-h-11 min-w-11 text-[#0b1b3a] hover:bg-[#2563eb]/10 dark:text-white dark:hover:bg-white/10 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
                             >
                                 <Menu class="h-5 w-5" />
                             </Button>
@@ -305,7 +306,8 @@ const isAdminPanelActive = computed(() =>
                     </DropdownMenu>
                 </nav>
 
-                <div v-if="auth?.user" class="ml-auto flex items-center gap-2">
+                <div v-if="auth?.user" class="ml-auto flex items-center gap-1">
+                    <ThemeSwitcher />
                     <DropdownMenu>
                         <DropdownMenuTrigger :as-child="true">
                             <Button

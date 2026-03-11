@@ -15,6 +15,8 @@ class TicketRequest extends Model
     protected $fillable = [
         'control_ticket_number',
         'nature_of_request_id',
+        'personal_email',
+        'office_email',
         'description',
         'has_qr_code',
         'qr_code_number',

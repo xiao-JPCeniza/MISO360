@@ -23,6 +23,7 @@ defineProps<{
         systemDevelopmentSurvey?: Record<string, unknown> | null;
         systemChangeRequestForm?: Record<string, unknown> | null;
         systemIssueReport?: Record<string, unknown> | null;
+        systemIssueReportPdfUrl?: string | null;
         systemIssueReportAttachments?: Array<{ name: string; url?: string | null; size?: number | null; mime?: string | null }>;
     };
 }>();
@@ -145,9 +146,18 @@ function formatSize(size?: number | null) {
                             v-if="ticket.systemIssueReport"
                             class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"
                         >
-                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                                System Issue Report
-                            </p>
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    System Issue Report
+                                </p>
+                                <a
+                                    v-if="ticket.systemIssueReportPdfUrl"
+                                    :href="ticket.systemIssueReportPdfUrl"
+                                    class="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-blue-700 hover:bg-blue-100"
+                                >
+                                    Download PDF
+                                </a>
+                            </div>
                             <div class="mt-3 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
                                 <div>
                                     <span class="text-slate-500">Control Number:</span>
