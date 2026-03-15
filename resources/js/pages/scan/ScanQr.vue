@@ -108,7 +108,12 @@ async function resolveCode(code: string) {
 }
 
 async function scanFrame() {
-    if (!detector || !videoRef.value || !scanning.value || isResolving.value) {
+    if (!detector || !videoRef.value || !scanning.value) {
+        return;
+    }
+
+    if (isResolving.value) {
+        frameHandle = requestAnimationFrame(scanFrame);
         return;
     }
 
@@ -124,9 +129,7 @@ async function scanFrame() {
         if (codes.length) {
             const value = codes[0]?.rawValue?.trim().toUpperCase();
             if (value) {
-                stopScanner();
                 await resolveCode(value);
-                return;
             }
         }
     } catch (error) {
@@ -172,7 +175,6 @@ async function startScanner() {
                     if (result) {
                         const value = result.getText()?.trim().toUpperCase();
                         if (value) {
-                            stopScanner();
                             resolveCode(value);
                         }
                         return;
@@ -233,13 +235,9 @@ onBeforeUnmount(() => {
                 <div class="rounded-3xl border border-sidebar-border/60 bg-background p-6">
                     <div class="flex items-center justify-between">
                         <h2 class="text-base font-semibold">Live camera feed</h2>
-                        <button
-                            type="button"
-                            class="rounded-full border border-sidebar-border/70 px-4 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/40"
-                            @click="scanning ? stopScanner() : startScanner()"
-                        >
-                            {{ scanning ? 'Pause' : 'Start' }}
-                        </button>
+                        <span class="text-xs font-semibold text-muted-foreground">
+                            Camera always on
+                        </span>
                     </div>
 
                     <div
@@ -258,7 +256,7 @@ onBeforeUnmount(() => {
                             class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 p-6 text-center text-sm text-white"
                         >
                             <Camera class="h-6 w-6" />
-                            <p>Tap start to activate the scanner.</p>
+                            <p>Allow camera permission to start scanning.</p>
                         </div>
                     </div>
 

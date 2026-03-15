@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -470,7 +471,7 @@ class TicketRequestController extends Controller
                 'systemChangeRequestForm' => $systemChangeRequestForm,
                 'systemIssueReport' => $systemIssueReport,
                 'systemIssueReportPdfUrl' => is_array($systemIssueReport)
-                    ? route('requests.system-issue-report.pdf', $ticketRequest)
+                    ? $this->systemIssueReportPdfUrl($ticketRequest)
                     : null,
                 'systemIssueReportAttachments' => collect($issueReportAttachments)
                     ->map(fn (array $a) => [
@@ -528,7 +529,7 @@ class TicketRequestController extends Controller
             'systemChangeRequestForm' => $systemChangeRequestForm,
             'systemIssueReport' => $systemIssueReport,
             'systemIssueReportPdfUrl' => is_array($systemIssueReport)
-                ? route('requests.system-issue-report.pdf', $ticketRequest)
+                ? $this->systemIssueReportPdfUrl($ticketRequest)
                 : null,
             'systemIssueReportAttachments' => collect($issueReportAttachments)
                 ->map(fn (array $a) => [
@@ -807,7 +808,7 @@ class TicketRequestController extends Controller
             'systemChangeRequestForm' => $systemChangeRequestForm,
             'systemIssueReport' => $systemIssueReport,
             'systemIssueReportPdfUrl' => is_array($systemIssueReport)
-                ? route('requests.system-issue-report.pdf', $ticketRequest)
+                ? $this->systemIssueReportPdfUrl($ticketRequest)
                 : null,
             'systemIssueReportAttachments' => collect($issueReportAttachments)
                 ->map(fn (array $a) => [
@@ -1269,6 +1270,15 @@ class TicketRequestController extends Controller
     private function systemIssueReportPdfPath(TicketRequest $ticketRequest): string
     {
         return 'ticket-requests/system-issue-reports/generated/system-issue-report-'.$ticketRequest->id.'.pdf';
+    }
+
+    private function systemIssueReportPdfUrl(TicketRequest $ticketRequest): string
+    {
+        if (Route::has('requests.system-issue-report.pdf')) {
+            return route('requests.system-issue-report.pdf', $ticketRequest);
+        }
+
+        return url('/requests/'.$ticketRequest->getRouteKey().'/system-issue-report/pdf');
     }
 
     private function systemIssueReportPdfFilename(TicketRequest $ticketRequest): string

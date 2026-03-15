@@ -99,6 +99,7 @@ const scannedId = ref(props.record?.uniqueId ?? prefillId);
 const manualId = ref('');
 const scanError = ref('');
 const isScanning = ref(false);
+const isResolvingScan = ref(false);
 const scanControls = ref<IScannerControls | null>(null);
 const videoRef = ref<HTMLVideoElement | null>(null);
 const natureOptions = ref<NatureOption[]>(props.natureOfRequests ?? []);
@@ -262,7 +263,7 @@ async function startScan() {
         result: { getText: () => string } | null,
         error: { name: string } | null,
     ) => {
-        if (!isScanning.value) {
+        if (!isScanning.value || isResolvingScan.value) {
             return;
         }
         if (result) {
@@ -363,6 +364,10 @@ function stopScan() {
 }
 
 async function handleUniqueId(value: string) {
+    if (isResolvingScan.value) {
+        return;
+    }
+
     scanError.value = '';
     if (!value) {
         scanError.value = 'Enter or scan a valid Unique ID.';
@@ -373,7 +378,7 @@ async function handleUniqueId(value: string) {
         return;
     }
 
-    stopScan();
+    isResolvingScan.value = true;
 
     try {
         const isIssued = await validateIssuedUid(value);
@@ -421,11 +426,12 @@ async function handleUniqueId(value: string) {
     } catch (error) {
         scanError.value = 'Unable to verify this Unique ID. Please try again.';
         console.error(error);
+    } finally {
+        isResolvingScan.value = false;
     }
 }
 
 function switchToManualEntry() {
-    stopScan();
     enrollmentStep.value = 'manual';
     manualId.value = scannedId.value;
 }
@@ -524,7 +530,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
                         <div class="flex items-center justify-between">
                             <p class="text-sm font-semibold">QR scanner</p>
                             <span
-                                v-if="enrollmentStep === 'scan'"
+                                v-if="enrollmentStep !== 'form'"
                                 class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700"
                             >
                                 Live
@@ -538,14 +544,14 @@ function submitEnrollment(payload: EnrollmentPayload) {
                         </div>
                         <div class="qr-scan-frame mt-4">
                             <video
-                                v-show="enrollmentStep === 'scan'"
+                                v-show="enrollmentStep !== 'form'"
                                 ref="videoRef"
                                 class="qr-scan-video"
                                 autoplay
                                 muted
                                 playsinline
                             ></video>
-                            <div v-if="enrollmentStep !== 'scan'" class="qr-scan-placeholder">
+                            <div v-if="enrollmentStep === 'form'" class="qr-scan-placeholder">
                                 <p class="text-sm font-semibold text-slate-600">
                                     Ready to scan
                                 </p>
@@ -565,14 +571,6 @@ function submitEnrollment(payload: EnrollmentPayload) {
                                 @click="switchToManualEntry"
                             >
                                 Enter ID manually
-                            </button>
-                            <button
-                                v-if="enrollmentStep === 'scan'"
-                                type="button"
-                                class="rounded-full border border-[#0f172a]/20 px-3 py-1.5 text-xs font-semibold text-[#0f172a] transition-colors hover:bg-[#0f172a]/5 dark:text-white dark:hover:bg-white/10"
-                                @click="stopScan"
-                            >
-                                Stop camera
                             </button>
                             <button
                                 v-else
