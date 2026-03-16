@@ -7,6 +7,7 @@ enum Role: string
     case USER = 'user';
     case ADMIN = 'admin';
     case SUPER_ADMIN = 'super_admin';
+    case SUBMIT_ONLY = 'submit_only';
 
     /**
      * Get the display name for the role.
@@ -17,6 +18,7 @@ enum Role: string
             self::USER => 'User',
             self::ADMIN => 'Admin',
             self::SUPER_ADMIN => 'Super Admin',
+            self::SUBMIT_ONLY => 'Submit Only',
         };
     }
 
@@ -26,7 +28,7 @@ enum Role: string
     public function canManageRoles(): bool
     {
         return match ($this) {
-            self::USER => false,
+            self::USER, self::SUBMIT_ONLY => false,
             self::ADMIN, self::SUPER_ADMIN => true,
         };
     }
@@ -37,7 +39,7 @@ enum Role: string
     public function isAdmin(): bool
     {
         return match ($this) {
-            self::USER => false,
+            self::USER, self::SUBMIT_ONLY => false,
             self::ADMIN, self::SUPER_ADMIN => true,
         };
     }

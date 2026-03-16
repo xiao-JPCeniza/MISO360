@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AddSecurityHeaders;
+use App\Http\Middleware\EnsureSubmitOnlyRouteAccess;
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Http\Middleware\EnsureUserCanManageRoles;
 use App\Http\Middleware\EnsureUserIsActive;
@@ -34,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'can-manage-roles' => EnsureUserCanManageRoles::class,
             'active' => EnsureUserIsActive::class,
             'two-factor-verified' => EnsureTwoFactorVerified::class,
+            'submit-only-access' => EnsureSubmitOnlyRouteAccess::class,
         ]);
 
         $middleware->web(append: [

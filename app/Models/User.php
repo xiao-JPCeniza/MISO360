@@ -96,6 +96,22 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Check if the user has submit-only privileges.
+     */
+    public function isSubmitOnly(): bool
+    {
+        return $this->role === Role::SUBMIT_ONLY;
+    }
+
+    /**
+     * Check if the user can submit requests with admin-like fields.
+     */
+    public function canSubmitAsPrivilegedRequester(): bool
+    {
+        return $this->isAdmin() || $this->isSubmitOnly();
+    }
+
+    /**
      * Check if the user can manage roles.
      */
     public function canManageRoles(): bool

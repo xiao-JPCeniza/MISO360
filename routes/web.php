@@ -50,6 +50,7 @@ Route::middleware([
     'auth',
     'verified',
     'active',
+    'submit-only-access',
 ])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

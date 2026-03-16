@@ -722,16 +722,53 @@ function submit() {
 
 <style>
 .enroll-form {
+    --enroll-form-surface: color-mix(in srgb, var(--card) 92%, var(--background));
+    --enroll-form-panel: color-mix(in srgb, var(--card) 88%, var(--muted));
+    --enroll-form-footer: color-mix(in srgb, var(--card) 90%, var(--muted));
+    --enroll-form-border: color-mix(in srgb, var(--border) 82%, transparent);
+    --enroll-form-input-bg: color-mix(in srgb, var(--background) 96%, var(--card));
+    --enroll-form-input-readonly: color-mix(in srgb, var(--muted) 88%, var(--background));
+    --enroll-form-label: color-mix(in srgb, var(--foreground) 72%, transparent);
+    --enroll-form-subtitle: var(--muted-foreground);
+    --enroll-form-focus: var(--ring);
+    --enroll-form-focus-ring: color-mix(in srgb, var(--ring) 24%, transparent);
+    --enroll-form-required: color-mix(in srgb, var(--destructive) 90%, #991b1b);
+    --enroll-form-chip-bg: color-mix(in srgb, var(--muted) 85%, var(--background));
+    --enroll-form-chip-fg: color-mix(in srgb, var(--foreground) 68%, transparent);
+    --enroll-form-toggle-bg: color-mix(in srgb, var(--background) 92%, var(--primary) 8%);
+    --enroll-form-toggle-border: color-mix(in srgb, var(--border) 80%, var(--primary) 20%);
+    --enroll-form-submit-bg: var(--primary);
+    --enroll-form-submit-fg: var(--primary-foreground);
+    --enroll-form-submit-hover: color-mix(in srgb, var(--primary) 88%, var(--foreground));
+
     color: inherit;
     min-height: 100vh;
     width: 100%;
     padding: 16px;
 }
 
+.dark .enroll-form {
+    --enroll-form-surface: color-mix(in srgb, var(--card) 82%, var(--background));
+    --enroll-form-panel: color-mix(in srgb, var(--card) 75%, var(--background));
+    --enroll-form-footer: color-mix(in srgb, var(--card) 78%, var(--background));
+    --enroll-form-border: color-mix(in srgb, var(--border) 88%, transparent);
+    --enroll-form-input-bg: color-mix(in srgb, var(--background) 78%, var(--card));
+    --enroll-form-input-readonly: color-mix(in srgb, var(--muted) 82%, var(--background));
+    --enroll-form-label: color-mix(in srgb, var(--foreground) 82%, transparent);
+    --enroll-form-subtitle: color-mix(in srgb, var(--muted-foreground) 92%, var(--foreground) 8%);
+    --enroll-form-focus-ring: color-mix(in srgb, var(--ring) 34%, transparent);
+    --enroll-form-required: color-mix(in srgb, var(--destructive) 88%, #fecaca);
+    --enroll-form-chip-bg: color-mix(in srgb, var(--muted) 72%, var(--background));
+    --enroll-form-chip-fg: color-mix(in srgb, var(--foreground) 82%, transparent);
+    --enroll-form-toggle-bg: color-mix(in srgb, var(--background) 72%, var(--primary) 16%);
+    --enroll-form-toggle-border: color-mix(in srgb, var(--border) 84%, var(--primary) 28%);
+    --enroll-form-submit-hover: color-mix(in srgb, var(--primary) 76%, #ffffff 24%);
+}
+
 .enroll-card {
     border-radius: 24px;
-    border: 1px solid rgba(148, 163, 184, 0.45);
-    background: color-mix(in srgb, var(--background, #ffffff) 92%, #f8fafc);
+    border: 1px solid var(--enroll-form-border);
+    background: var(--enroll-form-surface);
     padding: 20px;
 }
 
@@ -752,18 +789,18 @@ function submit() {
 .enroll-subtitle {
     margin-top: 4px;
     font-size: 12px;
-    color: color-mix(in srgb, currentColor 55%, transparent);
+    color: var(--enroll-form-subtitle);
 }
 
 .enroll-badge {
     border-radius: 999px;
     padding: 6px 12px;
-    background: color-mix(in srgb, #e2e8f0 90%, transparent);
+    background: var(--enroll-form-chip-bg);
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.18em;
-    color: #475569;
+    color: var(--enroll-form-chip-fg);
 }
 
 .enroll-grid {
@@ -783,11 +820,11 @@ function submit() {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.18em;
-    color: color-mix(in srgb, currentColor 62%, transparent);
+    color: var(--enroll-form-label);
 }
 
 .enroll-required {
-    color: #dc2626;
+    color: var(--enroll-form-required);
     font-weight: 700;
 }
 
@@ -795,8 +832,8 @@ function submit() {
     margin-top: 8px;
     width: 100%;
     border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.6);
-    background: color-mix(in srgb, var(--background, #ffffff) 96%, #f8fafc);
+    border: 1px solid var(--enroll-form-border);
+    background: var(--enroll-form-input-bg);
     padding: 10px 12px;
     font-size: 14px;
     color: inherit;
@@ -805,12 +842,12 @@ function submit() {
 
 .enroll-input:focus {
     outline: none;
-    border-color: #1d4ed8;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    border-color: var(--enroll-form-focus);
+    box-shadow: 0 0 0 3px var(--enroll-form-focus-ring);
 }
 
 .enroll-input:read-only {
-    background: color-mix(in srgb, #f1f5f9 90%, transparent);
+    background: var(--enroll-form-input-readonly);
     color: color-mix(in srgb, currentColor 70%, transparent);
 }
 
@@ -826,25 +863,25 @@ function submit() {
     align-items: center;
     gap: 10px;
     border-radius: 12px;
-    border: 1px dashed rgba(148, 163, 184, 0.6);
+    border: 1px dashed var(--enroll-form-toggle-border);
     padding: 10px 12px;
     font-size: 13px;
     font-weight: 600;
     color: color-mix(in srgb, currentColor 85%, transparent);
-    background: color-mix(in srgb, var(--background, #ffffff) 94%, #eef2ff);
+    background: var(--enroll-form-toggle-bg);
 }
 
 .enroll-checkbox {
     height: 16px;
     width: 16px;
     border-radius: 4px;
-    border: 1px solid rgba(148, 163, 184, 0.9);
+    border: 1px solid color-mix(in srgb, var(--enroll-form-border) 90%, var(--foreground) 10%);
 }
 
 .enroll-panel {
     border-radius: 20px;
-    border: 1px solid rgba(148, 163, 184, 0.45);
-    background: color-mix(in srgb, var(--background, #ffffff) 90%, #e2e8f0);
+    border: 1px solid var(--enroll-form-border);
+    background: var(--enroll-form-panel);
     padding: 18px;
 }
 
@@ -855,28 +892,28 @@ function submit() {
     justify-content: space-between;
     gap: 12px;
     border-radius: 18px;
-    border: 1px solid rgba(148, 163, 184, 0.45);
-    background: color-mix(in srgb, var(--background, #ffffff) 92%, #f1f5f9);
+    border: 1px solid var(--enroll-form-border);
+    background: var(--enroll-form-footer);
     padding: 12px 16px;
 }
 
 .enroll-submit {
     border-radius: 999px;
-    background: #0f172a;
+    background: var(--enroll-form-submit-bg);
     padding: 10px 18px;
     font-size: 14px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--enroll-form-submit-fg);
     transition: background 0.2s ease;
 }
 
 .enroll-submit:hover {
-    background: #1e293b;
+    background: var(--enroll-form-submit-hover);
 }
 
 .enroll-footnote {
     font-size: 12px;
-    color: color-mix(in srgb, currentColor 60%, transparent);
+    color: var(--enroll-form-subtitle);
 }
 
 .enroll-fade-enter-active,

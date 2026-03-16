@@ -480,7 +480,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
     <Head :title="isEditMode ? 'Edit Enrollment' : 'Ticket Enrollment'" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-6 p-6">
+        <div class="ticket-enrollment-theme flex flex-1 flex-col gap-6 p-6">
             <section class="enroll-hero rounded-3xl border border-sidebar-border/60 p-6">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div class="space-y-2">
@@ -505,7 +505,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
                         <Link
                             v-if="!isEditMode"
                             href="/admin/qr-generator"
-                            class="rounded-full bg-[#1e293b] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0f172a]"
+                            class="enroll-primary-button rounded-full px-4 py-2 text-sm font-semibold transition-colors"
                         >
                             Generate QR IDs
                         </Link>
@@ -531,13 +531,13 @@ function submitEnrollment(payload: EnrollmentPayload) {
                             <p class="text-sm font-semibold">QR scanner</p>
                             <span
                                 v-if="enrollmentStep !== 'form'"
-                                class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700"
+                                class="enroll-status-chip enroll-status-chip--live rounded-full px-2 py-1 text-xs font-semibold"
                             >
                                 Live
                             </span>
                             <span
                                 v-else
-                                class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600"
+                                class="enroll-status-chip enroll-status-chip--paused rounded-full px-2 py-1 text-xs font-semibold"
                             >
                                 Paused
                             </span>
@@ -552,10 +552,10 @@ function submitEnrollment(payload: EnrollmentPayload) {
                                 playsinline
                             ></video>
                             <div v-if="enrollmentStep === 'form'" class="qr-scan-placeholder">
-                                <p class="text-sm font-semibold text-slate-600">
+                                <p class="enroll-placeholder-title text-sm font-semibold">
                                     Ready to scan
                                 </p>
-                                <p class="mt-1 text-xs text-slate-500">
+                                <p class="enroll-placeholder-subtitle mt-1 text-xs">
                                     Tap rescan to open the camera again.
                                 </p>
                             </div>
@@ -567,7 +567,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
                             <button
                                 v-if="enrollmentStep === 'scan'"
                                 type="button"
-                                class="rounded-full border border-[#0f172a]/20 px-3 py-1.5 text-xs font-semibold text-[#0f172a] transition-colors hover:bg-[#0f172a]/5 dark:text-white dark:hover:bg-white/10"
+                                class="enroll-secondary-button rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
                                 @click="switchToManualEntry"
                             >
                                 Enter ID manually
@@ -575,7 +575,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
                             <button
                                 v-else
                                 type="button"
-                                class="rounded-full border border-[#0f172a]/20 px-3 py-1.5 text-xs font-semibold text-[#0f172a] transition-colors hover:bg-[#0f172a]/5 dark:text-white dark:hover:bg-white/10"
+                                class="enroll-secondary-button rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
                                 @click="rescan"
                             >
                                 Rescan
@@ -595,7 +595,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
                         />
                         <button
                             type="button"
-                            class="w-full rounded-full bg-[#0f172a] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1e293b]"
+                            class="enroll-primary-button w-full rounded-full px-4 py-2.5 text-sm font-semibold transition-colors"
                             @click="startManualCheck"
                         >
                             Continue
@@ -663,12 +663,88 @@ function submitEnrollment(payload: EnrollmentPayload) {
 </template>
 
 <style>
-.enroll-hero {
-    background: linear-gradient(135deg, rgba(226, 232, 240, 0.6), rgba(248, 250, 252, 0.4));
+.ticket-enrollment-theme {
+    --enroll-surface-soft: color-mix(in srgb, var(--muted) 70%, var(--background));
+    --enroll-surface-elevated: color-mix(in srgb, var(--card) 88%, var(--background));
+    --enroll-hero-from: color-mix(in srgb, var(--primary) 10%, var(--card));
+    --enroll-hero-to: color-mix(in srgb, var(--card) 90%, var(--background));
+    --enroll-scanner-bg: color-mix(in srgb, var(--sidebar-background) 78%, var(--foreground));
+    --enroll-scanner-frame-border: color-mix(in srgb, var(--border) 65%, var(--foreground) 10%);
+    --enroll-placeholder-from: color-mix(in srgb, var(--muted) 85%, var(--background));
+    --enroll-placeholder-to: color-mix(in srgb, var(--card) 92%, var(--background));
+    --enroll-placeholder-title: color-mix(in srgb, var(--foreground) 86%, transparent);
+    --enroll-placeholder-subtitle: var(--muted-foreground);
+    --enroll-primary-bg: var(--primary);
+    --enroll-primary-fg: var(--primary-foreground);
+    --enroll-primary-hover: color-mix(in srgb, var(--primary) 88%, var(--foreground));
+    --enroll-secondary-border: color-mix(in srgb, var(--primary) 28%, var(--border));
+    --enroll-secondary-fg: color-mix(in srgb, var(--foreground) 88%, transparent);
+    --enroll-secondary-hover: color-mix(in srgb, var(--primary) 10%, var(--background));
+    --enroll-chip-live-bg: color-mix(in srgb, #10b981 18%, var(--background));
+    --enroll-chip-live-fg: color-mix(in srgb, #047857 86%, var(--foreground));
+    --enroll-chip-paused-bg: color-mix(in srgb, var(--muted) 92%, var(--background));
+    --enroll-chip-paused-fg: color-mix(in srgb, var(--foreground) 70%, transparent);
 }
 
-.dark .enroll-hero {
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6));
+.dark .ticket-enrollment-theme {
+    --enroll-surface-soft: color-mix(in srgb, var(--muted) 82%, var(--background));
+    --enroll-surface-elevated: color-mix(in srgb, var(--card) 84%, var(--background));
+    --enroll-hero-from: color-mix(in srgb, var(--primary) 22%, var(--card));
+    --enroll-hero-to: color-mix(in srgb, var(--card) 85%, var(--background));
+    --enroll-scanner-bg: color-mix(in srgb, var(--sidebar-background) 88%, #000000);
+    --enroll-scanner-frame-border: color-mix(in srgb, var(--border) 65%, #ffffff 10%);
+    --enroll-placeholder-from: color-mix(in srgb, var(--card) 85%, var(--background));
+    --enroll-placeholder-to: color-mix(in srgb, var(--sidebar-background) 88%, var(--background));
+    --enroll-placeholder-title: color-mix(in srgb, var(--foreground) 88%, transparent);
+    --enroll-placeholder-subtitle: color-mix(in srgb, var(--muted-foreground) 90%, var(--foreground) 10%);
+    --enroll-primary-hover: color-mix(in srgb, var(--primary) 78%, #ffffff 22%);
+    --enroll-secondary-border: color-mix(in srgb, var(--primary) 36%, var(--border));
+    --enroll-secondary-fg: var(--foreground);
+    --enroll-secondary-hover: color-mix(in srgb, var(--primary) 16%, var(--background));
+    --enroll-chip-live-bg: color-mix(in srgb, #34d399 22%, var(--background));
+    --enroll-chip-live-fg: color-mix(in srgb, #a7f3d0 85%, var(--foreground));
+    --enroll-chip-paused-bg: color-mix(in srgb, var(--muted) 88%, var(--background));
+    --enroll-chip-paused-fg: color-mix(in srgb, var(--foreground) 76%, transparent);
+}
+
+.enroll-hero {
+    background: linear-gradient(135deg, var(--enroll-hero-from), var(--enroll-hero-to));
+}
+
+.enroll-primary-button {
+    background: var(--enroll-primary-bg);
+    color: var(--enroll-primary-fg);
+}
+
+.enroll-primary-button:hover {
+    background: var(--enroll-primary-hover);
+}
+
+.enroll-secondary-button {
+    border-color: var(--enroll-secondary-border);
+    color: var(--enroll-secondary-fg);
+}
+
+.enroll-secondary-button:hover {
+    background: var(--enroll-secondary-hover);
+}
+
+.enroll-status-chip--live {
+    background: var(--enroll-chip-live-bg);
+    color: var(--enroll-chip-live-fg);
+}
+
+.enroll-status-chip--paused {
+    background: var(--enroll-chip-paused-bg);
+    color: var(--enroll-chip-paused-fg);
+}
+
+.enroll-placeholder-title {
+    color: var(--enroll-placeholder-title);
+}
+
+.enroll-placeholder-subtitle {
+    color: var(--enroll-placeholder-subtitle);
 }
 
 .qr-scan-frame {
@@ -676,9 +752,9 @@ function submitEnrollment(payload: EnrollmentPayload) {
     width: 100%;
     aspect-ratio: 4 / 3;
     border-radius: 16px;
-    background: #0f172a;
+    background: var(--enroll-scanner-bg);
     overflow: hidden;
-    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.2);
+    box-shadow: inset 0 0 0 1px var(--enroll-scanner-frame-border);
 }
 
 .qr-scan-video {
@@ -694,11 +770,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(145deg, #e2e8f0, #f8fafc);
+    background: linear-gradient(145deg, var(--enroll-placeholder-from), var(--enroll-placeholder-to));
     text-align: center;
-}
-
-.dark .qr-scan-placeholder {
-    background: linear-gradient(145deg, #1e293b, #0f172a);
 }
 </style>

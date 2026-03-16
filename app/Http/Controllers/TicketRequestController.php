@@ -116,7 +116,7 @@ class TicketRequestController extends Controller
     public function create(Request $request)
     {
         $user = $request->user();
-        $isAdmin = $user?->isAdmin() ?? false;
+        $canSubmitAsPrivilegedRequester = $user?->canSubmitAsPrivilegedRequester() ?? false;
         $user?->load('officeDesignation');
 
         $natureOfRequests = NatureOfRequest::query()
@@ -133,7 +133,8 @@ class TicketRequestController extends Controller
             'controlTicketNumber' => $this->generateControlTicketNumber(),
             'natureOfRequests' => $natureOfRequests,
             'preSelectedNatureId' => $preSelectedNatureId,
-            'isAdmin' => $isAdmin,
+            'canSubmitAsPrivilegedRequester' => $canSubmitAsPrivilegedRequester,
+            'isSubmitOnlyUser' => $user?->isSubmitOnly() ?? false,
             'requesterName' => $user?->name,
             'defaultOfficeDivision' => $user?->officeDesignation?->name,
             'systemsEngineerOptions' => User::query()
@@ -144,14 +145,14 @@ class TicketRequestController extends Controller
                 ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])
                 ->values()
                 ->all(),
-            'officeOptions' => $isAdmin
+            'officeOptions' => $canSubmitAsPrivilegedRequester
                 ? ReferenceValue::query()
                     ->forGroup(ReferenceValueGroup::OfficeDesignation)
                     ->active()
                     ->orderBy('name')
                     ->get(['id', 'name'])
                 : [],
-            'officeUsers' => $isAdmin
+            'officeUsers' => $canSubmitAsPrivilegedRequester
                 ? User::query()
                     ->where('is_active', true)
                     ->whereNotNull('office_designation_id')
@@ -214,14 +215,14 @@ class TicketRequestController extends Controller
         $survey = $validated['systemDevelopmentSurvey'] ?? null;
         $systemChangeRequestForm = $validated['systemChangeRequestForm'] ?? null;
         $systemIssueReport = $validated['systemIssueReport'] ?? null;
-        $isAdmin = $requester->isAdmin();
+        $canSubmitAsPrivilegedRequester = $requester->canSubmitAsPrivilegedRequester();
         $resolvedControlTicketNumber = $this->resolveControlTicketNumber(
             $validated['controlTicketNumber'] ?? null,
         );
-        $requestedForUserId = $isAdmin
+        $requestedForUserId = $canSubmitAsPrivilegedRequester
             ? (int) $validated['requestedForUserId']
             : $requester->id;
-        $officeDesignationId = $isAdmin
+        $officeDesignationId = $canSubmitAsPrivilegedRequester
             ? (int) $validated['officeDesignationId']
             : $requester->office_designation_id;
 
@@ -264,7 +265,7 @@ class TicketRequestController extends Controller
                 $systemChangeRequestForm['requestedByName'] = $requestedByName;
             }
 
-            if (! $isAdmin) {
+            if (! $canSubmitAsPrivilegedRequester) {
                 $systemChangeRequestForm['evaluatedBy'] = null;
                 $systemChangeRequestForm['approvedBy'] = null;
                 $systemChangeRequestForm['notedBy'] = null;
@@ -285,7 +286,7 @@ class TicketRequestController extends Controller
             if (is_string($requestedByName) && trim($requestedByName) !== '') {
                 $systemIssueReport['requestingEmployee'] = $requestedByName;
             }
-            if (! $isAdmin) {
+            if (! $canSubmitAsPrivilegedRequester) {
                 $systemIssueReport['reportedBy'] = null;
                 $systemIssueReport['reportedByDate'] = null;
                 $systemIssueReport['reportedBySignature'] = null;
@@ -356,7 +357,7 @@ class TicketRequestController extends Controller
             }
         }
 
-        $allowUnitQr = $requester->isAdmin();
+        $allowUnitQr = $canSubmitAsPrivilegedRequester;
         $qrCodeNumber = $allowUnitQr && ! empty(trim((string) ($validated['qrCodeNumber'] ?? '')))
             ? strtoupper(trim((string) $validated['qrCodeNumber']))
             : null;
@@ -390,6 +391,11 @@ class TicketRequestController extends Controller
             $auditLogger->log($request, 'ticket_request.system_issue_report.submitted', $ticketRequest, [
                 'control_ticket_number' => $ticketRequest->control_ticket_number,
             ]);
+        }
+
+        if ($requester->isSubmitOnly()) {
+            return redirect()->route('submit-request')
+                ->with('success', 'Request submitted successfully. Control Ticket Number: '.$ticketRequest->control_ticket_number);
         }
 
         return redirect()->route('requests.show', $ticketRequest);

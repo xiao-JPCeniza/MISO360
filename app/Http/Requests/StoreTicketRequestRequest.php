@@ -68,7 +68,7 @@ class StoreTicketRequestRequest extends FormRequest
      */
     public function rules(): array
     {
-        $isAdmin = $this->user()?->isAdmin() ?? false;
+        $canSubmitAsPrivilegedRequester = $this->user()?->canSubmitAsPrivilegedRequester() ?? false;
         $officeId = $this->input('officeDesignationId');
 
         $officeRules = [
@@ -82,7 +82,7 @@ class StoreTicketRequestRequest extends FormRequest
             'integer',
         ];
 
-        if ($isAdmin) {
+        if ($canSubmitAsPrivilegedRequester) {
             array_unshift($officeRules, 'required');
             array_unshift($requestedUserRules, 'required');
             $requestedUserRules[] = Rule::exists('users', 'id')->where(

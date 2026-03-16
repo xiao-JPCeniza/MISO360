@@ -101,6 +101,10 @@ class AuthenticatedSessionController extends Controller
 
     private function resolveRedirectTarget(?object $user): string
     {
+        if ($user && method_exists($user, 'isSubmitOnly') && $user->isSubmitOnly()) {
+            return route('submit-request');
+        }
+
         if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
             return route('admin.dashboard');
         }

@@ -324,6 +324,78 @@ class TicketRequestSubmissionTest extends TestCase
         $this->assertSame('MIS-UID-00050', $ticketRequest->qr_code_number);
     }
 
+    public function test_submit_only_user_is_restricted_to_submit_request_route(): void
+    {
+        /** @var User $submitOnlyUser */
+        $submitOnlyUser = User::factory()->create([
+            'role' => 'submit_only',
+            'email' => 'request@miso.gov.ph',
+        ]);
+
+        $this->actingAs($submitOnlyUser)
+            ->get('/dashboard')
+            ->assertRedirect('/submit-request');
+
+        $this->actingAs($submitOnlyUser)
+            ->get('/admin/dashboard')
+            ->assertRedirect('/submit-request');
+
+        $this->actingAs($submitOnlyUser)
+            ->get('/requests')
+            ->assertRedirect('/submit-request');
+
+        $this->actingAs($submitOnlyUser)
+            ->get('/submit-request')
+            ->assertOk();
+    }
+
+    public function test_submit_only_user_can_submit_request_with_admin_like_fields(): void
+    {
+        IssuedUid::create(['uid' => 'MIS-UID-00123', 'sequence' => 123]);
+
+        /** @var User $submitOnlyUser */
+        $submitOnlyUser = User::factory()->create([
+            'role' => 'submit_only',
+            'email' => 'request@miso.gov.ph',
+        ]);
+
+        $office = ReferenceValue::create([
+            'group_key' => ReferenceValueGroup::OfficeDesignation->value,
+            'name' => 'MISO Request Unit',
+            'system_seeded' => true,
+            'is_active' => true,
+        ]);
+        $officeUser = User::factory()->create([
+            'office_designation_id' => $office->id,
+            'is_active' => true,
+        ]);
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer repair',
+            'is_active' => true,
+        ]);
+        $controlTicketNumber = sprintf('CTN-%s-0123', now()->format('Ymd'));
+
+        $this->actingAs($submitOnlyUser)
+            ->post('/submit-request', [
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'officeDesignationId' => $office->id,
+                'requestedForUserId' => $officeUser->id,
+                'description' => 'Repair workstation and assign an issued UID.',
+                'hasQrCode' => true,
+                'qrCodeNumber' => 'MIS-UID-00123',
+            ])
+            ->assertRedirect('/submit-request');
+
+        $this->assertDatabaseHas('ticket_requests', [
+            'control_ticket_number' => $controlTicketNumber,
+            'office_designation_id' => $office->id,
+            'requested_for_user_id' => $officeUser->id,
+            'has_qr_code' => true,
+            'qr_code_number' => 'MIS-UID-00123',
+        ]);
+    }
+
     public function test_ticket_request_requires_description_minimum_length(): void
     {
         /** @var User $user */

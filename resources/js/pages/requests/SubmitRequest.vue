@@ -108,7 +108,8 @@ const props = withDefaults(
         controlTicketNumber: string;
         natureOfRequests: NatureOption[];
         preSelectedNatureId?: number | null;
-        isAdmin: boolean;
+        canSubmitAsPrivilegedRequester: boolean;
+        isSubmitOnlyUser: boolean;
         requesterName?: string | null;
         defaultOfficeDivision?: string | null;
         officeOptions: OfficeOption[];
@@ -121,16 +122,27 @@ const props = withDefaults(
     { preSelectedNatureId: null },
 );
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard().url,
-    },
-    {
-        title: 'Submit a Ticket Request',
-        href: '/submit-request',
-    },
-];
+const breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    if (props.isSubmitOnlyUser) {
+        return [
+            {
+                title: 'Submit a Ticket Request',
+                href: '/submit-request',
+            },
+        ];
+    }
+
+    return [
+        {
+            title: 'Dashboard',
+            href: dashboard().url,
+        },
+        {
+            title: 'Submit a Ticket Request',
+            href: '/submit-request',
+        },
+    ];
+});
 
 const validPreSelectedId =
     props.preSelectedNatureId != null &&
@@ -200,6 +212,8 @@ const attachmentEntries = ref<AttachmentEntry[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
 const uploadError = ref('');
+const officeSearchQuery = ref('');
+const userSearchQuery = ref('');
 const descriptionTouched = ref(false);
 const submitAttempted = ref(false);
 
@@ -231,13 +245,13 @@ const natureError = computed(() => {
     return form.natureOfRequestId ? '' : 'Please select a nature of request.';
 });
 const officeError = computed(() => {
-    if (!props.isAdmin || !submitAttempted.value) {
+    if (!props.canSubmitAsPrivilegedRequester || !submitAttempted.value) {
         return '';
     }
     return form.officeDesignationId ? '' : 'Please select an office designation.';
 });
 const requestedUserError = computed(() => {
-    if (!props.isAdmin || !submitAttempted.value) {
+    if (!props.canSubmitAsPrivilegedRequester || !submitAttempted.value) {
         return '';
     }
     return form.requestedForUserId ? '' : 'Please select a user for this request.';
@@ -350,8 +364,25 @@ const filteredOfficeUsers = computed(() => {
     if (!form.officeDesignationId) {
         return [];
     }
-    return props.officeUsers.filter(
-        (user) => String(user.office_designation_id) === String(form.officeDesignationId),
+    const normalizedQuery = userSearchQuery.value.trim().toLowerCase();
+
+    return props.officeUsers
+        .filter(
+            (user) => String(user.office_designation_id) === String(form.officeDesignationId),
+        )
+        .filter((user) =>
+            normalizedQuery === '' ? true : user.name.toLowerCase().includes(normalizedQuery),
+        );
+});
+
+const filteredOfficeOptions = computed(() => {
+    const normalizedQuery = officeSearchQuery.value.trim().toLowerCase();
+    if (normalizedQuery === '') {
+        return props.officeOptions;
+    }
+
+    return props.officeOptions.filter((office) =>
+        office.name.toLowerCase().includes(normalizedQuery),
     );
 });
 
@@ -369,6 +400,7 @@ watch(
     () => form.officeDesignationId,
     () => {
         form.requestedForUserId = '';
+        userSearchQuery.value = '';
         form.clearErrors('requestedForUserId');
     },
 );
@@ -380,7 +412,7 @@ watch(
             (option) => String(option.id) === String(form.officeDesignationId),
         )?.name;
 
-        if (props.isAdmin) {
+        if (props.canSubmitAsPrivilegedRequester) {
             form.systemDevelopmentSurvey.officeEndUser = officeName ?? '';
         }
     },
@@ -419,7 +451,7 @@ watch(
         form.attachments = [];
         uploadError.value = '';
 
-        if (!props.isAdmin) {
+        if (!props.canSubmitAsPrivilegedRequester) {
             form.systemDevelopmentSurvey.assignedSystemsEngineer = '';
             form.systemDevelopmentSurvey.targetCompletion = '';
         }
@@ -436,7 +468,7 @@ watch(
         form.systemIssueReport.dateFiled = new Date().toISOString().slice(0, 10);
         form.systemIssueReport.requestingDepartment = props.defaultOfficeDivision ?? '';
         form.systemIssueReport.requestingEmployee = props.requesterName ?? '';
-        if (!props.isAdmin) {
+        if (!props.canSubmitAsPrivilegedRequester) {
             return;
         }
         const officeName = props.officeOptions.find(
@@ -457,7 +489,7 @@ watch(
 watch(
     () => [form.officeDesignationId, form.requestedForUserId],
     () => {
-        if (!isSystemErrorBugReport.value || !props.isAdmin) {
+        if (!isSystemErrorBugReport.value || !props.canSubmitAsPrivilegedRequester) {
             return;
         }
         const officeName = props.officeOptions.find(
@@ -638,7 +670,7 @@ function submitTicket() {
     <Head title="Submit a Ticket Request" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="-mx-6 -mt-20 min-h-screen bg-background text-foreground">
+        <div class="submit-request-theme -mx-6 -mt-20 min-h-screen bg-background text-foreground">
             <div class="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 pb-12 pt-12">
                 <div class="space-y-2">
                     <h1 class="text-3xl font-bold text-foreground md:text-4xl">
@@ -650,7 +682,7 @@ function submitTicket() {
                 </div>
 
                 <form
-                    class="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-lg md:p-6 dark:border-white/10 dark:shadow-black/20"
+                    class="rounded-2xl border border-(--miso-form-border) bg-(--miso-form-surface) p-5 text-card-foreground shadow-(--miso-form-shadow) md:p-6"
                     @submit.prevent="submitTicket"
                 >
                     <div class="grid gap-4">
@@ -667,13 +699,19 @@ function submitTicket() {
                         </div>
 
                         <div
-                            v-if="isAdmin"
-                            class="grid gap-4 rounded-xl border border-border bg-muted/30 p-4 md:grid-cols-2 dark:border-white/10 dark:bg-white/5"
+                            v-if="canSubmitAsPrivilegedRequester"
+                            class="grid gap-4 rounded-xl border border-(--miso-form-border) bg-(--miso-form-muted) p-4 md:grid-cols-2"
                         >
                             <div class="grid gap-3">
                                 <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Office Designation
                                 </label>
+                                <input
+                                    v-model="officeSearchQuery"
+                                    type="text"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="Search office..."
+                                />
                                 <select
                                     v-model="form.officeDesignationId"
                                     class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
@@ -681,7 +719,7 @@ function submitTicket() {
                                 >
                                     <option disabled value="">Select an office</option>
                                     <option
-                                        v-for="option in officeOptions"
+                                        v-for="option in filteredOfficeOptions"
                                         :key="option.id"
                                         :value="String(option.id)"
                                     >
@@ -697,6 +735,13 @@ function submitTicket() {
                                 <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Requesting For
                                 </label>
+                                <input
+                                    v-model="userSearchQuery"
+                                    type="text"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="Search staff..."
+                                    :disabled="!form.officeDesignationId"
+                                />
                                 <select
                                     v-model="form.requestedForUserId"
                                     class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
@@ -746,7 +791,7 @@ function submitTicket() {
                             </div>
 
                             <div
-                                class="grid gap-3 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5"
+                                class="grid gap-3 rounded-xl border border-(--miso-form-border) bg-(--miso-form-muted) p-4"
                             >
                                 <div class="flex items-center justify-between">
                                     <div>
@@ -1018,7 +1063,7 @@ function submitTicket() {
                                 </span>
                             </div>
                             <div
-                                class="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/40 px-4 py-4 text-center transition dark:border-white/20 dark:bg-white/5"
+                                class="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-(--miso-form-border) bg-(--miso-form-dropzone) px-4 py-4 text-center transition"
                                 :class="isDragging ? 'border-primary/50 bg-primary/10' : ''"
                                 @dragover="onDragOver"
                                 @dragleave="onDragLeave"
@@ -1103,3 +1148,21 @@ function submitTicket() {
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.submit-request-theme {
+    --miso-form-surface: var(--card);
+    --miso-form-border: color-mix(in oklab, var(--primary) 20%, var(--border));
+    --miso-form-muted: color-mix(in oklab, var(--primary) 7%, var(--background));
+    --miso-form-dropzone: color-mix(in oklab, var(--primary) 9%, var(--muted));
+    --miso-form-shadow: color-mix(in oklab, var(--primary) 18%, transparent);
+}
+
+.dark .submit-request-theme {
+    --miso-form-surface: color-mix(in oklab, var(--card) 88%, #ffffff 12%);
+    --miso-form-border: color-mix(in oklab, var(--primary) 34%, var(--border));
+    --miso-form-muted: color-mix(in oklab, var(--primary) 16%, var(--background));
+    --miso-form-dropzone: color-mix(in oklab, var(--primary) 19%, var(--muted));
+    --miso-form-shadow: color-mix(in oklab, #000000 65%, var(--primary) 35%);
+}
+</style>

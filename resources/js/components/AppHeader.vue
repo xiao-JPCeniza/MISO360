@@ -63,6 +63,9 @@ const headerAvatarUrl = computed(() => {
 });
 
 const { urlIsActive } = useActiveUrl();
+const userRole = computed(() => auth.value?.user?.role ?? '');
+const isSubmitOnly = computed(() => userRole.value === 'submit_only');
+const headerHomeHref = computed(() => (isSubmitOnly.value ? '/submit-request' : dashboard()));
 
 function activeItemClasses(url: NonNullable<InertiaLinkProps['href']>) {
     return urlIsActive(url)
@@ -71,7 +74,17 @@ function activeItemClasses(url: NonNullable<InertiaLinkProps['href']>) {
 }
 
 const mainNavItems = computed(() => {
-    const isAdmin = ['admin', 'super_admin'].includes(auth.value?.user?.role ?? '');
+    const isAdmin = ['admin', 'super_admin'].includes(userRole.value);
+
+    if (isSubmitOnly.value) {
+        return [
+            {
+                title: 'Submit a Request Ticket',
+                href: '/submit-request',
+                icon: Package,
+            },
+        ] as NavItem[];
+    }
 
     const baseItems: NavItem[] = [
         {
@@ -104,7 +117,7 @@ const mainNavItems = computed(() => {
 });
 
 const adminPanelItems = computed<NavItem[]>(() => {
-    const isAdmin = ['admin', 'super_admin'].includes(auth.value?.user?.role ?? '');
+    const isAdmin = ['admin', 'super_admin'].includes(userRole.value);
 
     if (!isAdmin) {
         return [];
@@ -227,7 +240,7 @@ const isAdminPanelActive = computed(() =>
                     </Sheet>
                 </div>
 
-                <Link :href="dashboard()" class="flex items-center gap-3">
+                <Link :href="headerHomeHref" class="flex items-center gap-3">
                     <img
                         src="/storage/logos/IT_Logo.gif"
                         alt="System logo"
