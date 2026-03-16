@@ -141,4 +141,29 @@ class TicketRequest extends Model
             })->orWhereNull('status_id');
         });
     }
+
+    /**
+     * Shared FIFO queue visibility rules for dashboards.
+     * - Super Admin and general users: see the global pending queue.
+     * - Admins: see only unassigned tickets or those assigned to them.
+     */
+    public function scopeForQueueViewer(Builder $query, ?User $viewer): Builder
+    {
+        if (! $viewer) {
+            return $query;
+        }
+
+        if ($viewer->isSuperAdmin()) {
+            return $query;
+        }
+
+        if ($viewer->isAdmin()) {
+            return $query->where(function (Builder $q) use ($viewer) {
+                $q->whereNull('assigned_staff_id')
+                    ->orWhere('assigned_staff_id', $viewer->id);
+            });
+        }
+
+        return $query;
+    }
 }

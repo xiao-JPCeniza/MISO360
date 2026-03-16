@@ -38,11 +38,21 @@ class AdminDashboardTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_can_access_dashboard_and_sees_stats_and_queue(): void
+    public function test_admin_can_access_admin_dashboard(): void
     {
         $admin = User::factory()->admin()->create();
 
         $response = $this->actingAsTwoFactorVerified($admin)
+            ->get(route('admin.dashboard'));
+
+        $response->assertOk();
+    }
+
+    public function test_super_admin_can_access_dashboard_and_sees_stats_and_queue(): void
+    {
+        $superAdmin = User::factory()->superAdmin()->create();
+
+        $response = $this->actingAsTwoFactorVerified($superAdmin)
             ->get(route('admin.dashboard'));
 
         $response->assertOk();
@@ -85,6 +95,82 @@ class AdminDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+
+    public function test_archive_export_consolidates_work_by_assigned_staff(): void
+    {
+        $adminA = User::factory()->admin()->create(['name' => 'Ceniza']);
+        $adminB = User::factory()->admin()->create(['name' => 'Baluma']);
+
+        $pendingStatus = ReferenceValue::updateOrCreate(
+            [
+                'group_key' => ReferenceValueGroup::Status->value,
+                'name' => 'Pending',
+            ],
+            ['is_active' => true, 'system_seeded' => false],
+        );
+        $completedStatus = ReferenceValue::updateOrCreate(
+            [
+                'group_key' => ReferenceValueGroup::Status->value,
+                'name' => 'Completed',
+            ],
+            ['is_active' => true, 'system_seeded' => false],
+        );
+
+        $printerRepair = NatureOfRequest::create(['name' => 'Printer repair', 'is_active' => true]);
+        $networking = NatureOfRequest::create(['name' => 'Networking', 'is_active' => true]);
+
+        /** @var TicketRequest $ticket1 */
+        $ticket1 = TicketRequest::factory()->create([
+            'control_ticket_number' => 'CTRL-001',
+            'nature_of_request_id' => $printerRepair->id,
+            'assigned_staff_id' => $adminA->id,
+            'status_id' => $completedStatus->id,
+        ]);
+
+        /** @var TicketRequest $ticket2 */
+        $ticket2 = TicketRequest::factory()->create([
+            'control_ticket_number' => 'CTRL-002',
+            'nature_of_request_id' => $networking->id,
+            'assigned_staff_id' => $adminB->id,
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        $response = $this->actingAsTwoFactorVerified($adminA)
+            ->get(route('admin.dashboard.archive-export'));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        /** @var \Symfony\Component\HttpFoundation\BinaryFileResponse $baseResponse */
+        $baseResponse = $response->baseResponse;
+        $file = $baseResponse->getFile();
+        $spreadsheet = IOFactory::createReader('Xlsx')->load($file->getPathname());
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $rowsWithCtrl1 = [];
+        $rowsWithCtrl2 = [];
+
+        for ($row = 1; $row <= 200; $row++) {
+            $control = trim((string) $sheet->getCell("C{$row}")->getValue());
+            if ($control === 'CTRL-001') {
+                $rowsWithCtrl1[] = $row;
+            }
+            if ($control === 'CTRL-002') {
+                $rowsWithCtrl2[] = $row;
+            }
+        }
+
+        $this->assertNotEmpty($rowsWithCtrl1);
+        $this->assertNotEmpty($rowsWithCtrl2);
+
+        $row1 = $rowsWithCtrl1[0];
+        $row2 = $rowsWithCtrl2[0];
+
+        $this->assertSame('Ceniza', (string) $sheet->getCell("A{$row1}")->getValue());
+        $this->assertSame('Baluma', (string) $sheet->getCell("A{$row2}")->getValue());
+        $this->assertSame('Printer repair', (string) $sheet->getCell("E{$row1}")->getValue());
+        $this->assertSame('Networking', (string) $sheet->getCell("E{$row2}")->getValue());
     }
 
     public function test_archive_export_accepts_assigned_staff_id_filter(): void
@@ -210,8 +296,8 @@ class AdminDashboardTest extends TestCase
             ->where('name', 'Completed')
             ->firstOrFail();
 
-        $admin = User::factory()->admin()->create();
-        $otherAdmin = User::factory()->admin()->create(['name' => 'Other Admin']);
+        $admin = User::factory()->superAdmin()->create();
+        $otherAdmin = User::factory()->superAdmin()->create(['name' => 'Other Admin']);
 
         TicketRequest::factory()->create([
             'assigned_staff_id' => $admin->id,
@@ -233,6 +319,56 @@ class AdminDashboardTest extends TestCase
             ->component('admin/AdminDashboard')
             ->has('stats')
             ->where('stats.assignedToMe', 1)
+        );
+    }
+
+    public function test_standard_admin_sees_only_unassigned_or_their_own_in_active_queue(): void
+    {
+        foreach (['Pending', 'Ongoing'] as $name) {
+            ReferenceValue::updateOrCreate(
+                [
+                    'group_key' => ReferenceValueGroup::Status->value,
+                    'name' => $name,
+                ],
+                ['is_active' => true, 'system_seeded' => false],
+            );
+        }
+
+        $pendingStatus = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Status)
+            ->where('name', 'Pending')
+            ->firstOrFail();
+
+        $admin = User::factory()->admin()->create();
+        $otherAdmin = User::factory()->admin()->create(['name' => 'Other Admin']);
+
+        // Unassigned pending ticket – should be visible
+        $unassigned = TicketRequest::factory()->create([
+            'assigned_staff_id' => null,
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        // Assigned to logged-in admin – should be visible
+        $assignedToSelf = TicketRequest::factory()->create([
+            'assigned_staff_id' => $admin->id,
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        // Assigned to another admin – should NOT be visible
+        TicketRequest::factory()->create([
+            'assigned_staff_id' => $otherAdmin->id,
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        $response = $this->actingAsTwoFactorVerified($admin)->get(route('admin.dashboard'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('admin/AdminDashboard')
+            ->where('stats.activeInQueue', 2)
+            ->has('activeQueue', 2)
+            ->where('activeQueue.0.id', $unassigned->id)
+            ->where('activeQueue.1.id', $assignedToSelf->id)
         );
     }
 }

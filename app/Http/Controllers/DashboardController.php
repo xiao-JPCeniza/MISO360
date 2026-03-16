@@ -27,9 +27,9 @@ class DashboardController extends Controller
             ->where('user_id', $user->id)
             ->count();
 
-        $activeQuery = TicketRequest::query()
-            ->where('user_id', $user->id)
+        $queueQuery = TicketRequest::query()
             ->pending()
+            ->forQueueViewer($user)
             ->with([
                 'natureOfRequest:id,name',
                 'officeDesignation:id,name',
@@ -38,8 +38,8 @@ class DashboardController extends Controller
             ])
             ->orderBy('created_at');
 
-        $activeQueueTotal = $activeQuery->count();
-        $currentQueue = $activeQuery->limit(15)
+        $activeQueueTotal = $queueQuery->count();
+        $currentQueue = $queueQuery->limit(15)
             ->get()
             ->map(fn (TicketRequest $ticket) => [
                 'id' => $ticket->id,

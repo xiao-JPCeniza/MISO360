@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 import Icon from '@/components/Icon.vue';
@@ -28,9 +28,19 @@ const props = defineProps<{
     preparedBy: { name: string | null; positionTitle: string | null };
 }>();
 
+const page = usePage();
+const isSuperAdmin = computed(
+    () => page.props.auth?.user?.role === 'super_admin',
+);
+
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Admin Dashboard', href: '/admin/dashboard' },
-    { title: 'Nature of Requests Report', href: '/admin/reports/nature-of-requests' },
+    ...(isSuperAdmin.value
+        ? [{ title: 'Admin Dashboard', href: '/admin/dashboard' } as BreadcrumbItem]
+        : []),
+    {
+        title: 'Nature of Requests Report',
+        href: '/admin/reports/nature-of-requests',
+    },
 ];
 
 const yearInput = ref<number>(props.year);
@@ -64,6 +74,7 @@ function printReport() {
             <div class="report-actions flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-2">
                     <Link
+                        v-if="isSuperAdmin"
                         href="/admin/dashboard"
                         class="inline-flex items-center gap-2 rounded-md border border-sidebar-border/60 bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50 dark:border-white/10"
                     >

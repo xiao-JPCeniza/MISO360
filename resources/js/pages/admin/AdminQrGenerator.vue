@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import QRCode from 'qrcode';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
@@ -40,6 +40,11 @@ const storageKeys = {
     lastBatch: 'miso.qr.lastBatch',
     batchHistory: 'miso.qr.batchHistory',
 };
+
+const page = usePage();
+const isSuperAdmin = computed(
+    () => page.props.auth?.user?.role === 'super_admin',
+);
 
 const props = defineProps<{
     nextStart: number;
@@ -404,6 +409,7 @@ async function downloadPdf() {
                 </div>
                 <div class="flex flex-wrap gap-3">
                     <Link
+                        v-if="isSuperAdmin"
                         href="/admin/dashboard"
                         class="rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground dark:border-white/20 dark:hover:bg-white/10"
                     >

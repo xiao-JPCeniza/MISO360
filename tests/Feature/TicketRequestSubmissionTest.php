@@ -460,6 +460,67 @@ class TicketRequestSubmissionTest extends TestCase
         );
     }
 
+    public function test_standard_admin_requests_index_shows_only_unassigned_or_assigned_to_self(): void
+    {
+        foreach (['Pending', 'Ongoing'] as $name) {
+            ReferenceValue::updateOrCreate(
+                [
+                    'group_key' => ReferenceValueGroup::Status->value,
+                    'name' => $name,
+                ],
+                ['is_active' => true, 'system_seeded' => false],
+            );
+        }
+
+        $pendingStatus = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Status)
+            ->where('name', 'Pending')
+            ->firstOrFail();
+
+        $admin = User::factory()->admin()->create();
+        $otherAdmin = User::factory()->admin()->create(['name' => 'Other Admin']);
+        $regularUser = User::factory()->create();
+
+        // Unassigned pending ticket – should be visible for admin
+        $unassigned = TicketRequest::factory()->create([
+            'assigned_staff_id' => null,
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        // Assigned to logged-in admin – should be visible for admin
+        $assignedToSelf = TicketRequest::factory()->create([
+            'assigned_staff_id' => $admin->id,
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        // Assigned to another admin – should NOT be visible for this admin
+        TicketRequest::factory()->create([
+            'assigned_staff_id' => $otherAdmin->id,
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        // Regular user request – should be visible only to that user, not filtered by assignment
+        $userTicket = TicketRequest::factory()->create([
+            'user_id' => $regularUser->id,
+            'assigned_staff_id' => $admin->id,
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        $adminResponse = $this->actingAs($admin)->get('/requests');
+        $adminResponse->assertOk();
+        $adminResponse->assertInertia(fn ($page) => $page
+            ->component('requests/Requests')
+            ->has('requests', 3)
+        );
+
+        $userResponse = $this->actingAs($regularUser)->get('/requests');
+        $userResponse->assertOk();
+        $userResponse->assertInertia(fn ($page) => $page
+            ->component('requests/Requests')
+            ->has('requests', 1)
+        );
+    }
+
     public function test_system_error_bug_report_requires_system_issue_report_form(): void
     {
         /** @var User $user */

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\Role;
-use App\Exports\ArchivedRequestsExport;
+use App\Exports\ConsolidatedStaffWorkloadExport;
 use App\Exports\NatureOfRequestsMonthlySummaryExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ExportArchivedRequestsRequest;
@@ -25,7 +25,10 @@ class AdminDashboardController extends Controller
     {
         $user = $request->user();
 
-        $activeCount = TicketRequest::query()->pending()->count();
+        $activeCountQuery = TicketRequest::query()
+            ->pending()
+            ->forQueueViewer($user);
+        $activeCount = $activeCountQuery->count();
         $totalReceived = TicketRequest::query()->count();
         $assignedToMe = TicketRequest::query()
             ->where('assigned_staff_id', $user->id)
@@ -44,13 +47,15 @@ class AdminDashboardController extends Controller
                 'category:id,name',
                 'user:id,name',
                 'requestedForUser:id,name',
-            ]);
+            ])
+            ->forQueueViewer($user);
 
         $this->applyQueueFilters($activeQuery, $request);
-        $this->applyQueueSort($activeQuery, $request);
 
         $activeQueueTotal = $activeQuery->count();
-        $activeQueue = $activeQuery->limit(15)
+        $activeQueue = $activeQuery
+            ->orderBy('ticket_requests.created_at', 'asc')
+            ->limit(15)
             ->get()
             ->map(fn (TicketRequest $t) => [
                 'id' => $t->id,
@@ -123,8 +128,8 @@ class AdminDashboardController extends Controller
                 'control_ticket_number' => $request->string('control_ticket_number')->trim()->toString() ?: null,
             ],
             'sort' => [
-                'by' => $request->string('sort_by')->trim()->toString() ?: 'created_at',
-                'dir' => $request->string('sort_dir')->trim()->toString() === 'desc' ? 'desc' : 'asc',
+                'by' => 'created_at',
+                'dir' => 'asc',
             ],
             'archiveSearch' => $request->string('archive_search')->trim()->toString() ?: null,
             'archivePanelOpen' => $request->filled('archive_page') || $request->filled('archive_search'),
@@ -138,20 +143,43 @@ class AdminDashboardController extends Controller
      */
     public function exportArchived(ExportArchivedRequestsRequest $request, AuditLogger $auditLogger): BinaryFileResponse
     {
-        $query = $this->buildArchiveExportQuery($request);
-        $count = $query->count();
+        $archiveQuery = $this->buildArchiveExportQuery($request);
+        $completedTickets = $archiveQuery->get();
+
+        $activeTickets = TicketRequest::query()
+            ->active()
+            ->with([
+                'natureOfRequest:id,name',
+                'officeDesignation:id,name',
+                'status:id,name',
+                'category:id,name',
+                'user:id,name',
+                'requestedForUser:id,name',
+                'enrollment',
+                'enrollment.assignedAdmin:id,name',
+            ])
+            ->when(
+                $request->filled('assigned_staff_id'),
+                fn (Builder $q) => $q->where('ticket_requests.assigned_staff_id', (int) $request->input('assigned_staff_id'))
+            )
+            ->get();
+
+        $tickets = $completedTickets
+            ->concat($activeTickets)
+            ->unique('id')
+            ->values();
 
         $auditLogger->log($request, 'admin.archive_export.download', null, [
             'archive_search' => $request->string('archive_search')->trim()->toString() ?: null,
             'date_from' => $request->date('date_from')?->toDateString(),
             'date_to' => $request->date('date_to')?->toDateString(),
             'assigned_staff_id' => $request->filled('assigned_staff_id') ? (int) $request->input('assigned_staff_id') : null,
-            'rows_exported' => $count,
+            'rows_exported' => $tickets->count(),
         ]);
 
-        $filename = 'archived-requests-'.now()->format('Y-m-d-His').'.xlsx';
+        $filename = 'consolidated-staff-workload-'.now()->format('Y-m-d-His').'.xlsx';
 
-        return (new ArchivedRequestsExport($query))->download($filename);
+        return (new ConsolidatedStaffWorkloadExport($tickets))->download($filename);
     }
 
     /**
@@ -229,26 +257,6 @@ class AdminDashboardController extends Controller
     {
         if ($request->filled('control_ticket_number')) {
             $query->where('control_ticket_number', 'like', '%'.$request->string('control_ticket_number')->trim().'%');
-        }
-    }
-
-    private function applyQueueSort($query, Request $request): void
-    {
-        $by = $request->string('sort_by')->trim()->toString() ?: 'created_at';
-        $dir = $request->string('sort_dir')->trim()->toString() === 'desc' ? 'desc' : 'asc';
-        $allowed = ['created_at', 'control_ticket_number', 'requester_name'];
-        if (! in_array($by, $allowed, true)) {
-            $by = 'created_at';
-        }
-        if ($by === 'created_at') {
-            $query->orderBy('ticket_requests.created_at', $dir);
-        } elseif ($by === 'control_ticket_number') {
-            $query->orderBy('control_ticket_number', $dir);
-        } else {
-            $query->leftJoin('users as sort_requester', 'ticket_requests.requested_for_user_id', '=', 'sort_requester.id')
-                ->leftJoin('users as sort_creator', 'ticket_requests.user_id', '=', 'sort_creator.id')
-                ->orderByRaw('COALESCE(sort_requester.name, sort_creator.name) '.$dir)
-                ->select('ticket_requests.*');
         }
     }
 }

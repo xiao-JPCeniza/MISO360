@@ -34,8 +34,9 @@ class TicketRequestController extends Controller
     {
         $user = $request->user();
         $isAdmin = $user?->isAdmin() ?? false;
+        $isSuperAdmin = $user?->isSuperAdmin() ?? false;
 
-        $ticketRequests = TicketRequest::query()
+        $query = TicketRequest::query()
             ->with([
                 'natureOfRequest:id,name',
                 'officeDesignation:id,name',
@@ -45,8 +46,20 @@ class TicketRequestController extends Controller
                 'assignedStaff:id,name',
                 'requestedForUser:id,name,position_title',
                 'user:id,name,position_title',
-            ])
-            ->when(! $isAdmin && $user, fn ($query) => $query->where('user_id', $user->id))
+            ]);
+
+        if ($user && ! $isAdmin) {
+            // Regular users: only their own requests.
+            $query->where('user_id', $user->id);
+        } elseif ($user && $isAdmin && ! $isSuperAdmin) {
+            // Standard Admins: only unassigned or assigned to themselves.
+            $query->where(function ($q) use ($user) {
+                $q->whereNull('assigned_staff_id')
+                    ->orWhere('assigned_staff_id', $user->id);
+            });
+        }
+
+        $ticketRequests = $query
             ->notArchived()
             ->orderBy('created_at')
             ->limit(20)

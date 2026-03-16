@@ -30,7 +30,9 @@ const page = usePage();
 const isAdmin = computed(() =>
     ['admin', 'super_admin'].includes(page.props.auth?.user?.role ?? ''),
 );
-const isSuperAdmin = computed(() => (page.props.auth?.user?.role ?? '') === 'super_admin');
+const isSuperAdmin = computed(
+    () => (page.props.auth?.user?.role ?? '') === 'super_admin',
+);
 
 const mainNavItems = computed<NavItem[]>(() => {
     const items: NavItem[] = [
@@ -57,11 +59,13 @@ const mainNavItems = computed<NavItem[]>(() => {
     ];
 
     if (isAdmin.value) {
-        items.push({
-            title: 'Admin Dashboard',
-            href: '/admin/dashboard',
-            icon: ShieldCheck,
-        });
+        if (isSuperAdmin.value) {
+            items.push({
+                title: 'Admin Dashboard',
+                href: '/admin/dashboard',
+                icon: ShieldCheck,
+            });
+        }
         items.push({
             title: 'User Management',
             href: '/admin/users',
@@ -89,7 +93,9 @@ const mainNavItems = computed<NavItem[]>(() => {
     return items;
 });
 
-const homeRoute = computed(() => (isAdmin.value ? '/admin/dashboard' : dashboard()));
+const homeRoute = computed(() =>
+    isSuperAdmin.value ? '/admin/dashboard' : dashboard(),
+);
 </script>
 
 <template>
