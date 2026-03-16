@@ -375,8 +375,11 @@ class TicketRequestSubmissionTest extends TestCase
         ]);
         $controlTicketNumber = sprintf('CTN-%s-0123', now()->format('Ymd'));
 
+        $csrfToken = 'test-token';
         $this->actingAs($submitOnlyUser)
+            ->withSession(['_token' => $csrfToken])
             ->post('/submit-request', [
+                '_token' => $csrfToken,
                 'controlTicketNumber' => $controlTicketNumber,
                 'natureOfRequestId' => $natureOfRequest->id,
                 'officeDesignationId' => $office->id,

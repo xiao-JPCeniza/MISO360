@@ -15,17 +15,17 @@ const resend = () => {
 <template>
     <Head title="Verify your email" />
 
-    <div class="min-h-screen bg-slate-950 text-white">
+    <div class="min-h-screen bg-background text-foreground">
         <div class="mx-auto flex min-h-screen w-full max-w-4xl items-center px-6">
-            <div class="w-full rounded-3xl border border-slate-800 bg-slate-900/70 p-10 shadow-2xl shadow-black/40">
+            <div class="w-full rounded-3xl border border-border bg-card p-10 shadow-2xl shadow-black/10">
                 <div class="flex flex-col gap-6">
-                    <div class="flex items-center gap-3 text-sm uppercase tracking-[0.2em] text-slate-400">
+                    <div class="flex items-center gap-3 text-sm uppercase tracking-[0.2em] text-muted-foreground">
                         Email verification
                     </div>
                     <h1 class="text-3xl font-semibold leading-tight">
                         Verify your email to unlock the dashboard
                     </h1>
-                    <p class="text-base text-slate-300">
+                    <p class="text-base text-muted-foreground">
                         We have sent a one-time verification link to your email
                         address. Please confirm your account to continue.
                     </p>
@@ -38,13 +38,13 @@ const resend = () => {
                     <div class="flex flex-wrap items-center gap-3">
                         <button
                             type="button"
-                            class="rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            class="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                             :disabled="form.processing"
                             @click="resend"
                         >
                             Resend verification email
                         </button>
-                        <Link href="/logout" method="post" as="button" class="text-sm text-slate-300">
+                        <Link href="/logout" method="post" as="button" class="text-sm text-muted-foreground">
                             Sign out
                         </Link>
                     </div>

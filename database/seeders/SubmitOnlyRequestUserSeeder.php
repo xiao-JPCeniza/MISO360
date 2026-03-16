@@ -14,6 +14,10 @@ class SubmitOnlyRequestUserSeeder extends Seeder
      */
     public function run(): void
     {
+        if (! app()->environment(['local', 'testing'])) {
+            return;
+        }
+
         User::query()->updateOrCreate(
             ['email' => 'request@miso.gov.ph'],
             [

@@ -13,6 +13,13 @@ class NatureOfRequestsReportTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function actingAsTwoFactorVerified(User $user): static
+    {
+        return $this->actingAs($user)->withSession([
+            'two_factor.verified_at' => now()->timestamp,
+        ]);
+    }
+
     public function test_guest_cannot_access_nature_of_requests_report(): void
     {
         $this->get(route('admin.reports.nature-of-requests'))
@@ -23,7 +30,7 @@ class NatureOfRequestsReportTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin)
+        $this->actingAsTwoFactorVerified($admin)
             ->get(route('admin.reports.nature-of-requests'))
             ->assertForbidden();
     }
@@ -81,7 +88,7 @@ class NatureOfRequestsReportTest extends TestCase
             'updated_at' => '2026-12-29 10:00:00',
         ]);
 
-        $response = $this->actingAs($superAdmin)
+        $response = $this->actingAsTwoFactorVerified($superAdmin)
             ->get(route('admin.reports.nature-of-requests', ['year' => 2026]));
 
         $response->assertOk();

@@ -235,7 +235,8 @@ window.profileAvatarUploader = (options: ProfileAvatarUploaderOptions) => {
                         />
 
                         <div class="group relative flex shrink-0 select-none rounded-full">
-                            <div
+                            <button
+                                type="button"
                                 class="relative flex h-36 w-36 cursor-pointer items-center justify-center overflow-hidden rounded-full border-4 border-white shadow-lg transition focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:border-slate-800/80 dark:focus-visible:ring-[#93c5fd] dark:focus-visible:ring-offset-[#0b1b3a] sm:h-40 sm:w-40"
                                 x-on:click.prevent="choose"
                                 x-on:drop="onDrop"
@@ -264,7 +265,7 @@ window.profileAvatarUploader = (options: ProfileAvatarUploaderOptions) => {
                                     <Camera class="h-10 w-10 text-white sm:h-12 sm:w-12" />
                                     <span class="mt-1.5 text-sm font-medium text-white" x-text="cameraLabel()"></span>
                                 </span>
-                            </div>
+                            </button>
                         </div>
 
                         <div x-show="file" class="flex flex-wrap items-center gap-2" x-cloak>

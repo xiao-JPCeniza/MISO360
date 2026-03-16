@@ -168,7 +168,7 @@ class EnrollmentController extends Controller
 
         $this->ensureActiveReferenceValue(
             $category,
-            ReferenceValueGroup::Category,
+            ReferenceValueGroup::EquipmentType,
             $existingCategory,
             'equipmentType',
         );
@@ -212,7 +212,8 @@ class EnrollmentController extends Controller
     {
         return [
             'status' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::Status),
-            'category' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::Category),
+            // For enrollment, the "category" options represent equipment types.
+            'category' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::EquipmentType),
             'officeDesignation' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::OfficeDesignation),
             'remarks' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::Remarks),
         ];

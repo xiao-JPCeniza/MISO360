@@ -6,7 +6,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
-type GroupKey = 'status' | 'category' | 'officeDesignation' | 'remarks';
+type GroupKey = 'status' | 'equipmentType' | 'category' | 'officeDesignation' | 'remarks';
 
 type ReferenceRow = {
     id: number;
@@ -52,11 +52,20 @@ const groupConfigs: GroupConfig[] = [
         emptyLabel: 'No statuses match this search.',
     },
     {
+        key: 'equipmentType',
+        title: 'Equipment Type',
+        description:
+            'Define equipment type labels (e.g. Laptop, PC, Tablet, Printer) used when enrolling assets at /admin/enrollments/create.',
+        placeholder: 'Laptop, PC, Tablet, Printer',
+        emptyLabel: 'No equipment types match this search.',
+    },
+    {
         key: 'category',
-        title: 'Category',
-        description: 'Define asset categories that appear in ticket enrollments.',
+        title: 'Request Category',
+        description:
+            'Define request categories such as Simple, Complex, or Urgent that appear on the request detail pages (/requests/{id}).',
         placeholder: 'Simple, Complex, Urgent',
-        emptyLabel: 'No categories match this search.',
+        emptyLabel: 'No request categories match this search.',
     },
     {
         key: 'officeDesignation',
@@ -76,6 +85,7 @@ const groupConfigs: GroupConfig[] = [
 
 const search = reactive<Record<GroupKey, string>>({
     status: '',
+    equipmentType: '',
     category: '',
     officeDesignation: '',
     remarks: '',
@@ -83,6 +93,7 @@ const search = reactive<Record<GroupKey, string>>({
 
 const editingId = reactive<Record<GroupKey, number | null>>({
     status: null,
+    equipmentType: null,
     category: null,
     officeDesignation: null,
     remarks: null,
@@ -90,6 +101,7 @@ const editingId = reactive<Record<GroupKey, number | null>>({
 
 const forms = {
     status: useForm({ name: '', is_active: true, group_key: 'status' }),
+    equipmentType: useForm({ name: '', is_active: true, group_key: 'equipment_type' }),
     category: useForm({ name: '', is_active: true, group_key: 'category' }),
     officeDesignation: useForm({
         name: '',
@@ -199,7 +211,8 @@ function labelFor(groupKey: GroupKey): string {
                     </p>
                     <h1 class="text-2xl font-semibold">Status Management</h1>
                     <p class="text-sm text-muted-foreground">
-                        Centralize the status, category, office designation, and remark
+                        Centralize status, equipment type (used on enrollment), request
+                        category (Simple/Complex/Urgent), office designation, and remark
                         options used throughout the platform.
                     </p>
                 </div>

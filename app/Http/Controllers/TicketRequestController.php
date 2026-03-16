@@ -78,6 +78,7 @@ class TicketRequestController extends Controller
             ->when(! $isAdmin && $user, fn ($query) => $query->where('user_id', $user->id))
             ->archived()
             ->latest()
+            ->limit(200)
             ->get()
             ->map(fn (TicketRequest $ticketRequest) => $this->mapTicketRequestToRow($ticketRequest));
 
@@ -361,6 +362,9 @@ class TicketRequestController extends Controller
         $qrCodeNumber = $allowUnitQr && ! empty(trim((string) ($validated['qrCodeNumber'] ?? '')))
             ? strtoupper(trim((string) $validated['qrCodeNumber']))
             : null;
+        if ($qrCodeNumber) {
+            $this->validateQrNotAssignedToAnotherRequest($qrCodeNumber);
+        }
 
         $ticketRequest = TicketRequest::create([
             'control_ticket_number' => $resolvedControlTicketNumber,
@@ -625,14 +629,30 @@ class TicketRequestController extends Controller
 
         $validated = $request->validate([
             'natureOfRequestId' => ['nullable', 'integer', 'exists:nature_of_requests,id'],
-            'remarksId' => ['nullable', 'string'],
-            'assignedStaffId' => ['nullable', 'string'],
+            'remarksId' => [
+                'nullable',
+                'integer',
+                Rule::exists('reference_values', 'id')->where('group_key', ReferenceValueGroup::Remarks->value),
+            ],
+            'assignedStaffId' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('is_active', true)),
+            ],
             'dateReceived' => ['nullable', 'date'],
             'dateStarted' => ['nullable', 'date'],
             'estimatedCompletionDate' => ['nullable', 'date'],
             'actionTaken' => ['nullable', 'string', 'max:500'],
-            'categoryId' => ['nullable', 'integer'],
-            'statusId' => ['nullable', 'integer'],
+            'categoryId' => [
+                'nullable',
+                'integer',
+                Rule::exists('reference_values', 'id')->where('group_key', ReferenceValueGroup::Category->value),
+            ],
+            'statusId' => [
+                'nullable',
+                'integer',
+                Rule::exists('reference_values', 'id')->where('group_key', ReferenceValueGroup::Status->value),
+            ],
             'systemDevelopmentSurvey' => ['nullable', 'array'],
             'systemDevelopmentSurvey.targetCompletion' => ['nullable', 'date'],
             'systemDevelopmentSurvey.assignedSystemsEngineer' => ['nullable', 'string', 'max:255'],
@@ -688,6 +708,7 @@ class TicketRequestController extends Controller
                     'qrCodeNumber' => ['This QR code is archived and cannot be assigned to a request.'],
                 ]);
             }
+            $this->validateQrNotAssignedToAnotherRequest($qrCodeNumber, $ticketRequest->id);
         }
         if ($qrCodeNumber) {
             $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
@@ -907,13 +928,25 @@ class TicketRequestController extends Controller
 
         $validated = $request->validate([
             'natureOfRequestId' => ['nullable', 'integer', 'exists:nature_of_requests,id'],
-            'remarksId' => ['nullable', 'string'],
-            'assignedStaffId' => ['nullable', 'string'],
+            'remarksId' => [
+                'nullable',
+                'integer',
+                Rule::exists('reference_values', 'id')->where('group_key', ReferenceValueGroup::Remarks->value),
+            ],
+            'assignedStaffId' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('is_active', true)),
+            ],
             'dateReceived' => ['nullable', 'date'],
             'dateStarted' => ['nullable', 'date'],
             'estimatedCompletionDate' => ['nullable', 'date'],
             'actionTaken' => ['nullable', 'string', 'max:500'],
-            'categoryId' => ['nullable', 'integer'],
+            'categoryId' => [
+                'nullable',
+                'integer',
+                Rule::exists('reference_values', 'id')->where('group_key', ReferenceValueGroup::Category->value),
+            ],
             'statusId' => [
                 'nullable',
                 'integer',
@@ -964,6 +997,7 @@ class TicketRequestController extends Controller
                     'qrCodeNumber' => ['This QR code is archived and cannot be assigned to a request.'],
                 ]);
             }
+            $this->validateQrNotAssignedToAnotherRequest($qrCodeNumber, $ticketRequest->id);
             $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
         }
 
@@ -1114,6 +1148,22 @@ class TicketRequestController extends Controller
             'request_assigned_staff' => $assignedStaffName,
             'request_remarks' => $remarksName,
         ]);
+    }
+
+    private function validateQrNotAssignedToAnotherRequest(string $uid, ?int $ignoreTicketRequestId = null): void
+    {
+        $existingQuery = TicketRequest::query()
+            ->where('qr_code_number', $uid);
+
+        if ($ignoreTicketRequestId !== null) {
+            $existingQuery->whereKeyNot($ignoreTicketRequestId);
+        }
+
+        if ($existingQuery->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'qrCodeNumber' => ['This QR code is already assigned to another request.'],
+            ]);
+        }
     }
 
     /**

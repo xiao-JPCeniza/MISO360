@@ -19,6 +19,12 @@ class ReferenceValueSeeder extends Seeder
                 'Complex',
                 'Urgent',
             ],
+            ReferenceValueGroup::EquipmentType->value => [
+                'Laptop',
+                'Printer',
+                'System Unit',
+                'Tablet',
+            ],
             ReferenceValueGroup::Status->value => [
                 'Pending',
                 'Ongoing',

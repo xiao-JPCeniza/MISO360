@@ -321,7 +321,7 @@ function submit() {
                         type="text"
                         required
                         class="enroll-input"
-                        placeholder="Laptop, printer, router"
+                        placeholder="Jackson Printer"
                     />
                 </div>
                 <div>

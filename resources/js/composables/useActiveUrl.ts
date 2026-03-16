@@ -14,8 +14,13 @@ export function useActiveUrl() {
         urlToCheck: NonNullable<InertiaLinkProps['href']>,
         currentUrl?: string,
     ) {
+        const target = toUrl(urlToCheck);
         const urlToCompare = currentUrl ?? currentUrlReactive.value;
-        return toUrl(urlToCheck) === urlToCompare;
+        if (target === '/') {
+            return urlToCompare === '/';
+        }
+
+        return urlToCompare === target || urlToCompare.startsWith(`${target}/`);
     }
 
     return {

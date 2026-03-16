@@ -710,22 +710,40 @@ function submitTicket() {
                                     v-model="officeSearchQuery"
                                     type="text"
                                     class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    placeholder="Search office..."
+                                    placeholder="Type to search office..."
                                 />
-                                <select
-                                    v-model="form.officeDesignationId"
-                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    required
+                                <div
+                                    v-if="filteredOfficeOptions.length"
+                                    class="max-h-40 overflow-y-auto rounded-md border border-input bg-background text-sm"
                                 >
-                                    <option disabled value="">Select an office</option>
-                                    <option
+                                    <button
                                         v-for="option in filteredOfficeOptions"
                                         :key="option.id"
-                                        :value="String(option.id)"
+                                        type="button"
+                                        class="flex w-full items-center justify-between px-3 py-1.5 text-left hover:bg-muted"
+                                        :class="{
+                                            'bg-primary/10 font-semibold':
+                                                String(form.officeDesignationId) === String(option.id),
+                                        }"
+                                        @click="form.officeDesignationId = String(option.id)"
                                     >
-                                        {{ option.name }}
-                                    </option>
-                                </select>
+                                        <span>{{ option.name }}</span>
+                                    </button>
+                                </div>
+                                <p
+                                    v-if="form.officeDesignationId"
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    Selected office:
+                                    {{
+                                        filteredOfficeOptions.find(
+                                            (o) => String(o.id) === String(form.officeDesignationId),
+                                        )?.name ||
+                                            officeOptions.find(
+                                                (o) => String(o.id) === String(form.officeDesignationId),
+                                            )?.name
+                                    }}
+                                </p>
                                 <p v-if="form.errors.officeDesignationId || officeError" class="text-xs text-destructive">
                                     {{ form.errors.officeDesignationId || officeError }}
                                 </p>
@@ -739,24 +757,41 @@ function submitTicket() {
                                     v-model="userSearchQuery"
                                     type="text"
                                     class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    placeholder="Search staff..."
+                                    placeholder="Type to search staff..."
                                     :disabled="!form.officeDesignationId"
                                 />
-                                <select
-                                    v-model="form.requestedForUserId"
-                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground disabled:opacity-70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                    :disabled="!form.officeDesignationId"
-                                    required
+                                <div
+                                    v-if="form.officeDesignationId && filteredOfficeUsers.length"
+                                    class="max-h-40 overflow-y-auto rounded-md border border-input bg-background text-sm disabled:opacity-70"
                                 >
-                                    <option disabled value="">Select a user</option>
-                                    <option
+                                    <button
                                         v-for="user in filteredOfficeUsers"
                                         :key="user.id"
-                                        :value="String(user.id)"
+                                        type="button"
+                                        class="flex w-full items-center justify-between px-3 py-1.5 text-left hover:bg-muted"
+                                        :class="{
+                                            'bg-primary/10 font-semibold':
+                                                String(form.requestedForUserId) === String(user.id),
+                                        }"
+                                        @click="form.requestedForUserId = String(user.id)"
                                     >
-                                        {{ user.name }}
-                                    </option>
-                                </select>
+                                        <span>{{ user.name }}</span>
+                                    </button>
+                                </div>
+                                <p
+                                    v-if="form.requestedForUserId"
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    Selected user:
+                                    {{
+                                        filteredOfficeUsers.find(
+                                            (u) => String(u.id) === String(form.requestedForUserId),
+                                        )?.name ||
+                                            officeUsers.find(
+                                                (u) => String(u.id) === String(form.requestedForUserId),
+                                            )?.name
+                                    }}
+                                </p>
                                 <p v-if="form.errors.requestedForUserId || requestedUserError" class="text-xs text-destructive">
                                     {{ form.errors.requestedForUserId || requestedUserError }}
                                 </p>

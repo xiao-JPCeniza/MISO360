@@ -119,7 +119,11 @@ class RequestsPageTest extends TestCase
 
         $response = $this
             ->actingAs($admin)
-            ->postJson(route('requests.it-governance.generate-qr', $ticket));
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => now()->timestamp,
+            ])
+            ->postJson(route('requests.it-governance.generate-qr', $ticket), ['_token' => 'test-token']);
 
         $response->assertStatus(201);
         $response->assertJsonStructure(['qrCodeNumber', 'inventoryEditUrl']);
@@ -146,7 +150,12 @@ class RequestsPageTest extends TestCase
 
         $response = $this
             ->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => now()->timestamp,
+            ])
             ->patch(route('requests.it-governance.update', $ticket), [
+                '_token' => 'test-token',
                 'remarksId' => '',
                 'assignedStaffId' => (string) $admin->id,
                 'dateReceived' => now()->toDateString(),
@@ -179,7 +188,12 @@ class RequestsPageTest extends TestCase
 
         $response = $this
             ->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => now()->timestamp,
+            ])
             ->post(route('requests.it-governance.update', $ticket), [
+                '_token' => 'test-token',
                 'remarksId' => '',
                 'assignedStaffId' => (string) $admin->id,
                 'dateReceived' => now()->toDateString(),

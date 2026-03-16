@@ -23,21 +23,21 @@ const resend = () => {
 <template>
     <Head title="Two-factor verification" />
 
-    <div class="min-h-screen bg-slate-950 text-white">
+    <div class="min-h-screen bg-background text-foreground">
         <div class="mx-auto flex min-h-screen w-full max-w-4xl items-center px-6">
-            <div class="w-full rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl shadow-black/40">
+            <div class="w-full rounded-3xl border border-border bg-card p-8 shadow-2xl shadow-black/10">
                 <div class="space-y-3">
-                    <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+                    <p class="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
                         Verify access
                     </p>
                     <h1 class="text-3xl font-semibold">
                         Check your email for a 6-digit code
                     </h1>
-                    <p class="text-sm text-slate-300">
+                    <p class="text-sm text-muted-foreground">
                         We sent a one-time verification code to
                         <span class="font-semibold">{{ props.email }}</span>.
                     </p>
-                    <p class="text-xs text-slate-400">
+                    <p class="text-xs text-muted-foreground">
                         Purpose: {{ props.purpose === 'login' ? 'Login' : 'Sensitive action' }}
                     </p>
                 </div>
@@ -46,7 +46,7 @@ const resend = () => {
                     <div>
                         <label
                             for="code"
-                            class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+                            class="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                         >
                             Verification code
                         </label>
@@ -56,7 +56,7 @@ const resend = () => {
                             type="text"
                             autocomplete="one-time-code"
                             maxlength="6"
-                            class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
+                            class="mt-2 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
                             placeholder="123456"
                         />
                         <p v-if="form.errors.code" class="mt-2 text-sm text-rose-400">
@@ -66,17 +66,17 @@ const resend = () => {
 
                     <button
                         type="submit"
-                        class="flex w-full items-center justify-center rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        class="flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                         :disabled="form.processing"
                     >
                         Verify
                     </button>
                 </form>
 
-                <div class="mt-6 flex flex-col gap-3 text-sm text-slate-300">
+                <div class="mt-6 flex flex-col gap-3 text-sm text-muted-foreground">
                     <button
                         type="button"
-                        class="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold transition hover:bg-slate-800"
+                        class="rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-muted"
                         @click="resend"
                     >
                         Resend code

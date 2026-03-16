@@ -7,6 +7,7 @@ enum ReferenceValueGroup: string
     case Status = 'status';
     case OfficeDesignation = 'office_designation';
     case Category = 'category';
+    case EquipmentType = 'equipment_type';
     case Remarks = 'remarks';
 
     public function label(): string
@@ -14,6 +15,7 @@ enum ReferenceValueGroup: string
         return match ($this) {
             self::Status => 'Status',
             self::OfficeDesignation => 'Office Designation',
+            self::EquipmentType => 'Equipment Type',
             self::Category => 'Category',
             self::Remarks => 'Remarks',
         };

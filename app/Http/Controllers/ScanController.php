@@ -144,6 +144,7 @@ class ScanController extends Controller
         $assignedAdmin = $item->assignedAdmin ?? null;
         $linkedRequest = TicketRequest::with('status')
             ->where('qr_code_number', $item->unique_id)
+            ->latest('id')
             ->first();
 
         return [

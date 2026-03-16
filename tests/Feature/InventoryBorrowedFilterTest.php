@@ -89,7 +89,12 @@ class InventoryBorrowedFilterTest extends TestCase
 
         $response = $this
             ->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => now()->timestamp,
+            ])
             ->patch(route('requests.equipment-network.update', $ticket), [
+                '_token' => 'test-token',
                 'statusId' => $completedStatus->id,
             ]);
 

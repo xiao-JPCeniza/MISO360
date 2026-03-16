@@ -28,6 +28,7 @@ class DashboardController extends Controller
             ->count();
 
         $activeQuery = TicketRequest::query()
+            ->where('user_id', $user->id)
             ->pending()
             ->with([
                 'natureOfRequest:id,name',

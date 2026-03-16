@@ -4,22 +4,15 @@ namespace Tests\Feature;
 
 use App\Enums\ReferenceValueGroup;
 use App\Models\ReferenceValue;
-use App\Models\User;
-use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_users_can_register_and_go_to_dashboard_without_verification_email(): void
+    public function test_public_registration_endpoint_is_disabled(): void
     {
-        Notification::fake();
-        $this->withoutMiddleware();
-
         $office = ReferenceValue::factory()->create([
             'group_key' => ReferenceValueGroup::OfficeDesignation->value,
         ]);
@@ -33,17 +26,7 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'SecurePass1!',
         ];
 
-        $response = $this->post('/register', $payload);
-
-        $response->assertRedirect(route('dashboard'));
-
-        $user = User::where('email', $payload['email'])->first();
-
-        $this->assertNotNull($user);
-        $this->assertSame($office->id, $user->office_designation_id);
-        $this->assertTrue(Hash::check($payload['password'], $user->password));
-        $this->assertNotNull($user->email_verified_at);
-
-        Notification::assertNotSentTo($user, VerifyEmail::class);
+        $this->post('/register', $payload)->assertNotFound();
+        $this->assertDatabaseMissing('users', ['email' => $payload['email']]);
     }
 }

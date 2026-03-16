@@ -229,6 +229,9 @@ class StoreTicketRequestRequest extends FormRequest
                         'Completed System Change Request Form (PDF) is required. Download the form, complete it offline, then upload it here.',
                     );
                 }
+                if (is_array($this->input('systemChangeRequestForm'))) {
+                    $this->validateSystemChangeRequestForm($validator);
+                }
 
                 return;
             }

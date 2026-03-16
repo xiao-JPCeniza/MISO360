@@ -30,6 +30,7 @@ class InventoryController extends Controller
                     'user:id,name',
                 ])
                 ->latest()
+                ->limit(100)
                 ->get()
                 ->map(fn (TicketRequest $t) => [
                     'id' => $t->id,
@@ -51,6 +52,7 @@ class InventoryController extends Controller
                     $query->where('equipment_name', 'like', "%{$search}%");
                 })
                 ->orderBy('equipment_name')
+                ->limit(200)
                 ->get();
         }
 
@@ -60,6 +62,7 @@ class InventoryController extends Controller
                     $query->where('equipment_name', 'like', "%{$search}%");
                 })
                 ->orderBy('equipment_name')
+                ->limit(200)
                 ->get();
         }
 

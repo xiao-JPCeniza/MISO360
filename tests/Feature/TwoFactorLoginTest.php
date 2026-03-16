@@ -54,7 +54,6 @@ class TwoFactorLoginTest extends TestCase
 
         $response->assertRedirect('/admin/dashboard');
         $this->assertAuthenticatedAs($admin);
-
         Notification::assertNothingSent();
     }
 }

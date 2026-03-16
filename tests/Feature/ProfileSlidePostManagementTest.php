@@ -68,7 +68,7 @@ class ProfileSlidePostManagementTest extends TestCase
                 '_token' => 'test-token',
                 'two_factor.verified_at' => Carbon::now()->timestamp,
             ])
-            ->patch("/admin/posts/{$slide->id}/archive");
+            ->patch("/admin/posts/{$slide->id}/archive", ['_token' => 'test-token']);
 
         $response->assertRedirect(route('admin.posts.index'));
         $response->assertSessionHas('status');

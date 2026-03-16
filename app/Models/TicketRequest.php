@@ -105,13 +105,11 @@ class TicketRequest extends Model
         })->orWhereNull('status_id');
     }
 
-    /**
-     * Requests that appear in the queue: Pending status only.
-     * Excludes requests with no status selected (null status_id).
-     */
     public function scopePending(Builder $query): Builder
     {
-        return $query->whereHas('status', fn (Builder $q) => $q->where('name', 'Pending'));
+        return $query->whereHas('status', function (Builder $q) {
+            $q->whereIn('name', ['Pending', 'Ongoing']);
+        });
     }
 
     public function scopeCompleted(Builder $query): Builder

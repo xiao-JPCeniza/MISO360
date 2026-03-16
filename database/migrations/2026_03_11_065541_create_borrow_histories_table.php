@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('borrow_histories')) {
+            return;
+        }
+
         Schema::create('borrow_histories', function (Blueprint $table) {
             $table->id();
             $table->timestamps();

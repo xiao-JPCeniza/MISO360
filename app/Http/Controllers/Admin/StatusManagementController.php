@@ -24,7 +24,8 @@ class StatusManagementController extends Controller
     {
         $usageCounts = [
             ReferenceValueGroup::Status->value => $this->usageCounts('warranty_status'),
-            ReferenceValueGroup::Category->value => $this->usageCounts('equipment_type'),
+            ReferenceValueGroup::EquipmentType->value => $this->usageCounts('equipment_type'),
+            ReferenceValueGroup::Category->value => [],
             ReferenceValueGroup::OfficeDesignation->value => $this->usageCounts('location_office_division'),
             ReferenceValueGroup::Remarks->value => $this->usageCounts('request_remarks'),
         ];
@@ -174,7 +175,7 @@ class StatusManagementController extends Controller
     {
         match ($groupKey) {
             ReferenceValueGroup::Status->value => $this->updateColumnValue('warranty_status', $previousName, $nextName),
-            ReferenceValueGroup::Category->value => $this->updateColumnValue('equipment_type', $previousName, $nextName),
+            ReferenceValueGroup::EquipmentType->value => $this->updateColumnValue('equipment_type', $previousName, $nextName),
             ReferenceValueGroup::OfficeDesignation->value => $this->updateColumnValue('location_office_division', $previousName, $nextName),
             ReferenceValueGroup::Remarks->value => $this->updateColumnValue('request_remarks', $previousName, $nextName),
             default => null,
@@ -196,6 +197,7 @@ class StatusManagementController extends Controller
     {
         return match ($group) {
             ReferenceValueGroup::Status => 'status',
+            ReferenceValueGroup::EquipmentType => 'equipmentType',
             ReferenceValueGroup::Category => 'category',
             ReferenceValueGroup::OfficeDesignation => 'officeDesignation',
             ReferenceValueGroup::Remarks => 'remarks',

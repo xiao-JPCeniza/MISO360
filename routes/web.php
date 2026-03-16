@@ -185,7 +185,7 @@ Route::middleware([
         ->name('requests.it-governance.generate-qr');
     Route::get('requests/equipment-and-network', fn () => redirect()->route('requests'))
         ->name('requests.equipment-network');
-    Route::get('requests/system-error-bug-report', fn () => Inertia::render('requests/System_error_bug_report_Form'))
+    Route::get('requests/system-error-bug-report', fn () => redirect()->route('submit-request'))
         ->name('requests.system-error-bug-report');
     Route::get('requests/{ticketRequest}/equipment-and-network', [TicketRequestController::class, 'equipmentAndNetwork'])
         ->name('requests.equipment-network.show');

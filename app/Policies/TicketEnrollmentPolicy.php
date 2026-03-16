@@ -9,7 +9,7 @@ class TicketEnrollmentPolicy
 {
     public function view(User $user, TicketEnrollment $enrollment): bool
     {
-        return true;
+        return $user->isAdmin();
     }
 
     public function review(User $user, TicketEnrollment $enrollment): bool

@@ -11,15 +11,9 @@ class ScanAccessTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
+    public function test_user_can_access_scan_page_but_cannot_view_item_review_or_assign(): void
     {
-        parent::setUp();
-
-        $this->withoutMiddleware();
-    }
-
-    public function test_user_can_view_scan_result_but_cannot_review_or_assign(): void
-    {
+        /** @var User $user */
         $user = User::factory()->create();
         $enrollment = TicketEnrollment::create([
             'unique_id' => 'MIS-UID-12345',
@@ -32,17 +26,21 @@ class ScanAccessTest extends TestCase
 
         $this->actingAs($user)
             ->get("/scan/{$enrollment->unique_id}")
-            ->assertOk();
+            ->assertForbidden();
 
         $this->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
             ->post("/scan/{$enrollment->unique_id}/review", [
+                '_token' => 'test-token',
                 'acceptRepair' => true,
                 'comments' => 'Needs repair',
             ])
             ->assertForbidden();
 
         $this->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
             ->put("/scan/{$enrollment->unique_id}/assign", [
+                '_token' => 'test-token',
                 'assignedAdminId' => $user->id,
             ])
             ->assertForbidden();
@@ -50,6 +48,7 @@ class ScanAccessTest extends TestCase
 
     public function test_admin_can_review_but_cannot_assign(): void
     {
+        /** @var User $admin */
         $admin = User::factory()->admin()->create();
         $enrollment = TicketEnrollment::create([
             'unique_id' => 'MIS-UID-54321',
@@ -57,7 +56,13 @@ class ScanAccessTest extends TestCase
         ]);
 
         $this->actingAs($admin)
+            ->get("/scan/{$enrollment->unique_id}")
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
             ->post("/scan/{$enrollment->unique_id}/review", [
+                '_token' => 'test-token',
                 'acceptRepair' => true,
                 'comments' => 'Accepted for repair',
             ])
@@ -70,7 +75,9 @@ class ScanAccessTest extends TestCase
         ]);
 
         $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
             ->put("/scan/{$enrollment->unique_id}/assign", [
+                '_token' => 'test-token',
                 'assignedAdminId' => $admin->id,
             ])
             ->assertForbidden();
@@ -78,7 +85,9 @@ class ScanAccessTest extends TestCase
 
     public function test_super_admin_can_assign(): void
     {
+        /** @var User $superAdmin */
         $superAdmin = User::factory()->superAdmin()->create();
+        /** @var User $assignee */
         $assignee = User::factory()->admin()->create();
         $enrollment = TicketEnrollment::create([
             'unique_id' => 'MIS-UID-67890',
@@ -86,7 +95,13 @@ class ScanAccessTest extends TestCase
         ]);
 
         $this->actingAs($superAdmin)
+            ->get("/scan/{$enrollment->unique_id}")
+            ->assertOk();
+
+        $this->actingAs($superAdmin)
+            ->withSession(['_token' => 'test-token'])
             ->put("/scan/{$enrollment->unique_id}/assign", [
+                '_token' => 'test-token',
                 'assignedAdminId' => $assignee->id,
             ])
             ->assertRedirect("/scan/{$enrollment->unique_id}");
@@ -99,6 +114,7 @@ class ScanAccessTest extends TestCase
 
     public function test_admin_scan_auto_assigns_unassigned_ticket_and_logs(): void
     {
+        /** @var User $admin */
         $admin = User::factory()->admin()->create();
         $enrollment = TicketEnrollment::create([
             'unique_id' => 'MIS-UID-11111',

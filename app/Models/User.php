@@ -129,10 +129,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Check if two-factor authentication is required for this user.
+     * Admin and super_admin skip 2FA (no email code) and go directly to the dashboard.
      */
     public function requiresTwoFactor(): bool
     {
-        if ($this->isAdmin()) {
+        if ($this->isAdmin() || $this->isSuperAdmin()) {
             return false;
         }
 

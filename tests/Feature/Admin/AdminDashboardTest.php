@@ -16,6 +16,13 @@ class AdminDashboardTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function actingAsTwoFactorVerified(User $user): static
+    {
+        return $this->actingAs($user)->withSession([
+            'two_factor.verified_at' => now()->timestamp,
+        ]);
+    }
+
     public function test_guest_cannot_access_admin_dashboard(): void
     {
         $this->get(route('admin.dashboard'))->assertRedirect('/login');
@@ -35,7 +42,7 @@ class AdminDashboardTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $response = $this->actingAs($admin)
+        $response = $this->actingAsTwoFactorVerified($admin)
             ->get(route('admin.dashboard'));
 
         $response->assertOk();
@@ -73,7 +80,7 @@ class AdminDashboardTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $response = $this->actingAs($admin)
+        $response = $this->actingAsTwoFactorVerified($admin)
             ->get(route('admin.dashboard.archive-export'));
 
         $response->assertOk();
@@ -85,7 +92,7 @@ class AdminDashboardTest extends TestCase
         $admin = User::factory()->admin()->create();
         $staff = User::factory()->admin()->create(['name' => 'MIS Staff One']);
 
-        $response = $this->actingAs($admin)
+        $response = $this->actingAsTwoFactorVerified($admin)
             ->get(route('admin.dashboard.archive-export', ['assigned_staff_id' => $staff->id]));
 
         $response->assertOk();
@@ -112,7 +119,7 @@ class AdminDashboardTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin)
+        $this->actingAsTwoFactorVerified($admin)
             ->get(route('admin.dashboard.nature-monthly-summary-export'))
             ->assertForbidden();
     }
@@ -144,7 +151,7 @@ class AdminDashboardTest extends TestCase
             'created_at' => CarbonImmutable::create(2026, 2, 15, 10, 0, 0),
         ]);
 
-        $response = $this->actingAs($superAdmin)
+        $response = $this->actingAsTwoFactorVerified($superAdmin)
             ->get(route('admin.dashboard.nature-monthly-summary-export', ['year' => 2026]));
 
         $response->assertOk();
@@ -219,7 +226,7 @@ class AdminDashboardTest extends TestCase
             'status_id' => $pendingStatus->id,
         ]);
 
-        $response = $this->actingAs($admin)->get(route('admin.dashboard'));
+        $response = $this->actingAsTwoFactorVerified($admin)->get(route('admin.dashboard'));
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
