@@ -54,11 +54,6 @@ const mainNavItems = computed<NavItem[]>(() => {
             href: '/requests/equipment-and-network',
             icon: FileText,
         },
-        {
-            title: 'Inventory',
-            href: '/inventory',
-            icon: Package,
-        },
     ];
 
     if (isAdmin.value) {
@@ -76,6 +71,11 @@ const mainNavItems = computed<NavItem[]>(() => {
             title: 'Audit Logs',
             href: '/admin/audit-logs',
             icon: FileText,
+        });
+        items.push({
+            title: 'Inventory',
+            href: '/inventory',
+            icon: Package,
         });
         if (isSuperAdmin.value) {
             items.push({

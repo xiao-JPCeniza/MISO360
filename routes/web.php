@@ -100,7 +100,7 @@ Route::middleware([
     Route::post('admin/nature-of-request', [NatureOfRequestController::class, 'store'])
         ->middleware('admin')
         ->name('admin.nature-of-requests.store');
-    Route::patch('admin/nature-of-request/{natureOfRequest}', [NatureOfRequestController::class, 'update'])
+    Route::match(['post', 'patch'], 'admin/nature-of-request/{natureOfRequest}', [NatureOfRequestController::class, 'update'])
         ->middleware('admin')
         ->name('admin.nature-of-requests.update');
     Route::delete('admin/nature-of-request/{natureOfRequest}', [NatureOfRequestController::class, 'destroy'])
@@ -117,7 +117,7 @@ Route::middleware([
     Route::get('admin/status/{referenceValue}', fn () => redirect()->route('admin.status.index'))
         ->middleware('admin')
         ->name('admin.status.show');
-    Route::patch('admin/status/{referenceValue}', [StatusManagementController::class, 'update'])
+    Route::match(['post', 'patch'], 'admin/status/{referenceValue}', [StatusManagementController::class, 'update'])
         ->middleware('admin')
         ->name('admin.status.update');
     Route::delete('admin/status/{referenceValue}', [StatusManagementController::class, 'destroy'])
@@ -141,8 +141,8 @@ Route::middleware([
         Route::get('/create', [ProfileSlideController::class, 'create'])->name('create');
         Route::post('/', [ProfileSlideController::class, 'store'])->name('store');
         Route::get('/{profileSlide}/edit', [ProfileSlideController::class, 'edit'])->name('edit');
-        Route::patch('/{profileSlide}/archive', [ProfileSlideController::class, 'archive'])->name('archive');
-        Route::patch('/{profileSlide}', [ProfileSlideController::class, 'update'])->name('update');
+        Route::match(['post', 'patch'], '/{profileSlide}/archive', [ProfileSlideController::class, 'archive'])->name('archive');
+        Route::match(['post', 'patch'], '/{profileSlide}', [ProfileSlideController::class, 'update'])->name('update');
         Route::delete('/{profileSlide}', [ProfileSlideController::class, 'destroy'])->name('destroy');
     });
 
@@ -171,12 +171,12 @@ Route::middleware([
         ->name('requests');
     Route::get('requests/archive', [TicketRequestController::class, 'archive'])
         ->name('requests.archive');
-    Route::get('requests/it-governance', fn () => Inertia::render('requests/ItGovernanceRequest'))
+    Route::get('requests/it-governance', fn () => redirect()->route('requests'))
         ->name('requests.it-governance');
     Route::get('requests/{ticketRequest}/it-governance', [TicketRequestController::class, 'itGovernance'])
         ->middleware('admin')
         ->name('requests.it-governance.show');
-    Route::patch('requests/{ticketRequest}/it-governance', [TicketRequestController::class, 'updateItGovernance'])
+    Route::match(['post', 'patch'], 'requests/{ticketRequest}/it-governance', [TicketRequestController::class, 'updateItGovernance'])
         ->middleware('admin')
         ->name('requests.it-governance.update');
     Route::post('requests/{ticketRequest}/it-governance/generate-qr', [TicketRequestController::class, 'generateQrForRequest'])

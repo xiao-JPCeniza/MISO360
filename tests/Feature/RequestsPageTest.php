@@ -71,7 +71,7 @@ class RequestsPageTest extends TestCase
         );
     }
 
-    public function test_it_governance_request_page_renders(): void
+    public function test_it_governance_request_page_redirects_to_requests_list(): void
     {
         $user = User::factory()->create();
 
@@ -79,10 +79,7 @@ class RequestsPageTest extends TestCase
             ->actingAs($user)
             ->get(route('requests.it-governance'));
 
-        $response->assertOk();
-        $response->assertInertia(fn (Assert $page) => $page
-            ->component('requests/ItGovernanceRequest')
-        );
+        $response->assertRedirect(route('requests'));
     }
 
     public function test_admin_can_edit_request_at_show_page(): void
@@ -169,6 +166,35 @@ class RequestsPageTest extends TestCase
         $enrollment = TicketEnrollment::where('unique_id', 'MIS-UID-00099')->first();
         $this->assertNotNull($enrollment);
         $this->assertStringContainsString($ticket->control_ticket_number, $enrollment->equipment_name);
+    }
+
+    public function test_admin_can_assign_existing_uid_to_request_via_it_governance_update_with_post_fallback(): void
+    {
+        $admin = User::factory()->admin()->create();
+        IssuedUid::create(['uid' => 'MIS-UID-00100', 'sequence' => 100]);
+        $ticket = TicketRequest::factory()->create([
+            'has_qr_code' => false,
+            'qr_code_number' => null,
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->post(route('requests.it-governance.update', $ticket), [
+                'remarksId' => '',
+                'assignedStaffId' => (string) $admin->id,
+                'dateReceived' => now()->toDateString(),
+                'dateStarted' => '',
+                'estimatedCompletionDate' => '',
+                'actionTaken' => '',
+                'categoryId' => '',
+                'statusId' => '',
+                'qrCodeNumber' => 'MIS-UID-00100',
+            ]);
+
+        $response->assertRedirect();
+        $ticket->refresh();
+        $this->assertTrue($ticket->has_qr_code);
+        $this->assertSame('MIS-UID-00100', $ticket->qr_code_number);
     }
 
     public function test_super_admin_can_edit_request_at_show_page(): void
