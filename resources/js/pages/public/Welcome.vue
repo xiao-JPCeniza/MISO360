@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { dashboard, login } from '@/routes';
 
 function goToSubmitRequest(serviceName: string): void {
-    router.visit(
-        `/submit-request?service=${encodeURIComponent(serviceName)}`,
-        { preserveState: false },
-    );
+    router.visit(`/submit-request?service=${encodeURIComponent(serviceName)}`, {
+        preserveState: false,
+    });
 }
 
 type ProfileSlide = {
@@ -38,7 +37,9 @@ const slides = computed(() => props.profileSlides ?? []);
 
 function goToSlide(index: number, reset: boolean = false) {
     if (slides.value.length === 0) return;
-    currentSlideIndex.value = ((index % slides.value.length) + slides.value.length) % slides.value.length;
+    currentSlideIndex.value =
+        ((index % slides.value.length) + slides.value.length) %
+        slides.value.length;
     if (reset) resetAutoPlay();
 }
 
@@ -54,7 +55,8 @@ function startAutoPlay() {
     if (slideInterval.value) clearInterval(slideInterval.value);
     if (slides.value.length <= 1) return;
     slideInterval.value = setInterval(() => {
-        currentSlideIndex.value = (currentSlideIndex.value + 1) % slides.value.length;
+        currentSlideIndex.value =
+            (currentSlideIndex.value + 1) % slides.value.length;
     }, AUTO_PLAY_MS);
 }
 
@@ -107,7 +109,8 @@ const teamMembers: TeamMember[] = [
         id: 'meniano',
         fullName: 'Ronald Jay M. Meniano',
         shortName: 'Ronald Jay M. Meniano',
-        fullDesignation: 'Senior Administrative Assistant II (Computer Operator IV)',
+        fullDesignation:
+            'Senior Administrative Assistant II (Computer Operator IV)',
         shortDesignation: 'Senior Admin Assistant II',
         imageSlug: 'MENIANO-MISO',
     },
@@ -206,7 +209,9 @@ const teamGroups: TeamGroup[] = [
 
 const membersById = computed(() => {
     const map: Record<string, TeamMember> = {};
-    teamMembers.forEach((m) => { map[m.id] = m; });
+    teamMembers.forEach((m) => {
+        map[m.id] = m;
+    });
     return map;
 });
 
@@ -312,9 +317,15 @@ const divisions: Division[] = [
             { name: 'System Development', formRequired: true },
             { name: 'System modification', formRequired: true },
             { name: 'System error / bug report', formRequired: true },
-            { name: 'Request for new system module or enhancement', formRequired: false },
+            {
+                name: 'Request for new system module or enhancement',
+                formRequired: false,
+            },
             { name: 'System account creation', formRequired: true },
-            { name: 'Password reset or account recovery (gov mail)', formRequired: true },
+            {
+                name: 'Password reset or account recovery (gov mail)',
+                formRequired: true,
+            },
             { name: 'System Documentation', formRequired: false },
             { name: 'System Prototyping', formRequired: false },
         ],
@@ -359,9 +370,7 @@ function getDivisionSearchText(division: Division): string {
 const filteredDivisions = computed(() => {
     const q = servicesSearchQuery.value.trim().toLowerCase();
     if (!q) return divisions;
-    return divisions.filter((d) =>
-        getDivisionSearchText(d).includes(q),
-    );
+    return divisions.filter((d) => getDivisionSearchText(d).includes(q));
 });
 
 function getFilteredServicesForDivision(division: Division) {
@@ -369,7 +378,10 @@ function getFilteredServicesForDivision(division: Division) {
     if (!q) return division.services;
 
     if (division.id === 'equipment') {
-        const groups = division.services as { group?: string; items: string[] }[];
+        const groups = division.services as {
+            group?: string;
+            items: string[];
+        }[];
         return groups
             .map((g) => ({
                 group: g.group,
@@ -378,7 +390,10 @@ function getFilteredServicesForDivision(division: Division) {
             .filter((g) => g.items.length > 0);
     }
     if (division.id === 'system') {
-        const list = division.services as { name: string; formRequired: boolean }[];
+        const list = division.services as {
+            name: string;
+            formRequired: boolean;
+        }[];
         return list.filter((s) => s.name.toLowerCase().includes(q));
     }
     if (division.id === 'governance') {
@@ -389,7 +404,9 @@ function getFilteredServicesForDivision(division: Division) {
     return division.services;
 }
 
-function getEquipmentServicesForDivision(division: Division): EquipmentServiceGroup[] {
+function getEquipmentServicesForDivision(
+    division: Division,
+): EquipmentServiceGroup[] {
     if (division.id !== 'equipment') return [];
     return getFilteredServicesForDivision(division) as EquipmentServiceGroup[];
 }
@@ -408,7 +425,11 @@ function getGovernanceServicesForDivision(division: Division): string[] {
 <template>
     <Head title="Welcome">
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+        <link
+            rel="preconnect"
+            href="https://fonts.gstatic.com"
+            crossorigin="anonymous"
+        />
         <link
             href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap"
             rel="stylesheet"
@@ -417,7 +438,7 @@ function getGovernanceServicesForDivision(division: Division): string[] {
 
     <div
         class="min-h-screen scroll-smooth bg-linear-to-b from-slate-50 via-white to-slate-50 text-foreground dark:from-[#0b1b3a] dark:via-[#0f2a5f] dark:to-[#0b1b3a] dark:text-white"
-        style="font-family: 'Sora', ui-sans-serif, system-ui;"
+        style="font-family: 'Sora', ui-sans-serif, system-ui"
     >
         <header
             class="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 text-foreground shadow-sm shadow-black/5 backdrop-blur dark:border-white/10 dark:bg-[#0b1b3a]/95 dark:text-white dark:shadow-black/10"
@@ -431,30 +452,34 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                             class="h-10 w-10 rounded-full bg-white p-1 dark:bg-white"
                         />
                         <div>
-                            <p class="text-sm uppercase tracking-[0.2em] text-primary">
+                            <p
+                                class="text-sm tracking-[0.2em] text-primary uppercase"
+                            >
                                 MISO 360
                             </p>
-                            <p class="text-lg font-semibold leading-tight">
+                            <p class="text-lg leading-tight font-semibold">
                                 Management Information Systems Office
                             </p>
                         </div>
                     </div>
-                    <nav class="hidden items-center gap-6 text-sm font-semibold md:flex">
+                    <nav
+                        class="hidden items-center gap-6 text-sm font-semibold md:flex"
+                    >
                         <a
                             href="#profile"
-                            class="transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
+                            class="rounded transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         >
                             MISO Profile
                         </a>
                         <a
                             href="#team"
-                            class="transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
+                            class="rounded transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         >
                             Our Team
                         </a>
                         <a
                             href="#services"
-                            class="transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
+                            class="rounded transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         >
                             Services
                         </a>
@@ -470,7 +495,7 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                             :href="login()"
                             class="rounded-full border border-primary px-4 py-2 text-primary transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         >
-                        Sign in to start
+                            Sign in to start
                         </Link>
                     </nav>
                 </div>
@@ -507,25 +532,29 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                         :href="login()"
                         class="rounded-full border border-primary px-3 py-1.5 text-primary transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
-                    Sign in to start
+                        Sign in to start
                     </Link>
                 </nav>
             </div>
         </header>
 
-        <main class="mx-auto w-full max-w-6xl px-6 pb-20 pt-14 lg:pt-20">
+        <main class="mx-auto w-full max-w-6xl px-6 pt-14 pb-20 lg:pt-20">
             <section id="profile" class="flex flex-col gap-10">
                 <!-- Profile Slides carousel: immersive, full-width feel with animated text -->
                 <div
                     v-if="slides.length > 0"
                     class="profile-slider relative w-full overflow-hidden rounded-2xl border border-border bg-muted shadow-xl shadow-black/10 dark:border-white/10 dark:shadow-black/20"
-                    style="aspect-ratio: 21/9; min-height: 220px;"
+                    style="aspect-ratio: 21/9; min-height: 220px"
                 >
                     <div
                         v-for="(slide, index) in slides"
                         :key="slide.id"
                         class="absolute inset-0 transition-opacity duration-500 ease-out"
-                        :class="index === currentSlideIndex ? 'z-10 opacity-100' : 'z-0 opacity-0 pointer-events-none'"
+                        :class="
+                            index === currentSlideIndex
+                                ? 'z-10 opacity-100'
+                                : 'pointer-events-none z-0 opacity-0'
+                        "
                     >
                         <img
                             v-if="slide.imageUrl"
@@ -535,22 +564,31 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                             loading="lazy"
                             decoding="async"
                         />
-                        <div
-                            v-else
-                            class="absolute inset-0 bg-muted"
-                        />
+                        <div v-else class="absolute inset-0 bg-muted" />
                         <div
                             class="absolute inset-0"
-                            :style="slide.textPosition === 'right'
-                                ? { background: 'linear-gradient(to left, rgba(0,0,0,0.82), rgba(0,0,0,0.5), transparent 55%)' }
-                                : { background: 'linear-gradient(to right, rgba(0,0,0,0.82), rgba(0,0,0,0.5), transparent 55%)' }"
+                            :style="
+                                slide.textPosition === 'right'
+                                    ? {
+                                          background:
+                                              'linear-gradient(to left, rgba(0,0,0,0.82), rgba(0,0,0,0.5), transparent 55%)',
+                                      }
+                                    : {
+                                          background:
+                                              'linear-gradient(to right, rgba(0,0,0,0.82), rgba(0,0,0,0.5), transparent 55%)',
+                                      }
+                            "
                         />
                         <div
                             :key="`${slide.id}-${currentSlideIndex}`"
                             class="profile-slide-text absolute inset-y-0 flex flex-col justify-center px-8 py-8 sm:px-14 md:px-20"
                             :class="[
-                                slide.textPosition === 'right' ? 'right-0 items-end text-right' : 'left-0 items-start text-left',
-                                slide.textPosition === 'right' ? 'profile-slide-in-right' : 'profile-slide-in-left',
+                                slide.textPosition === 'right'
+                                    ? 'right-0 items-end text-right'
+                                    : 'left-0 items-start text-left',
+                                slide.textPosition === 'right'
+                                    ? 'profile-slide-in-right'
+                                    : 'profile-slide-in-left',
                             ]"
                         >
                             <p
@@ -559,38 +597,66 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                             >
                                 {{ slide.subtitle }}
                             </p>
-                            <h2 class="mt-2 text-2xl font-bold uppercase leading-tight tracking-tight text-white drop-shadow-sm sm:text-4xl md:text-5xl lg:text-6xl">
+                            <h2
+                                class="mt-2 text-2xl leading-tight font-bold tracking-tight text-white uppercase drop-shadow-sm sm:text-4xl md:text-5xl lg:text-6xl"
+                            >
                                 {{ slide.title }}
                             </h2>
                         </div>
                     </div>
                     <button
                         type="button"
-                        class="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/15 p-2.5 text-white backdrop-blur-md transition-all duration-200 hover:bg-white/30 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/50 sm:left-4"
+                        class="absolute top-1/2 left-3 z-20 -translate-y-1/2 rounded-full bg-white/15 p-2.5 text-white backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white/30 focus:ring-2 focus:ring-white/50 focus:outline-none sm:left-4"
                         aria-label="Previous slide"
                         @click="prevSlide"
                     >
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        <svg
+                            class="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M15 19l-7-7 7-7"
+                            />
                         </svg>
                     </button>
                     <button
                         type="button"
-                        class="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/15 p-2.5 text-white backdrop-blur-md transition-all duration-200 hover:bg-white/30 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/50 sm:right-4"
+                        class="absolute top-1/2 right-3 z-20 -translate-y-1/2 rounded-full bg-white/15 p-2.5 text-white backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white/30 focus:ring-2 focus:ring-white/50 focus:outline-none sm:right-4"
                         aria-label="Next slide"
                         @click="nextSlide"
                     >
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        <svg
+                            class="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 5l7 7-7 7"
+                            />
                         </svg>
                     </button>
-                    <div class="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3">
+                    <div
+                        class="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3"
+                    >
                         <button
                             v-for="(_, dotIndex) in slides"
                             :key="dotIndex"
                             type="button"
                             class="h-2 w-2 rounded-full transition-all duration-300"
-                            :class="dotIndex === currentSlideIndex ? 'w-6 bg-white' : 'bg-white/50 hover:bg-white/80 hover:scale-125'"
+                            :class="
+                                dotIndex === currentSlideIndex
+                                    ? 'w-6 bg-white'
+                                    : 'bg-white/50 hover:scale-125 hover:bg-white/80'
+                            "
                             :aria-label="`Go to slide ${dotIndex + 1}`"
                             @click="goToSlide(dotIndex, true)"
                         />
@@ -599,17 +665,61 @@ function getGovernanceServicesForDivision(division: Division): string[] {
             </section>
 
             <section id="team" class="mt-14 scroll-mt-24">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div
+                    class="mb-8 rounded-2xl border border-border bg-white/70 p-5 shadow-sm backdrop-blur sm:p-6 dark:border-white/10 dark:bg-white/5"
+                >
+                    <div class="grid gap-5 sm:grid-cols-2">
+                        <div>
+                            <p
+                                class="text-xs font-semibold tracking-[0.2em] text-primary uppercase dark:text-[#93c5fd]"
+                            >
+                                About the System
+                            </p>
+                            <p
+                                class="mt-2 text-sm text-muted-foreground dark:text-white/70"
+                            >
+                                MISO360 is a centralized platform for
+                                submitting, monitoring, and managing ICT service
+                                requests across municipal offices.
+                            </p>
+                        </div>
+                        <div>
+                            <p
+                                class="text-xs font-semibold tracking-[0.2em] text-primary uppercase dark:text-[#93c5fd]"
+                            >
+                                About the Office
+                            </p>
+                            <p
+                                class="mt-2 text-sm text-muted-foreground dark:text-white/70"
+                            >
+                                The Management Information Systems Office (MISO)
+                                provides systems support, request handling, and
+                                ICT coordination to keep services reliable and
+                                responsive.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
+                >
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary dark:text-[#93c5fd]">
+                        <p
+                            class="text-xs font-semibold tracking-[0.2em] text-primary uppercase dark:text-[#93c5fd]"
+                        >
                             Meet the Team
                         </p>
-                        <h2 class="text-2xl font-semibold text-foreground sm:text-3xl dark:text-white">
+                        <h2
+                            class="text-2xl font-semibold text-foreground sm:text-3xl dark:text-white"
+                        >
                             The people behind MISO 360
                         </h2>
                     </div>
-                    <p class="max-w-md text-sm text-muted-foreground dark:text-white/70">
-                        A dedicated group focused on clarity, accountability, and care.
+                    <p
+                        class="max-w-md text-sm text-muted-foreground dark:text-white/70"
+                    >
+                        A dedicated group focused on clarity, accountability,
+                        and care.
                     </p>
                 </div>
 
@@ -619,7 +729,11 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                     <div class="flex flex-col items-center gap-3">
                         <div
                             class="team-flip-card team-flip-card-lead"
-                            :class="{ 'team-flip-card-flipped': isFlipped(teamLead.id) }"
+                            :class="{
+                                'team-flip-card-flipped': isFlipped(
+                                    teamLead.id,
+                                ),
+                            }"
                             role="button"
                             tabindex="0"
                             :aria-label="`${teamLead.shortName}. Click to flip for details.`"
@@ -630,111 +744,341 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                             <div class="team-flip-inner">
                                 <div class="team-flip-front team-flip-face">
                                     <div class="team-avatar team-avatar-lead">
-                                        <span v-show="imageFailed(teamLead.id)" class="team-avatar-fallback" aria-hidden="true">{{ memberInitial(teamLead) }}</span>
+                                        <span
+                                            v-show="imageFailed(teamLead.id)"
+                                            class="team-avatar-fallback"
+                                            aria-hidden="true"
+                                            >{{ memberInitial(teamLead) }}</span
+                                        >
                                         <img
                                             v-show="!imageFailed(teamLead.id)"
                                             :src="memberImageSrc(teamLead)"
                                             :alt="teamLead.shortName"
                                             loading="lazy"
                                             @error="setImageFailed(teamLead.id)"
-                                        >
+                                        />
                                     </div>
-                                    <p class="team-name team-name-lead">{{ teamLead.shortName }}</p>
+                                    <p class="team-name team-name-lead">
+                                        {{ teamLead.shortName }}
+                                    </p>
                                 </div>
-                                <div class="team-flip-back team-flip-face team-flip-face-back">
-                                    <p class="team-back-name">{{ teamLead.fullName }}</p>
-                                    <p class="team-back-designation">{{ teamLead.fullDesignation }}</p>
-                                    <p v-if="teamLead.roleLabel" class="team-back-role">{{ teamLead.roleLabel }}</p>
-                                    <button type="button" class="team-back-close" @click.stop="toggleFlip(teamLead.id)">Tap to flip back</button>
+                                <div
+                                    class="team-flip-back team-flip-face team-flip-face-back"
+                                >
+                                    <p class="team-back-name">
+                                        {{ teamLead.fullName }}
+                                    </p>
+                                    <p class="team-back-designation">
+                                        {{ teamLead.fullDesignation }}
+                                    </p>
+                                    <p
+                                        v-if="teamLead.roleLabel"
+                                        class="team-back-role"
+                                    >
+                                        {{ teamLead.roleLabel }}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        class="team-back-close"
+                                        @click.stop="toggleFlip(teamLead.id)"
+                                    >
+                                        Tap to flip back
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                        <div class="h-4 w-px shrink-0 bg-border dark:bg-white/20" aria-hidden="true" />
+                        <div
+                            class="h-4 w-px shrink-0 bg-border dark:bg-white/20"
+                            aria-hidden="true"
+                        />
                     </div>
 
                     <!-- Department labels: same-size cards, compact & bold -->
-                    <div class="grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-3">
-                        <div v-for="group in teamGroups" :key="`label-${group.id}`" class="flex flex-col items-center">
+                    <div
+                        class="grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-3"
+                    >
+                        <div
+                            v-for="group in teamGroups"
+                            :key="`label-${group.id}`"
+                            class="flex flex-col items-center"
+                        >
                             <div class="team-dept-label">
-                                <span class="team-dept-label-text">{{ group.name }}</span>
+                                <span class="team-dept-label-text">{{
+                                    group.name
+                                }}</span>
                             </div>
-                            <div class="mt-2 h-3 w-px shrink-0 bg-border dark:bg-white/20" aria-hidden="true" />
+                            <div
+                                class="mt-2 h-3 w-px shrink-0 bg-border dark:bg-white/20"
+                                aria-hidden="true"
+                            />
                         </div>
                     </div>
 
                     <!-- Department leads -->
-                    <div class="grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
-                        <div v-for="group in teamGroups" :key="`lead-${group.id}`" class="flex flex-col items-center gap-2">
+                    <div
+                        class="grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3"
+                    >
+                        <div
+                            v-for="group in teamGroups"
+                            :key="`lead-${group.id}`"
+                            class="flex flex-col items-center gap-2"
+                        >
                             <template v-if="getMember(group.memberIds[0])">
                                 <div
                                     class="team-flip-card team-flip-card-member"
-                                    :class="{ 'team-flip-card-flipped': isFlipped(getMember(group.memberIds[0])!.id) }"
+                                    :class="{
+                                        'team-flip-card-flipped': isFlipped(
+                                            getMember(group.memberIds[0])!.id,
+                                        ),
+                                    }"
                                     role="button"
                                     tabindex="0"
                                     :aria-label="`${getMember(group.memberIds[0])!.shortName}. Click to flip for details.`"
-                                    @click="toggleFlip(getMember(group.memberIds[0])!.id)"
-                                    @keydown.enter="toggleFlip(getMember(group.memberIds[0])!.id)"
-                                    @keydown.space.prevent="toggleFlip(getMember(group.memberIds[0])!.id)"
+                                    @click="
+                                        toggleFlip(
+                                            getMember(group.memberIds[0])!.id,
+                                        )
+                                    "
+                                    @keydown.enter="
+                                        toggleFlip(
+                                            getMember(group.memberIds[0])!.id,
+                                        )
+                                    "
+                                    @keydown.space.prevent="
+                                        toggleFlip(
+                                            getMember(group.memberIds[0])!.id,
+                                        )
+                                    "
                                 >
                                     <div class="team-flip-inner">
-                                        <div class="team-flip-front team-flip-face">
+                                        <div
+                                            class="team-flip-front team-flip-face"
+                                        >
                                             <div class="team-avatar">
-                                                <span v-show="imageFailed(getMember(group.memberIds[0])!.id)" class="team-avatar-fallback" aria-hidden="true">{{ memberInitial(getMember(group.memberIds[0])!) }}</span>
-                                                <img
-                                                    v-show="!imageFailed(getMember(group.memberIds[0])!.id)"
-                                                    :src="memberImageSrc(getMember(group.memberIds[0])!)"
-                                                    :alt="getMember(group.memberIds[0])!.shortName"
-                                                    loading="lazy"
-                                                    @error="setImageFailed(getMember(group.memberIds[0])!.id)"
+                                                <span
+                                                    v-show="
+                                                        imageFailed(
+                                                            getMember(
+                                                                group
+                                                                    .memberIds[0],
+                                                            )!.id,
+                                                        )
+                                                    "
+                                                    class="team-avatar-fallback"
+                                                    aria-hidden="true"
+                                                    >{{
+                                                        memberInitial(
+                                                            getMember(
+                                                                group
+                                                                    .memberIds[0],
+                                                            )!,
+                                                        )
+                                                    }}</span
                                                 >
+                                                <img
+                                                    v-show="
+                                                        !imageFailed(
+                                                            getMember(
+                                                                group
+                                                                    .memberIds[0],
+                                                            )!.id,
+                                                        )
+                                                    "
+                                                    :src="
+                                                        memberImageSrc(
+                                                            getMember(
+                                                                group
+                                                                    .memberIds[0],
+                                                            )!,
+                                                        )
+                                                    "
+                                                    :alt="
+                                                        getMember(
+                                                            group.memberIds[0],
+                                                        )!.shortName
+                                                    "
+                                                    loading="lazy"
+                                                    @error="
+                                                        setImageFailed(
+                                                            getMember(
+                                                                group
+                                                                    .memberIds[0],
+                                                            )!.id,
+                                                        )
+                                                    "
+                                                />
                                             </div>
-                                            <p class="team-name">{{ getMember(group.memberIds[0])!.shortName }}</p>
+                                            <p class="team-name">
+                                                {{
+                                                    getMember(
+                                                        group.memberIds[0],
+                                                    )!.shortName
+                                                }}
+                                            </p>
                                         </div>
-                                        <div class="team-flip-back team-flip-face team-flip-face-back">
-                                            <p class="team-back-name team-back-name-sm">{{ getMember(group.memberIds[0])!.fullName }}</p>
-                                            <p class="team-back-designation team-back-designation-sm">{{ getMember(group.memberIds[0])!.fullDesignation }}</p>
-                                            <button type="button" class="team-back-close team-back-close-sm" @click.stop="toggleFlip(getMember(group.memberIds[0])!.id)">Tap to flip back</button>
+                                        <div
+                                            class="team-flip-back team-flip-face team-flip-face-back"
+                                        >
+                                            <p
+                                                class="team-back-name team-back-name-sm"
+                                            >
+                                                {{
+                                                    getMember(
+                                                        group.memberIds[0],
+                                                    )!.fullName
+                                                }}
+                                            </p>
+                                            <p
+                                                class="team-back-designation team-back-designation-sm"
+                                            >
+                                                {{
+                                                    getMember(
+                                                        group.memberIds[0],
+                                                    )!.fullDesignation
+                                                }}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                class="team-back-close team-back-close-sm"
+                                                @click.stop="
+                                                    toggleFlip(
+                                                        getMember(
+                                                            group.memberIds[0],
+                                                        )!.id,
+                                                    )
+                                                "
+                                            >
+                                                Tap to flip back
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
-                                <div v-if="group.memberIds.length > 1" class="h-3 w-px shrink-0 bg-border dark:bg-white/20" aria-hidden="true" />
+                                <div
+                                    v-if="group.memberIds.length > 1"
+                                    class="h-3 w-px shrink-0 bg-border dark:bg-white/20"
+                                    aria-hidden="true"
+                                />
                             </template>
                         </div>
                     </div>
 
                     <!-- Team members grid -->
-                    <div class="grid w-full max-w-4xl grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-                        <div v-for="group in teamGroups" :key="`members-${group.id}`" class="flex flex-wrap justify-center gap-3">
-                            <template v-for="memberId in group.memberIds.slice(1)" :key="memberId">
-                                <div v-if="getMember(memberId)" class="flex justify-center">
+                    <div
+                        class="grid w-full max-w-4xl grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4"
+                    >
+                        <div
+                            v-for="group in teamGroups"
+                            :key="`members-${group.id}`"
+                            class="flex flex-wrap justify-center gap-3"
+                        >
+                            <template
+                                v-for="memberId in group.memberIds.slice(1)"
+                                :key="memberId"
+                            >
+                                <div
+                                    v-if="getMember(memberId)"
+                                    class="flex justify-center"
+                                >
                                     <div
                                         class="team-flip-card team-flip-card-member"
-                                        :class="{ 'team-flip-card-flipped': isFlipped(memberId) }"
+                                        :class="{
+                                            'team-flip-card-flipped':
+                                                isFlipped(memberId),
+                                        }"
                                         role="button"
                                         tabindex="0"
                                         :aria-label="`${getMember(memberId)!.shortName}. Click to flip for details.`"
                                         @click="toggleFlip(memberId)"
                                         @keydown.enter="toggleFlip(memberId)"
-                                        @keydown.space.prevent="toggleFlip(memberId)"
+                                        @keydown.space.prevent="
+                                            toggleFlip(memberId)
+                                        "
                                     >
                                         <div class="team-flip-inner">
-                                            <div class="team-flip-front team-flip-face">
+                                            <div
+                                                class="team-flip-front team-flip-face"
+                                            >
                                                 <div class="team-avatar">
-                                                    <span v-show="imageFailed(memberId)" class="team-avatar-fallback" aria-hidden="true">{{ getMember(memberId) ? memberInitial(getMember(memberId)!) : '' }}</span>
-                                                    <img
-                                                        v-show="!imageFailed(memberId)"
-                                                        :src="memberImageSrc(getMember(memberId)!)"
-                                                        :alt="getMember(memberId)!.shortName"
-                                                        loading="lazy"
-                                                        @error="setImageFailed(memberId)"
+                                                    <span
+                                                        v-show="
+                                                            imageFailed(
+                                                                memberId,
+                                                            )
+                                                        "
+                                                        class="team-avatar-fallback"
+                                                        aria-hidden="true"
+                                                        >{{
+                                                            getMember(memberId)
+                                                                ? memberInitial(
+                                                                      getMember(
+                                                                          memberId,
+                                                                      )!,
+                                                                  )
+                                                                : ''
+                                                        }}</span
                                                     >
+                                                    <img
+                                                        v-show="
+                                                            !imageFailed(
+                                                                memberId,
+                                                            )
+                                                        "
+                                                        :src="
+                                                            memberImageSrc(
+                                                                getMember(
+                                                                    memberId,
+                                                                )!,
+                                                            )
+                                                        "
+                                                        :alt="
+                                                            getMember(memberId)!
+                                                                .shortName
+                                                        "
+                                                        loading="lazy"
+                                                        @error="
+                                                            setImageFailed(
+                                                                memberId,
+                                                            )
+                                                        "
+                                                    />
                                                 </div>
-                                                <p class="team-name team-name-sm">{{ getMember(memberId)!.shortName }}</p>
+                                                <p
+                                                    class="team-name team-name-sm"
+                                                >
+                                                    {{
+                                                        getMember(memberId)!
+                                                            .shortName
+                                                    }}
+                                                </p>
                                             </div>
-                                            <div class="team-flip-back team-flip-face team-flip-face-back">
-                                                <p class="team-back-name team-back-name-xs">{{ getMember(memberId)!.fullName }}</p>
-                                                <p class="team-back-designation team-back-designation-xs">{{ getMember(memberId)!.fullDesignation }}</p>
-                                                <button type="button" class="team-back-close team-back-close-xs" @click.stop="toggleFlip(memberId)">Tap to flip back</button>
+                                            <div
+                                                class="team-flip-back team-flip-face team-flip-face-back"
+                                            >
+                                                <p
+                                                    class="team-back-name team-back-name-xs"
+                                                >
+                                                    {{
+                                                        getMember(memberId)!
+                                                            .fullName
+                                                    }}
+                                                </p>
+                                                <p
+                                                    class="team-back-designation team-back-designation-xs"
+                                                >
+                                                    {{
+                                                        getMember(memberId)!
+                                                            .fullDesignation
+                                                    }}
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    class="team-back-close team-back-close-xs"
+                                                    @click.stop="
+                                                        toggleFlip(memberId)
+                                                    "
+                                                >
+                                                    Tap to flip back
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -747,7 +1091,7 @@ function getGovernanceServicesForDivision(division: Division): string[] {
 
             <section
                 id="services"
-                class="relative mt-16 overflow-hidden rounded-3xl scroll-mt-24 border border-neutral-200 bg-neutral-50 shadow-2xl dark:border-white/10 dark:bg-[#0a0f1a]"
+                class="relative mt-16 scroll-mt-24 overflow-hidden rounded-3xl border border-neutral-200 bg-neutral-50 shadow-2xl dark:border-white/10 dark:bg-[#0a0f1a]"
             >
                 <!-- Tech background: grid + gradient -->
                 <div
@@ -765,18 +1109,24 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                 <div class="relative px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
                     <!-- Hero header -->
                     <div class="text-center">
-                        <h2 class="text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl lg:text-4xl dark:text-white">
+                        <h2
+                            class="text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl lg:text-4xl dark:text-white"
+                        >
                             MISO360 Services Hub
                         </h2>
-                        <p class="mt-2 max-w-xl mx-auto text-sm text-neutral-600 sm:text-base dark:text-white/70">
-                            Explore ICT services across divisions in one unified platform.
+                        <p
+                            class="mx-auto mt-2 max-w-xl text-sm text-neutral-600 sm:text-base dark:text-white/70"
+                        >
+                            Explore ICT services across divisions in one unified
+                            platform.
                         </p>
                     </div>
 
                     <!-- Global search -->
                     <div class="mx-auto mt-6 max-w-xl">
                         <label for="services-search" class="sr-only">
-                            Search services by keyword, division, or service name
+                            Search services by keyword, division, or service
+                            name
                         </label>
                         <div
                             class="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 shadow-inner backdrop-blur transition-[border-color,box-shadow] duration-200 focus-within:border-[#2563eb]/50 focus-within:ring-2 focus-within:ring-[#2563eb]/20 dark:border-white/15 dark:bg-white/5 focus-within:dark:border-[#3b82f6]/50 focus-within:dark:ring-[#3b82f6]/20"
@@ -807,10 +1157,7 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                     </div>
 
                     <!-- Division cards: vertical stack -->
-                    <div
-                        class="mt-8 flex flex-col gap-6"
-                        role="list"
-                    >
+                    <div class="mt-8 flex flex-col gap-6" role="list">
                         <TransitionGroup
                             name="services-card"
                             tag="div"
@@ -845,7 +1192,9 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                                         </svg>
                                         <!-- Database icon -->
                                         <svg
-                                            v-else-if="division.icon === 'database'"
+                                            v-else-if="
+                                                division.icon === 'database'
+                                            "
                                             class="h-5 w-5"
                                             fill="none"
                                             stroke="currentColor"
@@ -860,7 +1209,9 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                                         </svg>
                                         <!-- Shield icon -->
                                         <svg
-                                            v-else-if="division.icon === 'shield'"
+                                            v-else-if="
+                                                division.icon === 'shield'
+                                            "
                                             class="h-5 w-5"
                                             fill="none"
                                             stroke="currentColor"
@@ -875,10 +1226,14 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                                         </svg>
                                     </div>
                                     <div class="min-w-0 flex-1">
-                                        <h3 class="text-base font-semibold text-neutral-900 sm:text-lg dark:text-white">
+                                        <h3
+                                            class="text-base font-semibold text-neutral-900 sm:text-lg dark:text-white"
+                                        >
                                             {{ division.name }}
                                         </h3>
-                                        <p class="mt-1 text-xs text-neutral-600 sm:text-sm dark:text-white/70">
+                                        <p
+                                            class="mt-1 text-xs text-neutral-600 sm:text-sm dark:text-white/70"
+                                        >
                                             {{ division.description }}
                                         </p>
                                     </div>
@@ -890,29 +1245,35 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                                     <template
                                         v-if="
                                             division.id === 'equipment' &&
-                                            getEquipmentServicesForDivision(division).length
+                                            getEquipmentServicesForDivision(
+                                                division,
+                                            ).length
                                         "
                                     >
                                         <div
-                                            v-for="(group, gIdx) in getEquipmentServicesForDivision(division)"
+                                            v-for="(
+                                                group, gIdx
+                                            ) in getEquipmentServicesForDivision(
+                                                division,
+                                            )"
                                             :key="'eq-' + gIdx"
                                             class="space-y-2"
                                         >
                                             <span
                                                 v-if="group.group"
-                                                class="text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-white/50"
+                                                class="text-[11px] font-medium tracking-wider text-neutral-500 uppercase dark:text-white/50"
                                             >
                                                 {{ group.group }}
                                             </span>
-                                            <div
-                                                class="flex flex-wrap gap-2"
-                                            >
+                                            <div class="flex flex-wrap gap-2">
                                                 <button
                                                     v-for="item in group.items"
                                                     :key="item"
                                                     type="button"
-                                                    class="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6] cursor-pointer"
-                                                    @click="goToSubmitRequest(item)"
+                                                    class="cursor-pointer rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6]"
+                                                    @click="
+                                                        goToSubmitRequest(item)
+                                                    "
                                                 >
                                                     {{ item }}
                                                 </button>
@@ -924,16 +1285,24 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                                     <template
                                         v-else-if="
                                             division.id === 'system' &&
-                                            getSystemServicesForDivision(division).length
+                                            getSystemServicesForDivision(
+                                                division,
+                                            ).length
                                         "
                                     >
                                         <div class="flex flex-wrap gap-2">
                                             <button
-                                                v-for="service in getSystemServicesForDivision(division)"
+                                                v-for="service in getSystemServicesForDivision(
+                                                    division,
+                                                )"
                                                 :key="service.name"
                                                 type="button"
-                                                class="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6] cursor-pointer"
-                                                @click="goToSubmitRequest(service.name)"
+                                                class="inline-flex cursor-pointer flex-wrap items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6]"
+                                                @click="
+                                                    goToSubmitRequest(
+                                                        service.name,
+                                                    )
+                                                "
                                             >
                                                 {{ service.name }}
                                                 <span
@@ -950,15 +1319,19 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                                     <template
                                         v-else-if="
                                             division.id === 'governance' &&
-                                            getGovernanceServicesForDivision(division).length
+                                            getGovernanceServicesForDivision(
+                                                division,
+                                            ).length
                                         "
                                     >
                                         <div class="flex flex-wrap gap-2">
                                             <button
-                                                v-for="item in getGovernanceServicesForDivision(division)"
+                                                v-for="item in getGovernanceServicesForDivision(
+                                                    division,
+                                                )"
                                                 :key="item"
                                                 type="button"
-                                                class="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6] cursor-pointer"
+                                                class="cursor-pointer rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-left text-xs text-neutral-800 transition-colors duration-200 hover:border-[#2563eb]/25 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2563eb] dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-[#3b82f6]/25 dark:hover:bg-white/10 dark:focus-visible:outline-2 dark:focus-visible:outline-[#3b82f6]"
                                                 @click="goToSubmitRequest(item)"
                                             >
                                                 {{ item }}
@@ -983,7 +1356,8 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                         v-if="filteredDivisions.length === 0"
                         class="mt-6 text-center text-sm text-neutral-500 dark:text-white/50"
                     >
-                        No divisions or services match your search. Try a different keyword.
+                        No divisions or services match your search. Try a
+                        different keyword.
                     </p>
                 </div>
             </section>
@@ -1013,15 +1387,19 @@ function getGovernanceServicesForDivision(division: Division): string[] {
     }
 }
 .profile-slide-in-left {
-    animation: profile-slide-in-left 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: profile-slide-in-left 0.6s cubic-bezier(0.22, 1, 0.36, 1)
+        forwards;
 }
 .profile-slide-in-right {
-    animation: profile-slide-in-right 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: profile-slide-in-right 0.6s cubic-bezier(0.22, 1, 0.36, 1)
+        forwards;
 }
 
 .services-card-enter-active,
 .services-card-leave-active {
-    transition: opacity 0.25s ease, transform 0.25s ease;
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease;
 }
 .services-card-enter-from,
 .services-card-leave-to {
@@ -1037,7 +1415,9 @@ function getGovernanceServicesForDivision(division: Division): string[] {
     position: relative;
     perspective: 1000px;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
 }
 .team-flip-card:hover {
     transform: translateY(-2px);
