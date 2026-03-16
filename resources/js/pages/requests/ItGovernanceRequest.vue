@@ -232,7 +232,7 @@ function submitForm() {
         return;
     }
 
-    form.patch(props.updateUrl, {
+    form.post(props.updateUrl, {
         preserveScroll: true,
     });
 }

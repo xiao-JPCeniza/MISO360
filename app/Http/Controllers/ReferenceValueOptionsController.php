@@ -13,6 +13,7 @@ class ReferenceValueOptionsController extends Controller
         return [
             'status' => $this->optionsForGroup(ReferenceValueGroup::Status),
             'category' => $this->optionsForGroup(ReferenceValueGroup::Category),
+            'equipmentType' => $this->optionsForGroup(ReferenceValueGroup::EquipmentType),
             'officeDesignation' => $this->optionsForGroup(ReferenceValueGroup::OfficeDesignation),
             'remarks' => $this->optionsForGroup(ReferenceValueGroup::Remarks),
         ];

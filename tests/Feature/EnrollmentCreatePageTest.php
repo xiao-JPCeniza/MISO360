@@ -32,7 +32,7 @@ class EnrollmentCreatePageTest extends TestCase
             ->has('natureOfRequests')
             ->has('referenceOptions')
             ->has('referenceOptions.status')
-            ->has('referenceOptions.category')
+            ->has('referenceOptions.equipmentType')
             ->has('referenceOptions.officeDesignation')
             ->has('referenceOptions.remarks')
         );

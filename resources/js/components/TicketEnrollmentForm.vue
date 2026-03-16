@@ -60,7 +60,7 @@ type ReferenceOption = {
 
 type ReferenceOptions = {
     status?: ReferenceOption[];
-    category?: ReferenceOption[];
+    equipmentType?: ReferenceOption[];
     officeDesignation?: ReferenceOption[];
     remarks?: ReferenceOption[];
 };
@@ -183,7 +183,7 @@ function withLegacyOption<T extends ReferenceOption>(options: T[], currentValue:
 }
 
 const categoryOptionsWithLegacy = computed(() =>
-    withLegacyOption(props.referenceOptions?.category ?? [], form.equipmentType),
+    withLegacyOption(props.referenceOptions?.equipmentType ?? [], form.equipmentType),
 );
 
 const statusOptionsWithLegacy = computed(() =>
@@ -333,7 +333,7 @@ function submit() {
                         required
                         class="enroll-input"
                     >
-                        <option value="" disabled>Select a category</option>
+                        <option value="" disabled>Select an equipment type</option>
                         <option
                             v-for="option in categoryOptionsWithLegacy"
                             :key="option.isLegacy ? `legacy-${option.name}` : option.id"

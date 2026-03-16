@@ -212,8 +212,7 @@ class EnrollmentController extends Controller
     {
         return [
             'status' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::Status),
-            // For enrollment, the "category" options represent equipment types.
-            'category' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::EquipmentType),
+            'equipmentType' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::EquipmentType),
             'officeDesignation' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::OfficeDesignation),
             'remarks' => $this->getReferenceOptionsForGroup(ReferenceValueGroup::Remarks),
         ];
@@ -259,6 +258,7 @@ class EnrollmentController extends Controller
             ReferenceValueGroup::Status => 'Please select a valid status.',
             ReferenceValueGroup::OfficeDesignation => 'Please select a valid office designation.',
             ReferenceValueGroup::Category => 'Please select a valid category.',
+            ReferenceValueGroup::EquipmentType => 'Please select a valid equipment type.',
             ReferenceValueGroup::Remarks => 'Please select a valid remark.',
         };
 

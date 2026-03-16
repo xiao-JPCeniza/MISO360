@@ -64,7 +64,7 @@ type ReferenceOption = {
 
 type ReferenceOptions = {
     status: ReferenceOption[];
-    category: ReferenceOption[];
+    equipmentType: ReferenceOption[];
     officeDesignation: ReferenceOption[];
     remarks: ReferenceOption[];
 };
@@ -105,7 +105,7 @@ const videoRef = ref<HTMLVideoElement | null>(null);
 const natureOptions = ref<NatureOption[]>(props.natureOfRequests ?? []);
 const referenceOptions = ref<ReferenceOptions>(props.referenceOptions ?? {
     status: [],
-    category: [],
+    equipmentType: [],
     officeDesignation: [],
     remarks: [],
 });
