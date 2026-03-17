@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
 
+import FlashAlert from '@/components/FlashAlert.vue';
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 
 interface OfficeOption {
@@ -82,6 +83,7 @@ onMounted(() => {
     <Head :title="props.canRegister ? 'Sign in or register' : 'Sign in'" />
 
     <div class="relative min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white">
+        <FlashAlert />
         <div class="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
             <ThemeSwitcher />
         </div>

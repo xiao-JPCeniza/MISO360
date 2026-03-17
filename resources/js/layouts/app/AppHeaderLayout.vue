@@ -6,6 +6,7 @@ import AppContent from '@/components/AppContent.vue';
 import AppFooter from '@/components/AppFooter.vue';
 import AppHeader from '@/components/AppHeader.vue';
 import AppShell from '@/components/AppShell.vue';
+import FlashAlert from '@/components/FlashAlert.vue';
 import type { BreadcrumbItemType } from '@/types';
 
 interface Props {
@@ -30,6 +31,7 @@ const contentBottomPadding = computed(() => (canAccessFooter.value ? 'pb-24' : '
 
 <template>
     <AppShell class="flex-col" variant="header">
+        <FlashAlert />
         <AppHeader :breadcrumbs="breadcrumbs" />
         <AppContent :class="['px-4 pt-20 sm:px-6', contentPadding, contentBottomPadding]">
             <slot />

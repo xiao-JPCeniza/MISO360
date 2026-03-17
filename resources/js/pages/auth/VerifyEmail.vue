@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
+import FlashAlert from '@/components/FlashAlert.vue';
+
 defineProps<{
     status: string | null;
 }>();
@@ -16,6 +18,7 @@ const resend = () => {
     <Head title="Verify your email" />
 
     <div class="min-h-screen bg-background text-foreground">
+        <FlashAlert />
         <div class="mx-auto flex min-h-screen w-full max-w-4xl items-center px-6">
             <div class="w-full rounded-3xl border border-border bg-card p-10 shadow-2xl shadow-black/10">
                 <div class="flex flex-col gap-6">

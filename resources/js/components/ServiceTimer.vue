@@ -38,13 +38,6 @@ const isInactive = computed(() => {
     return ['pending', 'unassigned'].includes(n) || !t.statusName;
 });
 
-const displayLabel = computed(() => {
-    const t = props.serviceTimer;
-    if (!t || isInactive.value) return 'Time Elapsed';
-    if (t.isPaused) return 'Time Elapsed (Paused)';
-    return 'Time Elapsed';
-});
-
 const statusHint = computed(() => {
     const t = props.serviceTimer;
     if (!t || isInactive.value) return 'Timer starts when status is set to Ongoing';
@@ -92,11 +85,8 @@ onUnmounted(() => {
                   : 'border-emerald-500/60 bg-emerald-500/20 text-emerald-900 dark:border-emerald-400/50 dark:bg-emerald-500/25 dark:text-emerald-50',
         ]"
     >
-        <p class="text-[10px] font-semibold uppercase tracking-widest opacity-90">
-            {{ displayLabel }}
-        </p>
         <p
-            class="mt-1 font-mono text-2xl font-bold tabular-nums tracking-tight sm:text-3xl"
+            class="font-mono text-2xl font-bold tabular-nums tracking-tight sm:text-3xl"
             :class="[
                 isInactive
                     ? 'text-amber-700 dark:text-amber-200'

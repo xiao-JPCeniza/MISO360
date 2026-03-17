@@ -234,10 +234,11 @@ class TicketRequestController extends Controller
         $resolvedControlTicketNumber = $this->resolveControlTicketNumber(
             $validated['controlTicketNumber'] ?? null,
         );
-        $requestedForUserId = $canSubmitAsPrivilegedRequester
+        // When Submit Only leaves office/requested-for empty, use requester's own id and office.
+        $requestedForUserId = $canSubmitAsPrivilegedRequester && ! empty($validated['requestedForUserId'] ?? null)
             ? (int) $validated['requestedForUserId']
             : $requester->id;
-        $officeDesignationId = $canSubmitAsPrivilegedRequester
+        $officeDesignationId = $canSubmitAsPrivilegedRequester && ! empty($validated['officeDesignationId'] ?? null)
             ? (int) $validated['officeDesignationId']
             : $requester->office_designation_id;
 

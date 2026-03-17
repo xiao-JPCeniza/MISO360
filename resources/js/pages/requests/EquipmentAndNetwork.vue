@@ -4,7 +4,6 @@ import { computed, ref } from 'vue';
 
 import Icon from '@/components/Icon.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import ServiceTimer from '@/components/ServiceTimer.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -41,7 +40,6 @@ type TicketDetails = {
     categoryId?: number | string | null;
     statusId?: number | string | null;
     statusName?: string | null;
-    serviceTimer?: import('@/types/serviceTimer').ServiceTimerPayload | null;
     equipmentNetworkDetails?: Record<string, string>;
     hasQrCode?: boolean;
     qrCodeNumber?: string | null;
@@ -392,10 +390,6 @@ function submitForm() {
                             />
                         </div>
                     </div>
-                </div>
-
-                <div v-if="props.ticket.serviceTimer !== undefined" class="mt-4">
-                    <ServiceTimer :service-timer="props.ticket.serviceTimer ?? null" />
                 </div>
 
                 <div class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm">

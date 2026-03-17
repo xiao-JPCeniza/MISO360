@@ -68,7 +68,9 @@ class StoreTicketRequestRequest extends FormRequest
      */
     public function rules(): array
     {
-        $canSubmitAsPrivilegedRequester = $this->user()?->canSubmitAsPrivilegedRequester() ?? false;
+        $user = $this->user();
+        $canSubmitAsPrivilegedRequester = $user?->canSubmitAsPrivilegedRequester() ?? false;
+        $isSubmitOnly = $user?->isSubmitOnly() ?? false;
         $officeId = $this->input('officeDesignationId');
 
         $officeRules = [
@@ -82,7 +84,8 @@ class StoreTicketRequestRequest extends FormRequest
             'integer',
         ];
 
-        if ($canSubmitAsPrivilegedRequester) {
+        // Require office and requested-for only for admins; Submit Only may leave them empty (submit on own behalf).
+        if ($canSubmitAsPrivilegedRequester && ! $isSubmitOnly) {
             array_unshift($officeRules, 'required');
             array_unshift($requestedUserRules, 'required');
             $requestedUserRules[] = Rule::exists('users', 'id')->where(

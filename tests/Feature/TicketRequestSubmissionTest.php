@@ -399,6 +399,38 @@ class TicketRequestSubmissionTest extends TestCase
         ]);
     }
 
+    public function test_submit_only_user_can_submit_without_office_or_requested_for(): void
+    {
+        /** @var User $submitOnlyUser */
+        $submitOnlyUser = User::factory()->create([
+            'role' => 'submit_only',
+            'office_designation_id' => null,
+        ]);
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer repair',
+            'is_active' => true,
+        ]);
+        $controlTicketNumber = sprintf('CTN-%s-0999', now()->format('Ymd'));
+
+        $csrfToken = 'test-token';
+        $this->actingAs($submitOnlyUser)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Submit only user submitting on own behalf.',
+                'hasQrCode' => false,
+            ])
+            ->assertRedirect('/submit-request');
+
+        $this->assertDatabaseHas('ticket_requests', [
+            'control_ticket_number' => $controlTicketNumber,
+            'office_designation_id' => null,
+            'requested_for_user_id' => $submitOnlyUser->id,
+        ]);
+    }
+
     public function test_ticket_request_requires_description_minimum_length(): void
     {
         /** @var User $user */

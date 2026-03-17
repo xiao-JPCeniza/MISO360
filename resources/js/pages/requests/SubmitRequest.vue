@@ -248,10 +248,17 @@ const officeError = computed(() => {
     if (!props.canSubmitAsPrivilegedRequester || !submitAttempted.value) {
         return '';
     }
+    // Submit Only users may submit on their own behalf without selecting office/user.
+    if (props.isSubmitOnlyUser) {
+        return '';
+    }
     return form.officeDesignationId ? '' : 'Please select an office designation.';
 });
 const requestedUserError = computed(() => {
     if (!props.canSubmitAsPrivilegedRequester || !submitAttempted.value) {
+        return '';
+    }
+    if (props.isSubmitOnlyUser) {
         return '';
     }
     return form.requestedForUserId ? '' : 'Please select a user for this request.';
