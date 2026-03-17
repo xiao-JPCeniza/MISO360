@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed, onUnmounted, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import Icon from '@/components/Icon.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import ServiceTimer from '@/components/ServiceTimer.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -39,6 +40,8 @@ type TicketDetails = {
     actionTaken?: string | null;
     categoryId?: number | string | null;
     statusId?: number | string | null;
+    statusName?: string | null;
+    serviceTimer?: import('@/types/serviceTimer').ServiceTimerPayload | null;
     equipmentNetworkDetails?: Record<string, string>;
     hasQrCode?: boolean;
     qrCodeNumber?: string | null;
@@ -86,6 +89,8 @@ const fallbackCategories: SelectOption[] = [
 const fallbackStatuses: SelectOption[] = [
     { id: 'Pending', name: 'Pending' },
     { id: 'Ongoing', name: 'Ongoing' },
+    { id: 'Paused', name: 'Paused' },
+    { id: 'Put on Hold', name: 'Put on Hold' },
     { id: 'Completed', name: 'Completed' },
 ];
 
@@ -214,44 +219,6 @@ const isCompleted = computed(() => {
     const opt = statusList.value.find((o) => String(o.id) === id);
     return opt?.name === completedStatusName;
 });
-const elapsedSeconds = ref<number | null>(null);
-let elapsedInterval: ReturnType<typeof setInterval> | null = null;
-onMounted(() => {
-    const start = props.ticket.timeStarted;
-    const end = props.ticket.timeCompleted;
-    if (!start) {
-        elapsedSeconds.value = null;
-        return;
-    }
-    if (end) {
-        elapsedSeconds.value = Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000);
-        return;
-    }
-    if (isCompleted.value) {
-        elapsedSeconds.value = null;
-        return;
-    }
-    const tick = () => {
-        const startMs = new Date(start).getTime();
-        if (Number.isNaN(startMs)) return;
-        elapsedSeconds.value = Math.floor((Date.now() - startMs) / 1000);
-    };
-    tick();
-    elapsedInterval = setInterval(tick, 1000);
-});
-onUnmounted(() => {
-    if (elapsedInterval) clearInterval(elapsedInterval);
-});
-function formatElapsed(seconds: number): string {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    const parts = [];
-    if (h > 0) parts.push(`${h}h`);
-    parts.push(`${m}m`);
-    parts.push(`${s}s`);
-    return parts.join(' ');
-}
 
 const dateIsAfter = (start: string, end: string) => start && end && start > end;
 
@@ -425,6 +392,10 @@ function submitForm() {
                             />
                         </div>
                     </div>
+                </div>
+
+                <div v-if="props.ticket.serviceTimer !== undefined" class="mt-4">
+                    <ServiceTimer :service-timer="props.ticket.serviceTimer ?? null" />
                 </div>
 
                 <div class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm">
@@ -626,14 +597,6 @@ function submitForm() {
                             </label>
                             <div class="flex h-8 items-center rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600">
                                 {{ formatDateTime(ticket.timeCompleted) }}
-                            </div>
-                        </div>
-                        <div v-if="elapsedSeconds !== null" class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Elapsed
-                            </label>
-                            <div class="flex h-8 items-center rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600">
-                                {{ formatElapsed(elapsedSeconds) }}
                             </div>
                         </div>
                     </div>

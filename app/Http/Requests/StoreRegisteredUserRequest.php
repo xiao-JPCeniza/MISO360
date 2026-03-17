@@ -35,7 +35,7 @@ class StoreRegisteredUserRequest extends FormRequest
                     ->where('is_active', true),
             ],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Password::min(12)->letters()->numbers()->symbols()->uncompromised()],
+            'password' => ['required', 'confirmed', Password::min(6)],
         ];
     }
 

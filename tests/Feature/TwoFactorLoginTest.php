@@ -56,4 +56,24 @@ class TwoFactorLoginTest extends TestCase
         $this->assertAuthenticatedAs($admin);
         Notification::assertNothingSent();
     }
+
+    public function test_inactive_user_cannot_log_in_and_sees_account_inactive_message(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'inactive@example.com',
+            'password' => bcrypt('password'),
+            'is_active' => false,
+        ]);
+
+        $response = $this->withSession(['_token' => 'test-token'])->post('/login', [
+            '_token' => 'test-token',
+            'email' => $user->email,
+            'password' => 'password',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('email');
+        $this->assertStringContainsString('Account inactive', $response->getSession()->get('errors')->get('email')[0]);
+        $this->assertGuest();
+    }
 }

@@ -10,6 +10,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -75,7 +76,10 @@ class TwoFactorController extends Controller
         }
 
         if ($user instanceof MustVerifyEmail && ! $user->hasVerifiedEmail()) {
-            $user->sendEmailVerificationNotification();
+            $verificationSentKey = 'verification_email_sent:'.$user->id;
+            if (Cache::add($verificationSentKey, true, now()->addSeconds(60))) {
+                $user->sendEmailVerificationNotification();
+            }
 
             return redirect()->route('verification.notice');
         }

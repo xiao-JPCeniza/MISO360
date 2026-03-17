@@ -1,14 +1,24 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Form, Head, Link, useForm } from '@inertiajs/vue3';
 
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
+import { ref } from 'vue';
 
 type AuditLogEntry = {
     id: number;
@@ -86,6 +96,12 @@ const passwordForm = useForm({
 });
 
 const verifyEmailForm = useForm({});
+
+const deactivateModalOpen = ref(false);
+const deleteModalOpen = ref(false);
+
+const deactivateUrl = `/admin/users/${props.user.id}/deactivate`;
+const deleteUrl = `/admin/users/${props.user.id}`;
 </script>
 
 <template>
@@ -368,6 +384,127 @@ const verifyEmailForm = useForm({});
                         >
                             View full audit log
                         </Link>
+                    </div>
+
+                    <div
+                        class="rounded-3xl border-2 border-red-200 bg-red-50/80 p-6 dark:border-red-900/50 dark:bg-red-950/40"
+                        role="region"
+                        aria-labelledby="danger-zone-heading"
+                    >
+                        <HeadingSmall
+                            id="danger-zone-heading"
+                            title="Account management"
+                            description="Deactivate or permanently delete this account. These actions invalidate all sessions and cannot be undone."
+                        />
+                        <div class="mt-6 space-y-4">
+                            <div class="flex flex-wrap items-center gap-3">
+                                <Dialog :open="deactivateModalOpen" @update:open="deactivateModalOpen = $event">
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        :disabled="!props.user.is_active"
+                                        class="border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700 dark:border-red-500 dark:bg-red-600 dark:text-white dark:hover:border-red-500 dark:hover:bg-red-700"
+                                        @click="deactivateModalOpen = true"
+                                    >
+                                        Deactivate account
+                                    </Button>
+                                    <DialogContent
+                                        class="rounded-2xl border-2 border-red-200 bg-background dark:border-red-900/50 sm:max-w-md"
+                                        @pointer-down-outside="deactivateModalOpen = false"
+                                    >
+                                        <DialogHeader class="space-y-3">
+                                            <DialogTitle class="text-red-700 dark:text-red-400">
+                                                Deactivate this account?
+                                            </DialogTitle>
+                                            <DialogDescription>
+                                                The user will be logged out on all devices and will not be able to sign in until an administrator reactivates the account.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter class="gap-2">
+                                            <DialogClose as-child>
+                                                <Button
+                                                    variant="secondary"
+                                                    @click="deactivateModalOpen = false"
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </DialogClose>
+                                            <Form
+                                                :action="deactivateUrl"
+                                                method="post"
+                                                :options="{ preserveScroll: true }"
+                                                class="inline"
+                                                @success="deactivateModalOpen = false"
+                                            >
+                                                <Button
+                                                    type="submit"
+                                                    variant="destructive"
+                                                    class="border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700 dark:border-red-500 dark:bg-red-600 dark:text-white dark:hover:border-red-500 dark:hover:bg-red-700"
+                                                >
+                                                    Yes, deactivate
+                                                </Button>
+                                            </Form>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                                <p
+                                    v-if="!props.user.is_active"
+                                    class="text-sm text-red-700 dark:text-red-300"
+                                >
+                                    Account is already inactive.
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <Dialog :open="deleteModalOpen" @update:open="deleteModalOpen = $event">
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        class="border-red-700 bg-red-700 text-white hover:border-red-800 hover:bg-red-800 dark:border-red-600 dark:bg-red-700 dark:text-white dark:hover:border-red-600 dark:hover:bg-red-800"
+                                        @click="deleteModalOpen = true"
+                                    >
+                                        Delete account permanently
+                                    </Button>
+                                    <DialogContent
+                                        class="rounded-2xl border-2 border-red-200 bg-background dark:border-red-900/50 sm:max-w-md"
+                                        @pointer-down-outside="deleteModalOpen = false"
+                                    >
+                                        <DialogHeader class="space-y-3">
+                                            <DialogTitle class="text-red-700 dark:text-red-400">
+                                                Are you sure?
+                                            </DialogTitle>
+                                            <DialogDescription>
+                                                This will permanently delete the user and invalidate all their sessions. This action cannot be undone.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter class="gap-2">
+                                            <DialogClose as-child>
+                                                <Button
+                                                    variant="secondary"
+                                                    @click="deleteModalOpen = false"
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </DialogClose>
+                                            <Form
+                                                :action="deleteUrl"
+                                                method="delete"
+                                                :options="{ preserveScroll: false }"
+                                                class="inline"
+                                                @success="deleteModalOpen = false"
+                                            >
+                                                <Button
+                                                    type="submit"
+                                                    variant="destructive"
+                                                    class="border-red-700 bg-red-700 text-white hover:border-red-800 hover:bg-red-800 dark:border-red-600 dark:bg-red-700 dark:text-white dark:hover:border-red-600 dark:hover:bg-red-800"
+                                                >
+                                                    Yes, delete permanently
+                                                </Button>
+                                            </Form>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

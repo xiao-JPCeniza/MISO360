@@ -9,11 +9,16 @@ interface OfficeOption {
     name: string;
 }
 
-const props = defineProps<{
-    offices: OfficeOption[];
-}>();
+const props = withDefaults(
+    defineProps<{
+        canRegister?: boolean;
+        initialPanel?: 'signin' | 'register';
+        offices: OfficeOption[];
+    }>(),
+    { canRegister: false, initialPanel: 'signin' },
+);
 
-const activePanel = ref<'signin' | 'register'>('signin');
+const activePanel = ref<'signin' | 'register'>(props.initialPanel);
 
 const loginForm = useForm({
     email: '',
@@ -27,6 +32,7 @@ const registerForm = useForm({
     office_designation_id: null as number | null,
     email: '',
     password: '',
+    password_confirmation: '',
 });
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -38,7 +44,8 @@ const registerReady = computed(() => {
         registerForm.position_title.trim().length > 0 &&
         registerForm.office_designation_id !== null &&
         emailValid.value &&
-        registerForm.password.length > 0
+        registerForm.password.length > 0 &&
+        registerForm.password === registerForm.password_confirmation
     );
 });
 
@@ -46,12 +53,20 @@ const submitLogin = () => {
     loginForm.post('/login');
 };
 
+const REGISTER_THROTTLE_MS = 3000;
+let lastRegisterSubmitAt = 0;
+
 const submitRegister = () => {
+    const now = Date.now();
+    if (now - lastRegisterSubmitAt < REGISTER_THROTTLE_MS) {
+        return;
+    }
+    lastRegisterSubmitAt = now;
     registerForm.post('/register');
 };
 
 onMounted(() => {
-    if (Object.keys(registerForm.errors).length > 0) {
+    if (props.initialPanel === 'register' || Object.keys(registerForm.errors).length > 0) {
         activePanel.value = 'register';
     }
 });
@@ -59,7 +74,7 @@ onMounted(() => {
 
 <template>
 
-    <Head title="Sign in or register" />
+    <Head :title="props.canRegister ? 'Sign in or register' : 'Sign in'" />
 
     <div class="relative min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white">
         <div class="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
@@ -76,8 +91,13 @@ onMounted(() => {
                     </h1>
                     <p class="max-w-xl text-base text-slate-600 dark:text-slate-300">
                         A centralized platform for submitting, monitoring, and managing service requests within the
-                        MISO360 system. Authorized users may sign in to access the dashboard, while new users may
-                        register through a guided process to verify their office affiliation.
+                        MISO360 system. Authorized users may sign in to access the dashboard.
+                        <template v-if="props.canRegister">
+                            New users may register through a guided process to verify their office affiliation.
+                        </template>
+                        <template v-else>
+                            New accounts are created by administrators—contact your admin if you need access.
+                        </template>
                     </p>
                     <div class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
                         <span class="h-px w-12 bg-slate-300 dark:bg-slate-700"></span>
@@ -87,7 +107,7 @@ onMounted(() => {
 
                 <div
                     class="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-2xl dark:shadow-black/40 sm:p-8">
-                    <div class="flex gap-2 rounded-2xl bg-slate-100 p-1 text-sm font-semibold dark:bg-slate-950/60">
+                    <div v-if="props.canRegister" class="flex gap-2 rounded-2xl bg-slate-100 p-1 text-sm font-semibold dark:bg-slate-950/60">
                         <button type="button" class="flex-1 rounded-2xl px-4 py-2.5 transition sm:py-2" :class="activePanel === 'signin'
                                 ? 'bg-sky-500 text-slate-900'
                                 : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
@@ -102,7 +122,7 @@ onMounted(() => {
                         </button>
                     </div>
 
-                    <form v-if="activePanel === 'signin'" class="mt-6 flex flex-col gap-5"
+                    <form v-if="activePanel === 'signin' || !props.canRegister" class="mt-6 flex flex-col gap-5"
                         @submit.prevent="submitLogin">
                         <div>
                             <label for="login-email"
@@ -144,13 +164,16 @@ onMounted(() => {
                         </div>
 
                         <button type="submit"
-                            class="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            class="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
                             :disabled="loginForm.processing">
-                            Log in
+                            <span v-if="loginForm.processing"
+                                class="inline-block size-5 shrink-0 animate-spin rounded-full border-2 border-slate-900/30 border-t-slate-900"
+                                aria-hidden="true" />
+                            <span>{{ loginForm.processing ? 'Signing in…' : 'Log in' }}</span>
                         </button>
                     </form>
 
-                    <form v-else class="mt-6 flex flex-col gap-5" @submit.prevent="submitRegister">
+                    <form v-else-if="props.canRegister" class="mt-6 flex flex-col gap-5" @submit.prevent="submitRegister">
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div class="sm:col-span-2">
                                 <label for="register-name"
@@ -227,17 +250,35 @@ onMounted(() => {
                             <input id="register-password" v-model="registerForm.password" type="password"
                                 autocomplete="new-password"
                                 class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500"
-                                placeholder="Create a password" />
+                                placeholder="Create a password (minimum 6 characters)" />
                             <p v-if="registerForm.errors.password"
                                 class="mt-2 text-sm text-rose-600 dark:text-rose-400">
                                 {{ registerForm.errors.password }}
                             </p>
                         </div>
 
+                        <div>
+                            <label for="register-password-confirmation"
+                                class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                Confirm password
+                            </label>
+                            <input id="register-password-confirmation" v-model="registerForm.password_confirmation"
+                                type="password" autocomplete="new-password"
+                                class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500"
+                                placeholder="Confirm your password" />
+                            <p v-if="registerForm.errors.password_confirmation"
+                                class="mt-2 text-sm text-rose-600 dark:text-rose-400">
+                                {{ registerForm.errors.password_confirmation }}
+                            </p>
+                        </div>
+
                         <button type="submit"
-                            class="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            class="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
                             :disabled="registerForm.processing || !registerReady">
-                            Create account
+                            <span v-if="registerForm.processing"
+                                class="inline-block size-5 shrink-0 animate-spin rounded-full border-2 border-slate-900/30 border-t-slate-900"
+                                aria-hidden="true" />
+                            <span>{{ registerForm.processing ? 'Creating account…' : 'Create account' }}</span>
                         </button>
                         <p class="text-xs text-slate-500 dark:text-slate-400">
                             A one-time verification link will be sent to your email.

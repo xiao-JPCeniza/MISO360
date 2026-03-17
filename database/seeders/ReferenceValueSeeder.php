@@ -28,6 +28,8 @@ class ReferenceValueSeeder extends Seeder
             ReferenceValueGroup::Status->value => [
                 'Pending',
                 'Ongoing',
+                'Paused',
+                'Put on Hold',
                 'Completed',
             ],
             ReferenceValueGroup::Remarks->value => [

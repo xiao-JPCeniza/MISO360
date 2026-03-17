@@ -23,7 +23,7 @@ class VerifyEmailNotification extends VerifyEmail
             ->subject('Verify your MISO 360 email address')
             ->view('emails.auth.verify-email', [
                 'appName' => (string) config('app.name', 'MISO 360'),
-                'logoUrl' => asset('storage/logos/IT Logo.png'),
+                'logoUrl' => rtrim(config('app.url'), '/').'/storage/logos/'.rawurlencode('IT Logo.png'),
                 'verificationUrl' => $verificationUrl,
                 'sentAtPht' => $sentAt->timezone($timezone)->format('M d, Y h:i A'),
                 'expiresAtPht' => $expiresAt->timezone($timezone)->format('M d, Y h:i A'),

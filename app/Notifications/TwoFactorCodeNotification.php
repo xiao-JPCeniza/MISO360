@@ -48,7 +48,7 @@ class TwoFactorCodeNotification extends Notification
             ->subject('Your MISO 360 one-time password (OTP)')
             ->view('emails.auth.otp-code', [
                 'appName' => (string) config('app.name', 'MISO 360'),
-                'logoUrl' => asset('storage/logos/IT Logo.png'),
+                'logoUrl' => rtrim(config('app.url'), '/').'/storage/logos/'.rawurlencode('IT Logo.png'),
                 'purposeLabel' => $purposeLabel,
                 'otpCode' => $this->code,
                 'sentAtPht' => $sentAtPht,

@@ -214,4 +214,35 @@ class UserManagementController extends Controller
 
         return back()->with('status', 'Email marked as verified.');
     }
+
+    public function deactivate(Request $request, User $user, AuditLogger $auditLogger): RedirectResponse
+    {
+        Gate::authorize('deactivate', $user);
+
+        $user->update(['is_active' => false]);
+        $user->invalidateAllSessions();
+
+        $auditLogger->log($request, 'user.deactivated', $user, [
+            'is_active' => false,
+        ]);
+
+        return back()->with('status', 'Account deactivated. All sessions have been invalidated.');
+    }
+
+    public function destroy(Request $request, User $user, AuditLogger $auditLogger): RedirectResponse
+    {
+        Gate::authorize('delete', $user);
+
+        $userId = $user->id;
+        $user->invalidateAllSessions();
+
+        $auditLogger->log($request, 'user.deleted', $user, [
+            'user_id' => $userId,
+        ]);
+
+        $user->delete();
+
+        return redirect()->route('admin.users.index')
+            ->with('status', 'User account has been permanently deleted.');
+    }
 }

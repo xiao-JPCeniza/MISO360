@@ -150,4 +150,72 @@ class UserManagementTest extends TestCase
         $this->assertSame($user->id, $auditLog->target_id);
         $this->assertSame($superAdmin->id, $auditLog->actor_id);
     }
+
+    public function test_super_admin_can_deactivate_user_and_sessions_are_invalidated(): void
+    {
+        $superAdmin = User::factory()->superAdmin()->create();
+        $user = User::factory()->create([
+            'role' => Role::USER,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => Carbon::now()->timestamp,
+            ])
+            ->post("/admin/users/{$user->id}/deactivate", [
+                '_token' => 'test-token',
+            ])
+            ->assertRedirect();
+
+        $user->refresh();
+        $this->assertFalse($user->is_active);
+
+        $auditLog = AuditLog::query()->where('action', 'user.deactivated')->latest()->first();
+        $this->assertNotNull($auditLog);
+        $this->assertSame($user->id, $auditLog->target_id);
+        $this->assertSame($superAdmin->id, $auditLog->actor_id);
+    }
+
+    public function test_super_admin_can_delete_user(): void
+    {
+        $superAdmin = User::factory()->superAdmin()->create();
+        $user = User::factory()->create([
+            'role' => Role::USER,
+        ]);
+
+        $userId = $user->id;
+
+        $this->actingAs($superAdmin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => Carbon::now()->timestamp,
+            ])
+            ->delete("/admin/users/{$userId}")
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->assertNull(User::find($userId));
+
+        $auditLog = AuditLog::query()->where('action', 'user.deleted')->latest()->first();
+        $this->assertNotNull($auditLog);
+        $this->assertSame($userId, $auditLog->metadata['user_id'] ?? null);
+        $this->assertSame($superAdmin->id, $auditLog->actor_id);
+    }
+
+    public function test_admin_cannot_delete_super_admin(): void
+    {
+        $superAdmin = User::factory()->superAdmin()->create();
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => Carbon::now()->timestamp,
+            ])
+            ->delete("/admin/users/{$superAdmin->id}")
+            ->assertStatus(403);
+
+        $this->assertNotNull(User::find($superAdmin->id));
+    }
 }

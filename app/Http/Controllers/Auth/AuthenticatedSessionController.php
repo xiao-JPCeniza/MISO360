@@ -27,6 +27,7 @@ class AuthenticatedSessionController extends Controller
             ->get(['id', 'name']);
 
         return Inertia::render('auth/Login', [
+            'canRegister' => true,
             'offices' => $offices,
         ]);
     }
@@ -55,7 +56,7 @@ class AuthenticatedSessionController extends Controller
             Auth::logout();
 
             return back()->withErrors([
-                'email' => 'Your account is inactive. Please contact an administrator.',
+                'email' => 'Account inactive. Please contact an administrator.',
             ])->onlyInput('email');
         }
 

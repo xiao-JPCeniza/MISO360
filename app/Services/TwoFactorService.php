@@ -9,8 +9,25 @@ use Illuminate\Support\Facades\Hash;
 
 class TwoFactorService
 {
+    /**
+     * Minimum seconds before a new OTP can be sent for the same user and purpose.
+     */
+    private const OTP_COOLDOWN_SECONDS = 60;
+
     public function createChallenge(User $user, string $purpose, ?string $ipAddress = null, ?string $userAgent = null): TwoFactorChallenge
     {
+        $recentChallenge = TwoFactorChallenge::query()
+            ->where('user_id', $user->id)
+            ->where('purpose', $purpose)
+            ->where('created_at', '>=', now()->subSeconds(self::OTP_COOLDOWN_SECONDS))
+            ->whereNull('consumed_at')
+            ->latest('id')
+            ->first();
+
+        if ($recentChallenge !== null) {
+            return $recentChallenge;
+        }
+
         $this->expireExistingChallenges($user, $purpose);
 
         $code = (string) random_int(100000, 999999);

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ReferenceValueGroup;
 use App\Models\NatureOfRequest;
+use App\Models\ReferenceValue;
 use App\Models\TicketArchive;
 use App\Models\TicketEnrollment;
 use App\Models\TicketRequest;
@@ -16,6 +18,7 @@ class InventoryController extends Controller
     {
         $search = $request->string('search')->trim()->toString();
         $status = strtolower($request->string('status')->toString() ?: 'all');
+        $equipmentType = $request->string('equipment_type')->trim()->toString();
 
         $borrowedCount = $this->borrowedRequestsQuery()->count();
         $borrowedRequests = collect();
@@ -51,6 +54,9 @@ class InventoryController extends Controller
                 ->when($search !== '', function ($query) use ($search) {
                     $query->where('equipment_name', 'like', "%{$search}%");
                 })
+                ->when($equipmentType !== '', function ($query) use ($equipmentType) {
+                    $query->where('equipment_type', $equipmentType);
+                })
                 ->orderBy('equipment_name')
                 ->limit(200)
                 ->get();
@@ -61,6 +67,9 @@ class InventoryController extends Controller
                 ->when($search !== '', function ($query) use ($search) {
                     $query->where('equipment_name', 'like', "%{$search}%");
                 })
+                ->when($equipmentType !== '', function ($query) use ($equipmentType) {
+                    $query->where('equipment_type', $equipmentType);
+                })
                 ->orderBy('equipment_name')
                 ->limit(200)
                 ->get();
@@ -70,13 +79,24 @@ class InventoryController extends Controller
             ->merge($archivedItems->map(fn ($item) => $this->mapItem($item, 'archived')))
             ->values();
 
+        $equipmentTypeOptions = ReferenceValue::query()
+            ->active()
+            ->forGroup(ReferenceValueGroup::EquipmentType)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($rv) => ['id' => $rv->id, 'name' => $rv->name])
+            ->values()
+            ->all();
+
         return Inertia::render('inventory/Inventory', [
             'items' => $items,
             'borrowedRequests' => $borrowedRequests,
             'filters' => [
                 'search' => $search,
                 'status' => $status,
+                'equipmentType' => $equipmentType,
             ],
+            'equipmentTypeOptions' => $equipmentTypeOptions,
             'counts' => [
                 'active' => TicketEnrollment::count(),
                 'archived' => TicketArchive::count(),

@@ -34,6 +34,9 @@ class TicketRequest extends Model
         'time_started',
         'estimated_completion_date',
         'time_completed',
+        'service_timer_started_at',
+        'service_timer_paused_at',
+        'service_timer_total_elapsed_seconds',
         'action_taken',
         'equipment_network_details',
     ];
@@ -48,6 +51,8 @@ class TicketRequest extends Model
         'time_started' => 'datetime',
         'estimated_completion_date' => 'date',
         'time_completed' => 'datetime',
+        'service_timer_started_at' => 'datetime',
+        'service_timer_paused_at' => 'datetime',
     ];
 
     public function natureOfRequest(): BelongsTo

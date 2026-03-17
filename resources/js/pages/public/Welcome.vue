@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { dashboard, login } from '@/routes';
 
+const page = usePage();
+const isAuthenticated = computed(() => Boolean(page.props.auth?.user));
+
 function goToSubmitRequest(serviceName: string): void {
+    if (!isAuthenticated.value) {
+        router.visit(login(), { preserveState: false });
+        return;
+    }
+
     router.visit(`/submit-request?service=${encodeURIComponent(serviceName)}`, {
         preserveState: false,
     });

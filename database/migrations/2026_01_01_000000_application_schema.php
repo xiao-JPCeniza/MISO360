@@ -458,6 +458,9 @@ return new class extends Migration
             $table->dateTime('time_started')->nullable();
             $table->date('estimated_completion_date')->nullable();
             $table->dateTime('time_completed')->nullable();
+            $table->dateTime('service_timer_started_at')->nullable();
+            $table->dateTime('service_timer_paused_at')->nullable();
+            $table->unsignedInteger('service_timer_total_elapsed_seconds')->default(0);
             $table->string('action_taken', 500)->nullable();
             $table->json('equipment_network_details')->nullable();
             $table->boolean('has_qr_code')->default(false);
@@ -502,8 +505,17 @@ return new class extends Migration
             if (! Schema::hasColumn($table, 'time_completed')) {
                 $t->dateTime('time_completed')->nullable()->after('estimated_completion_date');
             }
+            if (! Schema::hasColumn($table, 'service_timer_started_at')) {
+                $t->dateTime('service_timer_started_at')->nullable()->after('time_completed');
+            }
+            if (! Schema::hasColumn($table, 'service_timer_paused_at')) {
+                $t->dateTime('service_timer_paused_at')->nullable()->after('service_timer_started_at');
+            }
+            if (! Schema::hasColumn($table, 'service_timer_total_elapsed_seconds')) {
+                $t->unsignedInteger('service_timer_total_elapsed_seconds')->default(0)->after('service_timer_paused_at');
+            }
             if (! Schema::hasColumn($table, 'action_taken')) {
-                $t->string('action_taken', 500)->nullable()->after('time_completed');
+                $t->string('action_taken', 500)->nullable()->after('service_timer_total_elapsed_seconds');
             }
             if (! Schema::hasColumn($table, 'equipment_network_details')) {
                 $t->json('equipment_network_details')->nullable()->after('action_taken');

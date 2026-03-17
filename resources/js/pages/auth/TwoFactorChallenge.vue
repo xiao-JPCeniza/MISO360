@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 const props = defineProps<{
     email: string;
@@ -11,12 +12,28 @@ const form = useForm({
     code: '',
 });
 
+const RESEND_THROTTLE_MS = 60000;
+const SUBMIT_THROTTLE_MS = 3000;
+let lastSubmitAt = 0;
+let lastResendAt = 0;
+const resendInProgress = ref(false);
+
 const submit = () => {
+    const now = Date.now();
+    if (now - lastSubmitAt < SUBMIT_THROTTLE_MS || form.processing) return;
+    lastSubmitAt = now;
     form.post('/two-factor/challenge');
 };
 
 const resend = () => {
-    router.post('/two-factor/resend');
+    const now = Date.now();
+    if (now - lastResendAt < RESEND_THROTTLE_MS || resendInProgress.value) return;
+    lastResendAt = now;
+    resendInProgress.value = true;
+    router.post('/two-factor/resend', {}, {
+        preserveScroll: true,
+        onFinish: () => { resendInProgress.value = false; },
+    });
 };
 </script>
 
@@ -66,20 +83,29 @@ const resend = () => {
 
                     <button
                         type="submit"
-                        class="flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                        class="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                         :disabled="form.processing"
                     >
-                        Verify
+                        <span v-if="form.processing"
+                            class="inline-block size-5 shrink-0 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground"
+                            aria-hidden="true"
+                        />
+                        <span>{{ form.processing ? 'Verifying…' : 'Verify' }}</span>
                     </button>
                 </form>
 
                 <div class="mt-6 flex flex-col gap-3 text-sm text-muted-foreground">
                     <button
                         type="button"
-                        class="rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-muted"
+                        class="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="resendInProgress"
                         @click="resend"
                     >
-                        Resend code
+                        <span v-if="resendInProgress"
+                            class="inline-block size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                        />
+                        <span>{{ resendInProgress ? 'Sending…' : 'Resend code' }}</span>
                     </button>
                     <p v-if="props.status" class="text-xs text-emerald-400">
                         {{ props.status }}

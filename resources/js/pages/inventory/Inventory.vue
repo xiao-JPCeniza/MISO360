@@ -30,13 +30,20 @@ type BorrowedRequest = {
     showUrl: string;
 };
 
+type EquipmentTypeOption = {
+    id: number;
+    name: string;
+};
+
 const props = defineProps<{
     items: InventoryItem[];
     borrowedRequests: BorrowedRequest[];
     filters: {
         search: string;
         status: string;
+        equipmentType: string;
     };
+    equipmentTypeOptions: EquipmentTypeOption[];
     counts: {
         active: number;
         archived: number;
@@ -57,8 +64,12 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? 'all');
+const equipmentType = ref(props.filters.equipmentType ?? '');
 const isFiltered = computed(
-    () => search.value.trim().length > 0 || status.value !== 'all',
+    () =>
+        search.value.trim().length > 0 ||
+        status.value !== 'all' ||
+        equipmentType.value !== '',
 );
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -69,6 +80,7 @@ function applyFilters() {
         {
             search: search.value.trim(),
             status: status.value,
+            equipment_type: equipmentType.value,
         },
         {
             preserveState: true,
@@ -88,6 +100,11 @@ function scheduleSearch() {
 
 function setStatus(nextStatus: string) {
     status.value = nextStatus;
+    applyFilters();
+}
+
+function setEquipmentType(value: string) {
+    equipmentType.value = value;
     applyFilters();
 }
 
@@ -192,23 +209,53 @@ watch(status, (next) => {
 
             <section class="rounded-3xl border border-sidebar-border/60 bg-background p-6">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <div class="relative">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                        <div class="relative min-w-0 sm:w-52">
+                            <label for="inventory-search" class="sr-only">Search by equipment name</label>
                             <input
+                                id="inventory-search"
                                 v-model="search"
                                 type="text"
-                                class="w-full rounded-full border border-sidebar-border/70 bg-background px-4 py-2.5 text-sm"
+                                class="w-full rounded-full border border-sidebar-border/70 bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sidebar-ring"
                                 placeholder="Search by equipment name"
+                                aria-label="Search by equipment name"
                                 @input="scheduleSearch"
                             />
                         </div>
-                        <div class="flex flex-wrap gap-2">
+                        <div class="flex flex-col gap-1.5 sm:w-44">
+                            <label for="inventory-equipment-type" class="text-xs font-medium text-foreground">
+                                Equipment type
+                            </label>
+                            <select
+                                id="inventory-equipment-type"
+                                :value="equipmentType"
+                                class="w-full appearance-none rounded-full border border-sidebar-border/70 bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sidebar-ring [&>option]:bg-background [&>option]:text-foreground"
+                                aria-label="Filter by equipment type"
+                                @change="setEquipmentType(($event.target as HTMLSelectElement).value)"
+                            >
+                                <option value="">All types</option>
+                                <option
+                                    v-for="opt in equipmentTypeOptions"
+                                    :key="opt.id"
+                                    :value="opt.name"
+                                >
+                                    {{ opt.name }}
+                                </option>
+                            </select>
+                        </div>
+                        <div
+                            class="flex flex-wrap items-center gap-2"
+                            role="group"
+                            aria-labelledby="inventory-status-label"
+                        >
+                            <span id="inventory-status-label" class="sr-only">Status</span>
                             <button
                                 type="button"
                                 class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition"
                                 :class="status === 'all'
-                                    ? 'border-transparent bg-[#0f172a] text-white'
-                                    : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40'"
+                                    ? 'border-transparent bg-[#0f172a] text-white dark:bg-sidebar-primary dark:text-sidebar-primary-foreground'
+                                    : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground'"
+                                :aria-pressed="status === 'all'"
                                 @click="setStatus('all')"
                             >
                                 All
@@ -217,8 +264,9 @@ watch(status, (next) => {
                                 type="button"
                                 class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition"
                                 :class="status === 'active'
-                                    ? 'border-transparent bg-emerald-600 text-white'
-                                    : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40'"
+                                    ? 'border-transparent bg-emerald-600 text-white dark:bg-emerald-600 dark:text-white'
+                                    : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground'"
+                                :aria-pressed="status === 'active'"
                                 @click="setStatus('active')"
                             >
                                 Active
@@ -227,8 +275,9 @@ watch(status, (next) => {
                                 type="button"
                                 class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition"
                                 :class="status === 'archived'
-                                    ? 'border-transparent bg-amber-600 text-white'
-                                    : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40'"
+                                    ? 'border-transparent bg-amber-600 text-white dark:bg-amber-600 dark:text-white'
+                                    : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground'"
+                                :aria-pressed="status === 'archived'"
                                 @click="setStatus('archived')"
                             >
                                 Archived
@@ -237,8 +286,9 @@ watch(status, (next) => {
                                 type="button"
                                 class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition"
                                 :class="status === 'borrowed'
-                                    ? 'border-transparent bg-blue-600 text-white'
-                                    : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40'"
+                                    ? 'border-transparent bg-blue-600 text-white dark:bg-blue-600 dark:text-white'
+                                    : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground'"
+                                :aria-pressed="status === 'borrowed'"
                                 @click="setStatus('borrowed')"
                             >
                                 Borrowed

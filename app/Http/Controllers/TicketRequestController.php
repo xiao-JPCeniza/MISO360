@@ -13,6 +13,7 @@ use App\Models\TicketEnrollment;
 use App\Models\TicketRequest;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\ServiceTimerService;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options as DompdfOptions;
@@ -569,6 +570,7 @@ class TicketRequestController extends Controller
             'actionTaken' => $ticketRequest->action_taken,
             'categoryId' => $ticketRequest->category_id,
             'statusId' => $ticketRequest->status_id,
+            'statusName' => $ticketRequest->status?->name,
             'equipmentNetworkDetails' => $ticketRequest->equipment_network_details ?? [],
             'hasQrCode' => $ticketRequest->has_qr_code,
             'qrCodeNumber' => $ticketRequest->qr_code_number,
@@ -578,6 +580,7 @@ class TicketRequestController extends Controller
             'inventoryEditUrl' => $ticketRequest->qr_code_number
                 ? route('inventory.edit', ['uniqueId' => $ticketRequest->qr_code_number])
                 : null,
+            'serviceTimer' => $this->buildServiceTimerPayload($ticketRequest),
         ];
 
         $staffOptions = User::query()
@@ -740,6 +743,21 @@ class TicketRequestController extends Controller
             'has_qr_code' => (bool) $qrCodeNumber,
             'qr_code_number' => $qrCodeNumber,
         ];
+
+        $timerService = app(ServiceTimerService::class);
+        $newStatus = $statusId ? ReferenceValue::find($statusId)?->name : null;
+        $previousStatus = $ticketRequest->status?->name;
+        $timerUpdates = $timerService->computeTimerUpdates(
+            $newStatus,
+            $previousStatus,
+            [
+                'service_timer_started_at' => $ticketRequest->service_timer_started_at,
+                'service_timer_paused_at' => $ticketRequest->service_timer_paused_at,
+                'service_timer_total_elapsed_seconds' => $ticketRequest->service_timer_total_elapsed_seconds ?? 0,
+            ]
+        );
+        $updatePayload = array_merge($updatePayload, $timerUpdates);
+
         if ($isCompleted) {
             $updatePayload['archived'] = true;
         }
@@ -867,6 +885,7 @@ class TicketRequestController extends Controller
             'actionTaken' => $ticketRequest->action_taken,
             'categoryId' => $ticketRequest->category_id,
             'statusId' => $ticketRequest->status_id,
+            'statusName' => $ticketRequest->status?->name,
             'equipmentNetworkDetails' => $ticketRequest->equipment_network_details ?? [],
             'hasQrCode' => $ticketRequest->has_qr_code,
             'qrCodeNumber' => $ticketRequest->qr_code_number,
@@ -875,6 +894,7 @@ class TicketRequestController extends Controller
             'inventoryEditUrl' => $ticketRequest->qr_code_number
                 ? route('inventory.edit', ['uniqueId' => $ticketRequest->qr_code_number])
                 : null,
+            'serviceTimer' => $this->buildServiceTimerPayload($ticketRequest),
         ];
 
         $staffOptions = User::query()
@@ -1056,6 +1076,21 @@ class TicketRequestController extends Controller
             'has_qr_code' => (bool) $qrCodeNumber,
             'qr_code_number' => $qrCodeNumber,
         ];
+
+        $timerService = app(ServiceTimerService::class);
+        $newStatus = $resolvedStatusId ? ReferenceValue::find($resolvedStatusId)?->name : null;
+        $previousStatus = $ticketRequest->status?->name;
+        $timerUpdates = $timerService->computeTimerUpdates(
+            $newStatus,
+            $previousStatus,
+            [
+                'service_timer_started_at' => $ticketRequest->service_timer_started_at,
+                'service_timer_paused_at' => $ticketRequest->service_timer_paused_at,
+                'service_timer_total_elapsed_seconds' => $ticketRequest->service_timer_total_elapsed_seconds ?? 0,
+            ]
+        );
+        $updatePayload = array_merge($updatePayload, $timerUpdates);
+
         $isCompletedStatus = $resolvedStatusId && ReferenceValue::query()
             ->forGroup(ReferenceValueGroup::Status)
             ->where('id', $resolvedStatusId)
@@ -1084,6 +1119,25 @@ class TicketRequestController extends Controller
     /**
      * @param  array<string, mixed>  $validated
      */
+    /**
+     * @return array{statusName: string|null, startedAt: string|null, pausedAt: string|null, totalElapsedSeconds: int, elapsedSeconds: int, isActive: bool, isPaused: bool}
+     */
+    private function buildServiceTimerPayload(TicketRequest $ticketRequest): array
+    {
+        $timerService = app(ServiceTimerService::class);
+        $statusName = $ticketRequest->status?->name;
+
+        return [
+            'statusName' => $statusName,
+            'startedAt' => $ticketRequest->service_timer_started_at?->toIso8601String(),
+            'pausedAt' => $ticketRequest->service_timer_paused_at?->toIso8601String(),
+            'totalElapsedSeconds' => (int) ($ticketRequest->service_timer_total_elapsed_seconds ?? 0),
+            'elapsedSeconds' => $timerService->computeElapsedSeconds($ticketRequest),
+            'isActive' => $timerService->isActiveStatus($statusName),
+            'isPaused' => $timerService->isPausedStatus($statusName),
+        ];
+    }
+
     private function validateRequestDateOrder(array $validated, string $receivedKey, string $startedKey, string $completionKey): void
     {
         $received = $validated[$receivedKey] ?? null;

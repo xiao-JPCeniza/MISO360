@@ -20,6 +20,9 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
+// Prevent 405 when GET /_boost/browser-logs is requested (e.g. opened in new tab); route only supports POST.
+Route::get('_boost/browser-logs', fn () => redirect('/'))->name('boost.browser-logs.get');
+
 Route::get('/', function () {
     $profileSlides = ProfileSlide::query()
         ->notArchived()
@@ -41,7 +44,7 @@ Route::get('/', function () {
         ->all();
 
     return Inertia::render('public/Welcome', [
-        'canRegister' => false, // Registration is disabled for this application
+        'canRegister' => true,
         'profileSlides' => $profileSlides,
     ]);
 });
@@ -75,6 +78,10 @@ Route::middleware([
             ->name('admin.users.password');
         Route::post('admin/users/{user}/verify-email', [UserManagementController::class, 'forceVerifyEmail'])
             ->name('admin.users.verify-email');
+        Route::post('admin/users/{user}/deactivate', [UserManagementController::class, 'deactivate'])
+            ->name('admin.users.deactivate');
+        Route::delete('admin/users/{user}', [UserManagementController::class, 'destroy'])
+            ->name('admin.users.destroy');
 
         Route::get('admin/audit-logs', [AuditLogController::class, 'index'])
             ->name('admin.audit-logs.index');

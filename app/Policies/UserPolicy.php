@@ -36,6 +36,16 @@ class UserPolicy
         return $this->canManageTarget($user, $target);
     }
 
+    public function deactivate(User $user, User $target): bool
+    {
+        return $this->canManageTarget($user, $target);
+    }
+
+    public function delete(User $user, User $target): bool
+    {
+        return $this->canManageTarget($user, $target);
+    }
+
     private function canManageTarget(User $user, User $target): bool
     {
         if (! $user->canManageRoles()) {

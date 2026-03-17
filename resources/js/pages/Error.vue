@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
-defineProps<{
+import { login } from '@/routes';
+
+const props = defineProps<{
     status: number;
     message?: string;
 }>();
+
+const page = usePage();
+const isAuthenticated = computed(() => Boolean((page.props.auth as { user?: unknown })?.user));
 
 const defaultMessages: Record<number, string> = {
     401: 'Authentication required to access this page.',
@@ -59,10 +65,18 @@ function messageFor(status: number, message?: string): string {
                     Go to home
                 </Link>
                 <Link
+                    v-if="isAuthenticated"
                     href="/dashboard"
                     class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                     Dashboard
+                </Link>
+                <Link
+                    v-else
+                    :href="login.url()"
+                    class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                    Sign in
                 </Link>
             </div>
         </div>

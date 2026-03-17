@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use App\Enums\Role;
+use App\Notifications\VerifyEmailNotification;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -145,6 +147,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(ReferenceValue::class, 'office_designation_id');
     }
 
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmailNotification);
+    }
+
     /**
      * Get the full URL for the user's avatar (for display).
      */
@@ -155,5 +162,20 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         return Storage::disk('public')->url($this->avatar);
+    }
+
+    /**
+     * Invalidate all sessions for this user (all devices). Used when deactivating or deleting.
+     */
+    public function invalidateAllSessions(): void
+    {
+        if (config('session.driver') !== 'database') {
+            return;
+        }
+
+        DB::connection(config('session.connection'))
+            ->table(config('session.table'))
+            ->where('user_id', $this->id)
+            ->delete();
     }
 }

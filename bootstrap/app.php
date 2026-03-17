@@ -57,8 +57,17 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
+            // Let Laravel handle validation exceptions normally so forms return field errors (422/redirect)
+            // instead of being converted into a generic 500 Inertia error page.
+            if ($e instanceof \Illuminate\Validation\ValidationException) {
+                return null;
+            }
+
             $status = $e instanceof HttpException ? $e->getStatusCode() : Response::HTTP_INTERNAL_SERVER_ERROR;
             $message = $e instanceof HttpException ? $e->getMessage() : '';
+            if ($status === Response::HTTP_INTERNAL_SERVER_ERROR && trim((string) $message) === '') {
+                $message = 'Something went wrong on our end. Please try again later.';
+            }
 
             return Inertia::render('Error', [
                 'status' => $status,

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ReferenceValueGroup;
 use App\Models\NatureOfRequest;
 use App\Models\ReferenceValue;
+use App\Models\TicketEnrollment;
 use App\Models\TicketRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -111,5 +112,44 @@ class InventoryBorrowedFilterTest extends TestCase
             ->get(route('inventory', ['status' => 'borrowed']));
 
         $response->assertForbidden();
+    }
+
+    public function test_equipment_type_filter_narrows_results_cumulatively(): void
+    {
+        ReferenceValue::updateOrCreate(
+            ['group_key' => ReferenceValueGroup::EquipmentType->value, 'name' => 'Laptop'],
+            ['is_active' => true, 'system_seeded' => false],
+        );
+        ReferenceValue::updateOrCreate(
+            ['group_key' => ReferenceValueGroup::EquipmentType->value, 'name' => 'Printer'],
+            ['is_active' => true, 'system_seeded' => false],
+        );
+
+        TicketEnrollment::create([
+            'unique_id' => 'MIS-LAP-001',
+            'equipment_name' => 'Dell Laptop',
+            'equipment_type' => 'Laptop',
+        ]);
+        TicketEnrollment::create([
+            'unique_id' => 'MIS-PRN-001',
+            'equipment_name' => 'HP Printer',
+            'equipment_type' => 'Printer',
+        ]);
+
+        $admin = User::factory()->admin()->create();
+
+        $response = $this
+            ->actingAs($admin)
+            ->get(route('inventory', ['status' => 'active', 'equipment_type' => 'Laptop']));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('inventory/Inventory')
+            ->has('items', 1)
+            ->where('items.0.equipmentType', 'Laptop')
+            ->where('items.0.uniqueId', 'MIS-LAP-001')
+            ->where('filters.equipmentType', 'Laptop')
+            ->has('equipmentTypeOptions')
+        );
     }
 }
