@@ -26,8 +26,10 @@ class TwoFactorService
 
         $user->notify(new TwoFactorCodeNotification(
             code: $code,
+            sentAt: $challenge->created_at ?? now(),
             expiresAt: $challenge->expires_at,
             purpose: $purpose,
+            validMinutes: $this->codeTtlMinutes(),
         ));
 
         return $challenge;

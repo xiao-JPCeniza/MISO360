@@ -2,19 +2,18 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Carbon;
 
-class TwoFactorCodeNotification extends Notification implements ShouldQueue
+class TwoFactorCodeNotification extends Notification
 {
-    use Queueable;
-
     public function __construct(
         public string $code,
+        public \DateTimeInterface $sentAt,
         public \DateTimeInterface $expiresAt,
         public string $purpose,
+        public int $validMinutes,
     ) {}
 
     /**
@@ -36,11 +35,33 @@ class TwoFactorCodeNotification extends Notification implements ShouldQueue
             ? 'login'
             : 'verify a sensitive action';
 
-        return (new MailMessage)
-            ->subject('Your MISO 360 verification code')
-            ->line("Use this code to {$purposeLabel}:")
-            ->line($this->code)
-            ->line('This code expires at '.$this->expiresAt->format('g:i A T').'.')
-            ->line('If you did not request this, you can ignore this email.');
+        $sentAtPht = Carbon::instance(\DateTimeImmutable::createFromInterface($this->sentAt))
+            ->timezone('Asia/Manila')
+            ->format('M d, Y h:i A');
+        $expiresAtPht = Carbon::instance(\DateTimeImmutable::createFromInterface($this->expiresAt))
+            ->timezone('Asia/Manila')
+            ->format('M d, Y h:i A');
+        $replyToAddress = (string) config('mail.reply_to.address');
+        $replyToName = (string) config('mail.reply_to.name');
+
+        $mailMessage = (new MailMessage)
+            ->subject('Your MISO 360 one-time password (OTP)')
+            ->view('emails.auth.otp-code', [
+                'appName' => (string) config('app.name', 'MISO 360'),
+                'logoUrl' => asset('storage/logos/IT Logo.png'),
+                'purposeLabel' => $purposeLabel,
+                'otpCode' => $this->code,
+                'sentAtPht' => $sentAtPht,
+                'expiresAtPht' => $expiresAtPht,
+                'timezoneLabel' => 'PHT (UTC+8)',
+                'validMinutes' => $this->validMinutes,
+                'replyToAddress' => $replyToAddress,
+            ]);
+
+        if ($replyToAddress !== '') {
+            $mailMessage->replyTo($replyToAddress, $replyToName !== '' ? $replyToName : null);
+        }
+
+        return $mailMessage;
     }
 }
