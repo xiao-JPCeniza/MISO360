@@ -90,7 +90,7 @@ class AdminDashboardController extends Controller
             });
         }
 
-        $archiveQuery->latest();
+        $archiveQuery->orderBy('created_at', 'desc');
         $archived = $archiveQuery->paginate(15, ['*'], 'archive_page')
             ->withQueryString()
             ->through(fn (TicketRequest $t) => [

@@ -251,7 +251,7 @@ watch(status, (next) => {
                             <span id="inventory-status-label" class="sr-only">Status</span>
                             <button
                                 type="button"
-                                class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition"
+                                class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2"
                                 :class="status === 'all'
                                     ? 'border-transparent bg-[#0f172a] text-white dark:bg-sidebar-primary dark:text-sidebar-primary-foreground'
                                     : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground'"
@@ -262,7 +262,7 @@ watch(status, (next) => {
                             </button>
                             <button
                                 type="button"
-                                class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition"
+                                class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2"
                                 :class="status === 'active'
                                     ? 'border-transparent bg-emerald-600 text-white dark:bg-emerald-600 dark:text-white'
                                     : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground'"
@@ -273,7 +273,7 @@ watch(status, (next) => {
                             </button>
                             <button
                                 type="button"
-                                class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition"
+                                class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2"
                                 :class="status === 'archived'
                                     ? 'border-transparent bg-amber-600 text-white dark:bg-amber-600 dark:text-white'
                                     : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground'"
@@ -284,7 +284,7 @@ watch(status, (next) => {
                             </button>
                             <button
                                 type="button"
-                                class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition"
+                                class="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2"
                                 :class="status === 'borrowed'
                                     ? 'border-transparent bg-blue-600 text-white dark:bg-blue-600 dark:text-white'
                                     : 'border-sidebar-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground'"

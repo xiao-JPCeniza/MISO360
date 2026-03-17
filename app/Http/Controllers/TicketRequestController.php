@@ -62,7 +62,7 @@ class TicketRequestController extends Controller
 
         $ticketRequests = $query
             ->notArchived()
-            ->orderBy('created_at')
+            ->orderBy('created_at', 'asc')
             ->limit(20)
             ->get()
             ->map(fn (TicketRequest $ticketRequest) => $this->mapTicketRequestToRow($ticketRequest));

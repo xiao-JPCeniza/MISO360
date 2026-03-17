@@ -55,13 +55,18 @@ const submitLogin = () => {
 
 const REGISTER_THROTTLE_MS = 3000;
 let lastRegisterSubmitAt = 0;
+const registerThrottled = ref(false);
 
 const submitRegister = () => {
     const now = Date.now();
-    if (now - lastRegisterSubmitAt < REGISTER_THROTTLE_MS) {
+    if (now - lastRegisterSubmitAt < REGISTER_THROTTLE_MS || registerThrottled.value) {
         return;
     }
     lastRegisterSubmitAt = now;
+    registerThrottled.value = true;
+    window.setTimeout(() => {
+        registerThrottled.value = false;
+    }, REGISTER_THROTTLE_MS);
     registerForm.post('/register');
 };
 
@@ -273,8 +278,8 @@ onMounted(() => {
                         </div>
 
                         <button type="submit"
-                            class="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
-                            :disabled="registerForm.processing || !registerReady">
+                            class="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-sky-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-slate-950"
+                            :disabled="registerForm.processing || registerThrottled || !registerReady">
                             <span v-if="registerForm.processing"
                                 class="inline-block size-5 shrink-0 animate-spin rounded-full border-2 border-slate-900/30 border-t-slate-900"
                                 aria-hidden="true" />

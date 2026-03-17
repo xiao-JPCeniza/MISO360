@@ -166,10 +166,16 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Invalidate all sessions for this user (all devices). Used when deactivating or deleting.
+     * Requires session driver to be "database" for full invalidation; other drivers are not supported.
      */
     public function invalidateAllSessions(): void
     {
         if (config('session.driver') !== 'database') {
+            \Illuminate\Support\Facades\Log::warning('User session invalidation skipped: database session driver required', [
+                'user_id' => $this->id,
+                'session_driver' => config('session.driver'),
+            ]);
+
             return;
         }
 
