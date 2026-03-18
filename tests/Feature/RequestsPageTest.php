@@ -279,6 +279,45 @@ class RequestsPageTest extends TestCase
         $response->assertForbidden();
     }
 
+    public function test_equipment_and_network_update_accepts_empty_optional_fields_without_error(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $ticket = TicketRequest::factory()->create([
+            'remarks_id' => null,
+            'category_id' => null,
+            'status_id' => null,
+            'date_received' => null,
+            'date_started' => null,
+            'estimated_completion_date' => null,
+            'action_taken' => null,
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->withSession(['_token' => 'test-token', 'two_factor.verified_at' => now()->timestamp])
+            ->patch(route('requests.equipment-network.update', $ticket), [
+                '_token' => 'test-token',
+                'remarksId' => '',
+                'assignedStaffId' => '',
+                'dateReceived' => '',
+                'dateStarted' => '',
+                'estimatedCompletionDate' => '',
+                'actionTaken' => '',
+                'categoryId' => '',
+                'statusId' => '',
+            ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $ticket->refresh();
+        $this->assertNull($ticket->remarks_id);
+        $this->assertNull($ticket->category_id);
+        $this->assertNull($ticket->date_received);
+        $this->assertNull($ticket->date_started);
+        $this->assertNull($ticket->estimated_completion_date);
+        $this->assertNull($ticket->action_taken);
+    }
+
     public function test_regular_user_sees_confirmation_not_edit_at_show_page(): void
     {
         $user = User::factory()->create();

@@ -731,16 +731,22 @@ class TicketRequestController extends Controller
             $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
         }
 
+        $dateReceived = isset($validated['dateReceived']) && $validated['dateReceived'] !== '' ? $validated['dateReceived'] : null;
+        $dateStarted = isset($validated['dateStarted']) && $validated['dateStarted'] !== '' ? $validated['dateStarted'] : null;
+        $estimatedCompletionDate = isset($validated['estimatedCompletionDate']) && $validated['estimatedCompletionDate'] !== '' ? $validated['estimatedCompletionDate'] : null;
+        $actionTaken = isset($validated['actionTaken']) && $validated['actionTaken'] !== '' ? $validated['actionTaken'] : null;
+        $categoryId = isset($validated['categoryId']) && $validated['categoryId'] !== '' && $validated['categoryId'] !== null ? (int) $validated['categoryId'] : null;
+
         $updatePayload = [
             'nature_of_request_id' => $natureOfRequestId,
             'remarks_id' => $remarksId,
             'assigned_staff_id' => $assignedStaffId,
-            'date_received' => $validated['dateReceived'] ?? null,
-            'date_started' => $validated['dateStarted'] ?? null,
-            'estimated_completion_date' => $validated['estimatedCompletionDate'] ?? null,
-            'action_taken' => $validated['actionTaken'] ?? null,
+            'date_received' => $dateReceived,
+            'date_started' => $dateStarted,
+            'estimated_completion_date' => $estimatedCompletionDate,
+            'action_taken' => $actionTaken,
             'status_id' => $statusId,
-            'category_id' => $validated['categoryId'] ?? null,
+            'category_id' => $categoryId,
             'has_qr_code' => (bool) $qrCodeNumber,
             'qr_code_number' => $qrCodeNumber,
         ];
@@ -764,6 +770,7 @@ class TicketRequestController extends Controller
         }
         $ticketRequest->update($updatePayload);
 
+        $ticketRequest->load(['natureOfRequest', 'status', 'remarks', 'assignedStaff']);
         $this->syncTicketRequestToEnrollment($ticketRequest);
 
         if (isset($validated['systemDevelopmentSurvey']) && is_array($validated['systemDevelopmentSurvey'])) {
@@ -815,6 +822,7 @@ class TicketRequestController extends Controller
                 'qr_code_number' => $uid,
             ]);
 
+            $ticketRequest->load(['natureOfRequest', 'status', 'remarks', 'assignedStaff']);
             $this->syncTicketRequestToEnrollment($ticketRequest);
 
             return $uid;
@@ -1041,7 +1049,7 @@ class TicketRequestController extends Controller
             ? (isset($validated['natureOfRequestId']) && $validated['natureOfRequestId'] !== '' ? (int) $validated['natureOfRequestId'] : null)
             : $ticketRequest->nature_of_request_id;
 
-        $dateStarted = $validated['dateStarted'] ?? null;
+        $dateStarted = isset($validated['dateStarted']) && $validated['dateStarted'] !== '' ? $validated['dateStarted'] : null;
         $timeStarted = $ticketRequest->time_started;
         if ($dateStarted && ! $ticketRequest->time_started) {
             $timeStarted = now();
@@ -1061,18 +1069,23 @@ class TicketRequestController extends Controller
             }
         }
 
+        $dateReceived = isset($validated['dateReceived']) && $validated['dateReceived'] !== '' ? $validated['dateReceived'] : null;
+        $estimatedCompletionDate = isset($validated['estimatedCompletionDate']) && $validated['estimatedCompletionDate'] !== '' ? $validated['estimatedCompletionDate'] : null;
+        $actionTaken = isset($validated['actionTaken']) && $validated['actionTaken'] !== '' ? $validated['actionTaken'] : null;
+        $categoryId = isset($validated['categoryId']) && $validated['categoryId'] !== '' && $validated['categoryId'] !== null ? (int) $validated['categoryId'] : null;
+
         $updatePayload = [
             'nature_of_request_id' => $natureOfRequestId,
             'remarks_id' => $remarksId,
             'assigned_staff_id' => $assignedStaffId,
-            'date_received' => $validated['dateReceived'] ?? null,
+            'date_received' => $dateReceived,
             'date_started' => $dateStarted,
             'time_started' => $timeStarted,
-            'estimated_completion_date' => $validated['estimatedCompletionDate'] ?? null,
+            'estimated_completion_date' => $estimatedCompletionDate,
             'time_completed' => $timeCompleted,
-            'action_taken' => $validated['actionTaken'] ?? null,
+            'action_taken' => $actionTaken,
             'status_id' => $resolvedStatusId,
-            'category_id' => $validated['categoryId'] ?? null,
+            'category_id' => $categoryId,
             'equipment_network_details' => $this->normalizeEquipmentNetworkDetails($validated['equipmentNetworkDetails'] ?? []),
             'has_qr_code' => (bool) $qrCodeNumber,
             'qr_code_number' => $qrCodeNumber,
@@ -1102,9 +1115,9 @@ class TicketRequestController extends Controller
         }
         $ticketRequest->update($updatePayload);
 
+        $ticketRequest->load(['natureOfRequest', 'status', 'remarks', 'assignedStaff']);
         $this->syncTicketRequestToEnrollment($ticketRequest);
 
-        $ticketRequest->load(['natureOfRequest', 'status']);
         $isBorrowCompleted = $ticketRequest->natureOfRequest?->name === 'Borrow Unit'
             && $ticketRequest->status?->name === 'Completed';
 

@@ -69,7 +69,8 @@ class ServiceTimerService
         }
 
         if ($isPaused && $wasActive && $startedAt) {
-            $elapsedThisRun = (int) $now->diffInSeconds(Carbon::parse($startedAt, self::TIMEZONE));
+            $startedAtParsed = Carbon::parse($startedAt, self::TIMEZONE);
+            $elapsedThisRun = (int) $startedAtParsed->diffInSeconds($now, absolute: true);
 
             return [
                 'service_timer_paused_at' => $now,

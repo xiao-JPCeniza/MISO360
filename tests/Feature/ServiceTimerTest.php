@@ -78,7 +78,7 @@ class ServiceTimerTest extends TestCase
     {
         $this->ensureStatuses();
         $ongoing = ReferenceValue::query()->forGroup(ReferenceValueGroup::Status)->where('name', 'Ongoing')->firstOrFail();
-        $paused = ReferenceValue::query()->forGroup(ReferenceValueGroup::Status)->where('name', 'Paused')->firstOrFail();
+        ReferenceValue::query()->forGroup(ReferenceValueGroup::Status)->where('name', 'Paused')->firstOrFail();
 
         $startedAt = Carbon::now('Asia/Manila')->subMinutes(5);
         $ticket = TicketRequest::factory()->create([
