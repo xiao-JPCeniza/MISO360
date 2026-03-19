@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ReferenceValueGroup;
 use App\Enums\Role;
 use App\Http\Requests\ScanAssignRequest;
 use App\Http\Requests\ScanReviewRequest;
+use App\Models\ReferenceValue;
 use App\Models\TicketArchive;
 use App\Models\TicketEnrollment;
 use App\Models\TicketRequest;
@@ -13,6 +15,7 @@ use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -113,6 +116,50 @@ class ScanController extends Controller
         $enrollment = TicketEnrollment::where('unique_id', $uniqueId)->firstOrFail();
         $this->authorize('review', $enrollment);
 
+        $linkedRequest = TicketRequest::query()
+            ->with('status')
+            ->where('qr_code_number', $uniqueId)
+            ->notArchived()
+            ->latest('id')
+            ->first();
+
+        $linkedRequestIsActive = $linkedRequest
+            && ($linkedRequest->status?->name !== 'Completed' || $linkedRequest->status_id === null);
+
+        if (! $linkedRequestIsActive) {
+            throw ValidationException::withMessages([
+                'acceptRepair' => 'No active request is linked to this QR code.',
+            ]);
+        }
+
+        $pendingStatusId = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Status)
+            ->where('name', 'Pending')
+            ->value('id');
+
+        $forPickupRemarksId = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Remarks)
+            ->where('name', 'For Pickup')
+            ->value('id');
+
+        $complexCategoryId = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::Category)
+            ->where('name', 'Complex')
+            ->value('id');
+
+        if (! $pendingStatusId || ! $forPickupRemarksId || ! $complexCategoryId) {
+            throw ValidationException::withMessages([
+                'acceptRepair' => 'Repair acceptance is not configured (missing Pending / For Pickup / Complex reference values).',
+            ]);
+        }
+
+        $linkedRequest->forceFill([
+            'status_id' => $pendingStatusId,
+            'remarks_id' => $forPickupRemarksId,
+            'category_id' => $complexCategoryId,
+            'assigned_staff_id' => $request->user()?->id,
+        ])->save();
+
         $enrollment->forceFill([
             'repair_status' => 'accepted',
             'repair_comments' => $request->string('comments')->toString(),
@@ -146,6 +193,10 @@ class ScanController extends Controller
             ->where('qr_code_number', $item->unique_id)
             ->latest('id')
             ->first();
+
+        $linkedRequestIsActive = $linkedRequest
+            ? (! $linkedRequest->archived && ($linkedRequest->status?->name !== 'Completed' || $linkedRequest->status_id === null))
+            : false;
 
         return [
             'uniqueId' => $item->unique_id,
@@ -181,6 +232,10 @@ class ScanController extends Controller
                 'remarks' => $item->request_remarks,
                 'requestStatus' => $linkedRequest?->status?->name,
                 'requestControlTicketNumber' => $linkedRequest?->control_ticket_number,
+            ],
+            'linkedRequest' => [
+                'id' => $linkedRequest?->id,
+                'isActive' => $linkedRequestIsActive,
             ],
             'scheduledMaintenance' => [
                 'date' => optional($item->maintenance_date)->format('Y-m-d'),

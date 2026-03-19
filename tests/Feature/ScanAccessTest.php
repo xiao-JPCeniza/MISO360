@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ReferenceValueGroup;
+use App\Models\ReferenceValue;
 use App\Models\TicketEnrollment;
+use App\Models\TicketRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -55,6 +58,33 @@ class ScanAccessTest extends TestCase
             'equipment_name' => 'Test Printer',
         ]);
 
+        $activeStatus = ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::Status->value,
+            'name' => 'Ongoing',
+        ]);
+        $pendingStatus = ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::Status->value,
+            'name' => 'Pending',
+        ]);
+        $forPickup = ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::Remarks->value,
+            'name' => 'For Pickup',
+        ]);
+        $complex = ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::Category->value,
+            'name' => 'Complex',
+        ]);
+
+        $linkedRequest = TicketRequest::factory()->create([
+            'has_qr_code' => true,
+            'qr_code_number' => $enrollment->unique_id,
+            'archived' => false,
+            'status_id' => $activeStatus->id,
+            'remarks_id' => null,
+            'category_id' => null,
+            'assigned_staff_id' => null,
+        ]);
+
         $this->actingAs($admin)
             ->get("/scan/{$enrollment->unique_id}")
             ->assertOk();
@@ -74,6 +104,14 @@ class ScanAccessTest extends TestCase
             'repair_comments' => 'Accepted for repair',
         ]);
 
+        $this->assertDatabaseHas('ticket_requests', [
+            'id' => $linkedRequest->id,
+            'status_id' => $pendingStatus->id,
+            'remarks_id' => $forPickup->id,
+            'category_id' => $complex->id,
+            'assigned_staff_id' => $admin->id,
+        ]);
+
         $this->actingAs($admin)
             ->withSession(['_token' => 'test-token'])
             ->put("/scan/{$enrollment->unique_id}/assign", [
@@ -81,6 +119,45 @@ class ScanAccessTest extends TestCase
                 'assignedAdminId' => $admin->id,
             ])
             ->assertForbidden();
+    }
+
+    public function test_admin_cannot_accept_for_repair_when_no_active_request_exists(): void
+    {
+        /** @var User $admin */
+        $admin = User::factory()->admin()->create();
+        $enrollment = TicketEnrollment::create([
+            'unique_id' => 'MIS-UID-22222',
+            'equipment_name' => 'Test Device',
+        ]);
+
+        ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::Status->value,
+            'name' => 'Pending',
+        ]);
+        ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::Remarks->value,
+            'name' => 'For Pickup',
+        ]);
+        ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::Category->value,
+            'name' => 'Complex',
+        ]);
+
+        $this->actingAs($admin)
+            ->from("/scan/{$enrollment->unique_id}")
+            ->withSession(['_token' => 'test-token'])
+            ->post("/scan/{$enrollment->unique_id}/review", [
+                '_token' => 'test-token',
+                'acceptRepair' => true,
+                'comments' => 'Attempted accept',
+            ])
+            ->assertRedirect("/scan/{$enrollment->unique_id}")
+            ->assertSessionHasErrors(['acceptRepair']);
+
+        $this->assertDatabaseHas('ticket_enrollments', [
+            'unique_id' => $enrollment->unique_id,
+            'repair_status' => null,
+        ]);
     }
 
     public function test_super_admin_can_assign(): void

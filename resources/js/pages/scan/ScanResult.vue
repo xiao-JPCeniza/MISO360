@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { CheckCircle2, ShieldCheck, UserPlus } from 'lucide-vue-next';
+import { CheckCircle2 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -45,6 +45,10 @@ type ScanRecord = {
         date: string | null;
         remarks: string | null;
     };
+    linkedRequest: {
+        id: number | null;
+        isActive: boolean;
+    };
     archivedAt: string | null;
     repairStatus: string | null;
     repairComments: string | null;
@@ -87,10 +91,6 @@ const reviewForm = useForm({
     comments: props.item.repairComments ?? '',
 });
 
-const assignForm = useForm({
-    assignedAdminId: props.item.assignedAdmin?.id ?? '',
-});
-
 const hasSpecification = computed(() =>
     Boolean(
         props.item.specification.memory ||
@@ -119,12 +119,6 @@ function submitReview() {
         preserveScroll: true,
     });
 }
-
-function submitAssignment() {
-    assignForm.put(`/scan/${props.item.uniqueId}/assign`, {
-        preserveScroll: true,
-    });
-}
 </script>
 
 <template>
@@ -133,12 +127,6 @@ function submitAssignment() {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-6">
             <section class="rounded-3xl border border-sidebar-border/60 bg-background p-6">
-                <div
-                    v-if="assignmentNotice"
-                    class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200"
-                >
-                    {{ assignmentNotice }}
-                </div>
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div class="space-y-2">
                         <p class="text-xs uppercase tracking-[0.3em] text-muted-foreground">
@@ -184,14 +172,19 @@ function submitAssignment() {
                 </div>
             </section>
 
-            <section v-if="status === 'active' && (canReview || canAssign)" class="grid gap-4 lg:grid-cols-2">
-                <div class="rounded-2xl border border-sidebar-border/60 bg-background p-6">
+            <section
+                v-if="status === 'active' && canReview && item.linkedRequest.isActive"
+                class="grid gap-4"
+            >
+                <div
+                    class="rounded-2xl border border-sidebar-border/60 bg-background p-6"
+                >
                     <h2 class="text-base font-semibold">Repair review</h2>
                     <p class="mt-2 text-sm text-muted-foreground">
                         Mark the record as accepted for repair and record remarks.
                     </p>
 
-                    <div v-if="canReview" class="mt-4 space-y-3">
+                    <div class="mt-4 space-y-3">
                         <textarea
                             v-model="reviewForm.comments"
                             rows="4"
@@ -213,9 +206,6 @@ function submitAssignment() {
                             {{ reviewForm.errors.comments }}
                         </p>
                     </div>
-                    <p v-else class="mt-4 text-sm text-muted-foreground">
-                        You can view the repair status but cannot update it.
-                    </p>
 
                     <div class="mt-6 rounded-xl bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
                         <p>
@@ -226,58 +216,6 @@ function submitAssignment() {
                         </p>
                         <p v-if="item.acceptedForRepairAt" class="mt-1">
                             Accepted on {{ item.acceptedForRepairAt }}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="rounded-2xl border border-sidebar-border/60 bg-background p-6">
-                    <h2 class="text-base font-semibold">Assignment</h2>
-                    <p class="mt-2 text-sm text-muted-foreground">
-                        Assign this record to an available admin for processing.
-                    </p>
-
-                    <div v-if="canAssign" class="mt-4 space-y-3">
-                        <div class="relative">
-                            <select
-                                v-model="assignForm.assignedAdminId"
-                                class="w-full appearance-none rounded-xl border border-sidebar-border/70 bg-background px-3 py-2 text-sm"
-                            >
-                                <option value="">Unassigned</option>
-                                <option
-                                    v-for="admin in availableAdmins"
-                                    :key="admin.id"
-                                    :value="admin.id"
-                                >
-                                    {{ admin.name }} — {{ admin.email }}
-                                </option>
-                            </select>
-                            <UserPlus class="pointer-events-none absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <button
-                            type="button"
-                            class="w-full rounded-xl border border-sidebar-border/70 px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-60"
-                            :disabled="assignForm.processing"
-                            @click="submitAssignment"
-                        >
-                            {{ assignForm.processing ? 'Saving...' : 'Update assignment' }}
-                        </button>
-                        <p v-if="assignForm.errors.assignedAdminId" class="text-sm text-red-500">
-                            {{ assignForm.errors.assignedAdminId }}
-                        </p>
-                    </div>
-                    <p v-else class="mt-4 text-sm text-muted-foreground">
-                        Only super admins can assign records to admins.
-                    </p>
-
-                    <div class="mt-6 rounded-xl bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                        <p class="flex items-center gap-2">
-                            <ShieldCheck class="h-4 w-4" />
-                            <span class="font-semibold text-foreground">
-                                {{ item.assignedAdmin?.name || 'Not assigned' }}
-                            </span>
-                        </p>
-                        <p v-if="item.assignedAdmin?.email" class="mt-1">
-                            {{ item.assignedAdmin.email }}
                         </p>
                     </div>
                 </div>
