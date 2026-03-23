@@ -71,7 +71,7 @@ class EnrollmentController extends Controller
             $enrollment->request_nature,
             $enrollment->equipment_type,
             $enrollment->warranty_status,
-            $enrollment->location_office_division,
+            $enrollment->office_id ?? $this->lookupOfficeIdByName($enrollment->location_office_division),
             $enrollment->request_remarks,
         );
         $payload = $this->mapToModelData($validated, $request);
@@ -88,7 +88,7 @@ class EnrollmentController extends Controller
         ?string $existingRequestNature = null,
         ?string $existingCategory = null,
         ?string $existingStatus = null,
-        ?string $existingOffice = null,
+        ?int $existingOfficeId = null,
         ?string $existingRemarks = null,
     ): array {
         $uniqueRule = $isCreate
@@ -111,7 +111,8 @@ class EnrollmentController extends Controller
 
         $validated = $request->validate([
             'uniqueId' => $uniqueIdRules,
-            'equipmentName' => ['required', 'string', 'max:255'],
+            'equipmentName' => ['nullable', 'string', 'max:255'],
+            'officeId' => ['required', 'integer'],
             'equipmentType' => ['required', 'string', 'max:255'],
             'brand' => ['required', 'string', 'max:255'],
             'model' => ['required', 'string', 'max:255'],
@@ -163,7 +164,6 @@ class EnrollmentController extends Controller
 
         $category = $validated['equipmentType'] ?? null;
         $status = $validated['warrantyStatus'] ?? null;
-        $office = data_get($validated, 'locationAssignment.officeDivision');
         $remarks = data_get($validated, 'requestHistory.remarks');
 
         $this->ensureActiveReferenceValue(
@@ -179,19 +179,50 @@ class EnrollmentController extends Controller
             'warrantyStatus',
         );
         $this->ensureActiveReferenceValue(
-            $office,
-            ReferenceValueGroup::OfficeDesignation,
-            $existingOffice,
-            'locationAssignment.officeDivision',
-        );
-        $this->ensureActiveReferenceValue(
             $remarks,
             ReferenceValueGroup::Remarks,
             $existingRemarks,
             'requestHistory.remarks',
         );
 
+        $officeSelection = $this->resolveOfficeSelection(
+            (int) $validated['officeId'],
+            $existingOfficeId,
+        );
+
+        $validated['equipmentName'] = $officeSelection['name'];
+        data_set($validated, 'locationAssignment.officeDivision', $officeSelection['name']);
+        $validated['officeSelection'] = $officeSelection;
+
         return $validated;
+    }
+
+    /**
+     * @return array{id: int, name: string}
+     */
+    private function resolveOfficeSelection(int $officeId, ?int $existingOfficeId = null): array
+    {
+        $office = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::OfficeDesignation)
+            ->where('id', $officeId)
+            ->first();
+
+        if (! $office) {
+            throw ValidationException::withMessages([
+                'officeId' => 'Please select a valid office designation.',
+            ]);
+        }
+
+        if (! $office->is_active && $office->id !== $existingOfficeId) {
+            throw ValidationException::withMessages([
+                'officeId' => 'Please select an active office designation.',
+            ]);
+        }
+
+        return [
+            'id' => $office->id,
+            'name' => $office->name,
+        ];
     }
 
     private function getNatureOfRequestOptions(): array
@@ -284,7 +315,8 @@ class EnrollmentController extends Controller
 
         return [
             'unique_id' => strtoupper(trim($data['uniqueId'])),
-            'equipment_name' => $data['equipmentName'],
+            'equipment_name' => data_get($data, 'officeSelection.name'),
+            'office_id' => data_get($data, 'officeSelection.id'),
             'equipment_type' => $data['equipmentType'] ?? null,
             'brand' => $data['brand'] ?? null,
             'model' => $data['model'] ?? null,
@@ -302,7 +334,7 @@ class EnrollmentController extends Controller
             'spec_network_address' => data_get($data, 'specification.networkAddress'),
             'spec_accessories' => data_get($data, 'specification.accessories'),
             'location_assigned_to' => data_get($data, 'locationAssignment.assignedTo'),
-            'location_office_division' => data_get($data, 'locationAssignment.officeDivision'),
+            'location_office_division' => data_get($data, 'officeSelection.name'),
             'location_date_issued' => data_get($data, 'locationAssignment.dateIssued'),
             'request_nature' => data_get($data, 'requestHistory.natureOfRequest'),
             'request_date' => data_get($data, 'requestHistory.date'),
@@ -316,9 +348,13 @@ class EnrollmentController extends Controller
 
     private function mapToPayload(TicketEnrollment $enrollment): array
     {
+        $officeId = $enrollment->office_id
+            ?? $this->lookupOfficeIdByName($enrollment->location_office_division);
+
         return [
             'uniqueId' => $enrollment->unique_id,
             'equipmentName' => $enrollment->equipment_name,
+            'officeId' => $officeId,
             'equipmentType' => $enrollment->equipment_type,
             'brand' => $enrollment->brand,
             'model' => $enrollment->model,
@@ -354,5 +390,19 @@ class EnrollmentController extends Controller
                 'remarks' => $enrollment->maintenance_remarks,
             ],
         ];
+    }
+
+    private function lookupOfficeIdByName(?string $officeName): ?int
+    {
+        if (! $officeName) {
+            return null;
+        }
+
+        $officeId = ReferenceValue::query()
+            ->forGroup(ReferenceValueGroup::OfficeDesignation)
+            ->where('name', $officeName)
+            ->value('id');
+
+        return $officeId ? (int) $officeId : null;
     }
 }

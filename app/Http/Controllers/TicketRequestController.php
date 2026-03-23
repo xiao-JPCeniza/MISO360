@@ -815,6 +815,8 @@ class TicketRequestController extends Controller
             TicketEnrollment::create([
                 'unique_id' => $uid,
                 'equipment_name' => $equipmentName,
+                'office_id' => $ticketRequest->office_designation_id,
+                'location_office_division' => $ticketRequest->officeDesignation?->name,
             ]);
 
             $ticketRequest->update([
@@ -822,7 +824,7 @@ class TicketRequestController extends Controller
                 'qr_code_number' => $uid,
             ]);
 
-            $ticketRequest->load(['natureOfRequest', 'status', 'remarks', 'assignedStaff']);
+            $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'remarks', 'assignedStaff']);
             $this->syncTicketRequestToEnrollment($ticketRequest);
 
             return $uid;
@@ -1205,6 +1207,8 @@ class TicketRequestController extends Controller
         TicketEnrollment::create([
             'unique_id' => $uid,
             'equipment_name' => 'Unit – Request '.$controlTicketNumber,
+            'office_id' => null,
+            'location_office_division' => null,
         ]);
     }
 
@@ -1221,8 +1225,11 @@ class TicketRequestController extends Controller
 
         $remarksName = $ticketRequest->remarks?->name;
         $assignedStaffName = $ticketRequest->assignedStaff?->name;
+        $officeName = $ticketRequest->officeDesignation?->name;
 
         $enrollment->update([
+            'office_id' => $ticketRequest->office_designation_id,
+            'location_office_division' => $officeName,
             'request_nature' => $ticketRequest->natureOfRequest?->name,
             'request_date' => $ticketRequest->date_received ?? $ticketRequest->created_at?->toDateString(),
             'request_action_taken' => $ticketRequest->action_taken,

@@ -101,6 +101,9 @@ Route::middleware([
     Route::get('admin/enrollments/create', [EnrollmentController::class, 'create'])
         ->middleware('admin')
         ->name('admin.enrollments.create');
+    Route::get('admin/enrollments', fn () => redirect()->route('admin.enrollments.create'))
+        ->middleware('admin')
+        ->name('admin.enrollments.index');
 
     Route::get('admin/nature-of-request', [NatureOfRequestController::class, 'index'])
         ->middleware('admin')

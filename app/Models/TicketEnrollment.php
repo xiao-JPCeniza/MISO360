@@ -28,6 +28,7 @@ class TicketEnrollment extends Model
         'spec_accessories',
         'location_assigned_to',
         'location_office_division',
+        'office_id',
         'location_date_issued',
         'request_nature',
         'request_date',
@@ -50,10 +51,16 @@ class TicketEnrollment extends Model
         'maintenance_date' => 'date',
         'equipment_images' => 'array',
         'accepted_for_repair_at' => 'datetime',
+        'office_id' => 'integer',
     ];
 
     public function assignedAdmin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_admin_id');
+    }
+
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(ReferenceValue::class, 'office_id');
     }
 }

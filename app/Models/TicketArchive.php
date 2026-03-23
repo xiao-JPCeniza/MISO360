@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TicketArchive extends Model
 {
@@ -27,6 +28,7 @@ class TicketArchive extends Model
         'spec_accessories',
         'location_assigned_to',
         'location_office_division',
+        'office_id',
         'location_date_issued',
         'request_nature',
         'request_date',
@@ -46,5 +48,11 @@ class TicketArchive extends Model
         'maintenance_date' => 'date',
         'archived_at' => 'datetime',
         'equipment_images' => 'array',
+        'office_id' => 'integer',
     ];
+
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(ReferenceValue::class, 'office_id');
+    }
 }

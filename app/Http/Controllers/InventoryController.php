@@ -19,6 +19,7 @@ class InventoryController extends Controller
         $search = $request->string('search')->trim()->toString();
         $status = strtolower($request->string('status')->toString() ?: 'all');
         $equipmentType = $request->string('equipment_type')->trim()->toString();
+        $officeId = $request->integer('office_id') ?: null;
 
         $borrowedCount = $this->borrowedRequestsQuery()->count();
         $borrowedRequests = collect();
@@ -33,6 +34,7 @@ class InventoryController extends Controller
                     'user:id,name',
                 ])
                 ->latest()
+                ->when($officeId, fn ($query) => $query->where('office_designation_id', $officeId))
                 ->limit(100)
                 ->get()
                 ->map(fn (TicketRequest $t) => [
@@ -57,6 +59,9 @@ class InventoryController extends Controller
                 ->when($equipmentType !== '', function ($query) use ($equipmentType) {
                     $query->where('equipment_type', $equipmentType);
                 })
+                ->when($officeId, function ($query) use ($officeId) {
+                    $query->where('office_id', $officeId);
+                })
                 ->orderBy('equipment_name')
                 ->limit(200)
                 ->get();
@@ -69,6 +74,9 @@ class InventoryController extends Controller
                 })
                 ->when($equipmentType !== '', function ($query) use ($equipmentType) {
                     $query->where('equipment_type', $equipmentType);
+                })
+                ->when($officeId, function ($query) use ($officeId) {
+                    $query->where('office_id', $officeId);
                 })
                 ->orderBy('equipment_name')
                 ->limit(200)
@@ -87,6 +95,14 @@ class InventoryController extends Controller
             ->map(fn ($rv) => ['id' => $rv->id, 'name' => $rv->name])
             ->values()
             ->all();
+        $officeOptions = ReferenceValue::query()
+            ->active()
+            ->forGroup(ReferenceValueGroup::OfficeDesignation)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($rv) => ['id' => $rv->id, 'name' => $rv->name])
+            ->values()
+            ->all();
 
         return Inertia::render('inventory/Inventory', [
             'items' => $items,
@@ -95,8 +111,10 @@ class InventoryController extends Controller
                 'search' => $search,
                 'status' => $status,
                 'equipmentType' => $equipmentType,
+                'officeId' => $officeId,
             ],
             'equipmentTypeOptions' => $equipmentTypeOptions,
+            'officeOptions' => $officeOptions,
             'counts' => [
                 'active' => TicketEnrollment::count(),
                 'archived' => TicketArchive::count(),
@@ -213,6 +231,7 @@ class InventoryController extends Controller
                 'spec_accessories' => $enrollment->spec_accessories,
                 'location_assigned_to' => $enrollment->location_assigned_to,
                 'location_office_division' => $enrollment->location_office_division,
+                'office_id' => $enrollment->office_id,
                 'location_date_issued' => $enrollment->location_date_issued,
                 'request_nature' => $enrollment->request_nature,
                 'request_date' => $enrollment->request_date,
@@ -243,6 +262,8 @@ class InventoryController extends Controller
             'serialNumber' => $item->serial_number,
             'assetTag' => $item->asset_tag,
             'status' => $status,
+            'officeId' => $item->office_id,
+            'officeName' => $item->location_office_division,
             'archivedAt' => $status === 'archived' ? $item->archived_at?->toDateTimeString() : null,
         ];
     }
@@ -273,6 +294,7 @@ class InventoryController extends Controller
             'locationAssignment' => [
                 'assignedTo' => $item->location_assigned_to,
                 'officeDivision' => $item->location_office_division,
+                'officeId' => $item->office_id,
                 'dateIssued' => optional($item->location_date_issued)->format('Y-m-d'),
             ],
             'requestHistory' => [

@@ -10,6 +10,7 @@ import { type BreadcrumbItem } from '@/types';
 type EnrollmentPayload = {
     uniqueId: string;
     equipmentName: string;
+    officeId: number | '';
     equipmentType: string;
     brand: string;
     model: string;
@@ -122,6 +123,7 @@ const errorList = computed(() => Object.values(submission.errors));
 const submission = useForm<EnrollmentPayload>({
     uniqueId: props.record?.uniqueId ?? props.prefillId ?? '',
     equipmentName: props.record?.equipmentName ?? '',
+    officeId: props.record?.officeId ?? '',
     equipmentType: props.record?.equipmentType ?? '',
     brand: props.record?.brand ?? '',
     model: props.record?.model ?? '',
@@ -451,6 +453,7 @@ function submitEnrollment(payload: EnrollmentPayload) {
     submission.clearErrors();
     submission.uniqueId = payload.uniqueId;
     submission.equipmentName = payload.equipmentName;
+    submission.officeId = payload.officeId;
     submission.equipmentType = payload.equipmentType;
     submission.brand = payload.brand;
     submission.model = payload.model;

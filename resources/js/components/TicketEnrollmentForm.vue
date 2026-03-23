@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 type EnrollmentPayload = {
     uniqueId: string;
     equipmentName: string;
+    officeId: number | '';
     equipmentType: string;
     brand: string;
     model: string;
@@ -80,6 +82,7 @@ const emit = defineEmits<{
 const form = reactive<EnrollmentPayload>({
     uniqueId: '',
     equipmentName: '',
+    officeId: '',
     equipmentType: '',
     brand: '',
     model: '',
@@ -197,6 +200,12 @@ const officeOptionsWithLegacy = computed(() =>
     ),
 );
 
+const selectedOfficeOption = computed(() =>
+    officeOptionsWithLegacy.value.find(
+        (option) => String(option.id) === String(form.officeId),
+    ),
+);
+
 const remarkOptionsWithLegacy = computed(() =>
     withLegacyOption(
         props.referenceOptions?.remarks ?? [],
@@ -221,6 +230,7 @@ watch(
 
         form.uniqueId = value.uniqueId ?? form.uniqueId;
         form.equipmentName = value.equipmentName ?? form.equipmentName;
+        form.officeId = value.officeId ?? form.officeId;
         form.equipmentType = value.equipmentType ?? form.equipmentType;
         form.brand = value.brand ?? form.brand;
         form.model = value.model ?? form.model;
@@ -283,6 +293,16 @@ watch(
     { immediate: true },
 );
 
+watch(
+    selectedOfficeOption,
+    (office) => {
+        const officeName = office?.name ?? '';
+        form.equipmentName = officeName;
+        form.locationAssignment.officeDivision = officeName;
+    },
+    { immediate: true },
+);
+
 function submit() {
     emit('submit', { ...form });
 }
@@ -314,14 +334,16 @@ function submit() {
                 </div>
                 <div>
                     <label class="enroll-label">
-                        Equipment Name <span class="enroll-required">*</span>
+                        Office Designation <span class="enroll-required">*</span>
                     </label>
-                    <input
-                        v-model="form.equipmentName"
-                        type="text"
+                    <SearchableSelect
+                        v-model="form.officeId"
+                        :options="officeOptionsWithLegacy"
                         required
-                        class="enroll-input"
-                        placeholder="Jackson Printer"
+                        aria-label="Select office designation"
+                        placeholder="Select an office"
+                        search-placeholder="Search office designation"
+                        empty-label="No office designation found."
                     />
                 </div>
                 <div>
@@ -577,23 +599,13 @@ function submit() {
                         </div>
                         <div>
                             <label class="enroll-label">Office/Division</label>
-                            <select
-                                v-model="form.locationAssignment.officeDivision"
+                            <input
+                                :value="selectedOfficeOption?.name ?? ''"
+                                type="text"
+                                readonly
                                 class="enroll-input"
-                            >
-                                <option value="">Select an office</option>
-                                <option
-                                    v-for="option in officeOptionsWithLegacy"
-                                    :key="option.isLegacy ? `legacy-${option.name}` : option.id"
-                                    :value="option.name"
-                                >
-                                    {{
-                                        option.isLegacy
-                                            ? `${option.name} (inactive)`
-                                            : option.name
-                                    }}
-                                </option>
-                            </select>
+                                placeholder="Select an office above"
+                            />
                         </div>
                         <div>
                             <label class="enroll-label">Date Issued</label>

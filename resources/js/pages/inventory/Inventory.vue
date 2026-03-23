@@ -5,6 +5,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 type InventoryItem = {
     id: number;
@@ -35,6 +36,11 @@ type EquipmentTypeOption = {
     name: string;
 };
 
+type OfficeOption = {
+    id: number;
+    name: string;
+};
+
 const props = defineProps<{
     items: InventoryItem[];
     borrowedRequests: BorrowedRequest[];
@@ -42,8 +48,10 @@ const props = defineProps<{
         search: string;
         status: string;
         equipmentType: string;
+        officeId: number | null;
     };
     equipmentTypeOptions: EquipmentTypeOption[];
+    officeOptions: OfficeOption[];
     counts: {
         active: number;
         archived: number;
@@ -65,11 +73,13 @@ const breadcrumbs: BreadcrumbItem[] = [
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? 'all');
 const equipmentType = ref(props.filters.equipmentType ?? '');
+const officeId = ref<number | string | null>(props.filters.officeId ?? null);
 const isFiltered = computed(
     () =>
         search.value.trim().length > 0 ||
         status.value !== 'all' ||
-        equipmentType.value !== '',
+        equipmentType.value !== '' ||
+        officeId.value !== null,
 );
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -81,6 +91,7 @@ function applyFilters() {
             search: search.value.trim(),
             status: status.value,
             equipment_type: equipmentType.value,
+            office_id: officeId.value ?? '',
         },
         {
             preserveState: true,
@@ -105,6 +116,11 @@ function setStatus(nextStatus: string) {
 
 function setEquipmentType(value: string) {
     equipmentType.value = value;
+    applyFilters();
+}
+
+function setOffice(value: number | string | null) {
+    officeId.value = value;
     applyFilters();
 }
 
@@ -242,6 +258,21 @@ watch(status, (next) => {
                                     {{ opt.name }}
                                 </option>
                             </select>
+                        </div>
+                        <div class="flex min-w-0 flex-col gap-1.5 sm:w-56">
+                            <label class="text-xs font-medium text-foreground">
+                                Office
+                            </label>
+                            <SearchableSelect
+                                :model-value="officeId"
+                                :options="officeOptions"
+                                aria-label="Filter by office designation"
+                                placeholder="All offices"
+                                search-placeholder="Search office designation"
+                                empty-label="No office designation found."
+                                :allow-clear="true"
+                                @update:model-value="setOffice"
+                            />
                         </div>
                         <div
                             class="flex flex-wrap items-center gap-2"
