@@ -24,6 +24,7 @@ class SubmitOnlyRequestUserSeeder extends Seeder
                 'name' => 'Request Submission Account',
                 'password' => Hash::make('request'),
                 'email_verified_at' => now(),
+                'admin_verified_at' => now(),
                 'role' => 'submit_only',
                 'two_factor_enabled' => false,
                 'workos_id' => 'local-submit-only-'.Str::uuid(),

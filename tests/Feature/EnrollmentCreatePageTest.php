@@ -37,4 +37,13 @@ class EnrollmentCreatePageTest extends TestCase
             ->has('referenceOptions.remarks')
         );
     }
+
+    public function test_get_admin_enrollment_uid_redirects_to_inventory_edit(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get('/admin/enrollments/MIS-UID-00021')
+            ->assertRedirect(route('inventory.edit', ['uniqueId' => 'MIS-UID-00021']));
+    }
 }

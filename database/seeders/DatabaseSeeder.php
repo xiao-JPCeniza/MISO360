@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
         $misoOffice = ReferenceValue::updateOrCreate(
             [
                 'group_key' => ReferenceValueGroup::OfficeDesignation->value,
-                'name' => 'Management Information Systems Office',
+                'name' => 'Management Information Systems Office (MISO)',
             ],
             [
                 'system_seeded' => true,
@@ -64,8 +64,8 @@ class DatabaseSeeder extends Seeder
 
             User::factory()->create([
                 'name' => 'Limwell Laid',
-                'email' => 'limwelllaid@miso.gov.ph',
-                'password' => Hash::make('password321'),
+                'email' => 'limwell.laid@manolofortich.gov.ph',
+                'password' => Hash::make('limwell.laid'),
                 'email_verified_at' => now(),
                 'role' => 'admin',
                 'two_factor_enabled' => false,
@@ -75,7 +75,7 @@ class DatabaseSeeder extends Seeder
             ]);
             User::factory()->create([
                 'name' => 'John Paul Ceniza',
-                'email' => 'JPCeniza@miso.gov.ph',
+                'email' => 'johnpaul.ceniza@manolofortich.gov.ph',
                 'password' => Hash::make('password321'),
                 'email_verified_at' => now(),
                 'role' => 'admin',
@@ -86,8 +86,8 @@ class DatabaseSeeder extends Seeder
             ]);
             User::factory()->create([
                 'name' => 'Ronald Jay Meniano',
-                'email' => 'RonaldJayMeniano@miso.gov.ph',
-                'password' => Hash::make('password321'),
+                'email' => 'ronald.meniano@manolofortich.gov.ph',
+                'password' => Hash::make('ronald.meniano'),
                 'email_verified_at' => now(),
                 'role' => 'super_admin',
                 'two_factor_enabled' => false,
@@ -97,8 +97,8 @@ class DatabaseSeeder extends Seeder
             ]);
             User::factory()->create([
                 'name' => 'Randy Chavez',
-                'email' => 'RandyChavez@miso.gov.ph',
-                'password' => Hash::make('password321'),
+                'email' => 'randy.chavez@manolofortich.gov.ph',
+                'password' => Hash::make('randy.chavez'),
                 'email_verified_at' => now(),
                 'role' => 'admin',
                 'two_factor_enabled' => false,
@@ -108,8 +108,8 @@ class DatabaseSeeder extends Seeder
             ]);
             User::factory()->create([
                 'name' => 'Emmanuel Baluma',
-                'email' => 'EmmanuelBaluma@miso.gov.ph',
-                'password' => Hash::make('password321'),
+                'email' => 'emmanuel.baluma@manolofortich.gov.ph',
+                'password' => Hash::make('emmanuel.baluma'),
                 'email_verified_at' => now(),
                 'role' => 'admin',
                 'two_factor_enabled' => false,
@@ -118,9 +118,9 @@ class DatabaseSeeder extends Seeder
                 'office_designation_id' => $misoOffice->id,
             ]);
             User::factory()->create([
-                'name' => 'Mary Antomette Rambonanza',
-                'email' => 'AnnRambonanz@miso.gov.ph',
-                'password' => Hash::make('password321'),
+                'name' => 'Mary Antonette Rambonanza',
+                'email' => 'mary.rambonanza@manolofortich.gov.ph',
+                'password' => Hash::make('mary.rambonanza'),
                 'email_verified_at' => now(),
                 'role' => 'admin',
                 'two_factor_enabled' => false,
@@ -130,8 +130,8 @@ class DatabaseSeeder extends Seeder
             ]);
             User::factory()->create([
                 'name' => 'Rex Amiel Balendez',
-                'email' => 'RexAmielBalendez@miso.gov.ph',
-                'password' => Hash::make('password321'),
+                'email' => 'rex.balendez@manolofortich.gov.ph',
+                'password' => Hash::make('rex.balendez'),
                 'email_verified_at' => now(),
                 'role' => 'admin',
                 'two_factor_enabled' => false,
@@ -141,8 +141,19 @@ class DatabaseSeeder extends Seeder
             ]);
             User::factory()->create([
                 'name' => 'Ivan Dasilao',
-                'email' => 'IvanDasilao@miso.gov.ph',
-                'password' => Hash::make('password321'),
+                'email' => 'ivan.dasilao@manolofortich.gov.ph',
+                'password' => Hash::make('ivan.dasilao'),
+                'email_verified_at' => now(),
+                'role' => 'super_admin',
+                'two_factor_enabled' => false,
+                'workos_id' => 'local-admin-'.Str::uuid(),
+                'avatar' => '',
+                'office_designation_id' => $misoOffice->id,
+            ]);
+            User::factory()->create([
+                'name' => 'Jig Jimenez ',
+                'email' => 'jig.jimenez@manolofortich.gov.ph',
+                'password' => Hash::make('jig.jimenez'),
                 'email_verified_at' => now(),
                 'role' => 'super_admin',
                 'two_factor_enabled' => false,
@@ -152,7 +163,7 @@ class DatabaseSeeder extends Seeder
             ]);
             User::factory()->create([
                 'name' => 'Kenn Cedric Jala',
-                'email' => 'KennCedricJala@miso.gov.ph',
+                'email' => 'kenncedricjalatcc@gmail.com',
                 'password' => Hash::make('password321'),
                 'email_verified_at' => now(),
                 'role' => 'admin',

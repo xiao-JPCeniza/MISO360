@@ -182,7 +182,7 @@ const filteredRequests = computed(() => {
 <template>
     <Head :title="pageTitle" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AppLayout :breadcrumbs="breadcrumbs" :fullWidth="true">
         <div v-if="props.isAdmin" class="flex min-h-0 flex-1 flex-col bg-background p-5 sm:p-6">
             <div class="shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <Link
@@ -212,7 +212,7 @@ const filteredRequests = computed(() => {
 
             <div class="mt-3 flex min-h-0 flex-1 flex-col w-full rounded-md border border-border bg-card shadow-sm dark:border-white/10">
                 <div class="min-h-0 flex-1 w-full overflow-auto">
-                    <table class="w-full min-w-full table-fixed text-[11px] text-foreground">
+                    <table class="w-full min-w-max table-auto text-[11px] text-foreground">
                         <thead class="border-b border-border bg-muted/50 text-[11px] uppercase text-foreground dark:border-white/10 dark:bg-white/5">
                             <tr>
                                 <th colspan="11" class="px-3 py-2 text-center text-xs font-semibold">
@@ -240,7 +240,14 @@ const filteredRequests = computed(() => {
                                 class="odd:bg-background even:bg-muted/20 hover:bg-muted/40 dark:even:bg-white/5 dark:hover:bg-white/10"
                             >
                                 <td class="px-3 py-2 font-medium">
-                                    {{ request.controlTicketNumber }}
+                                    <Link
+                                        v-if="resolveActionUrl(request)"
+                                        :href="resolveActionUrl(request) || ''"
+                                        class="text-primary underline-offset-4 transition hover:underline hover:decoration-primary/40 hover:text-primary/80"
+                                    >
+                                        {{ request.controlTicketNumber }}
+                                    </Link>
+                                    <span v-else>{{ request.controlTicketNumber }}</span>
                                 </td>
                                 <td class="px-3 py-2">
                                     <span class="block max-w-[140px] truncate" :title="displayText(request.requestedBy)">
@@ -370,7 +377,7 @@ const filteredRequests = computed(() => {
 
             <div class="flex min-h-0 flex-1 flex-col w-full rounded-2xl border border-sidebar-border/60 bg-background shadow-sm">
                 <div class="min-h-0 flex-1 w-full overflow-auto">
-                    <table class="w-full min-w-full table-fixed text-sm">
+                    <table class="w-full min-w-max table-auto text-sm">
                         <thead
                             class="sticky top-0 z-10 border-b border-sidebar-border/70 bg-background/95 text-xs uppercase tracking-wide text-muted-foreground backdrop-blur"
                         >

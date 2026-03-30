@@ -26,8 +26,8 @@ class TicketRequestFactory extends Factory
         return [
             'control_ticket_number' => sprintf(
                 'CTN-%s-%s',
-                now()->format('Ymd'),
-                $this->faker->unique()->numerify('####')
+                now()->format('Y'),
+                $this->faker->unique()->numerify('#####')
             ),
             'nature_of_request_id' => $natureOfRequest->id,
             'user_id' => User::factory(),

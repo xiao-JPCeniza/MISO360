@@ -17,8 +17,10 @@ use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class UserManagementController extends Controller
 {
@@ -26,20 +28,34 @@ class UserManagementController extends Controller
     {
         Gate::authorize('viewAny', User::class);
 
+        $selectColumns = [
+            'id',
+            'name',
+            'email',
+            'phone',
+            'role',
+            'is_active',
+            'two_factor_enabled',
+            'created_at',
+        ];
+
+        if ($this->usersTableHasAdminVerifiedAtColumn()) {
+            $selectColumns[] = 'admin_verified_at';
+        }
+
         $users = User::query()
-            ->select([
-                'id',
-                'name',
-                'email',
-                'phone',
-                'role',
-                'is_active',
-                'two_factor_enabled',
-                'created_at',
-            ])
+            ->select($selectColumns)
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString();
+
+        if (! $this->usersTableHasAdminVerifiedAtColumn()) {
+            $users->getCollection()->transform(function (User $user) {
+                $user->setAttribute('admin_verified_at', null);
+
+                return $user;
+            });
+        }
 
         return Inertia::render('admin/users/Index', [
             'users' => $users,
@@ -67,21 +83,7 @@ class UserManagementController extends Controller
             ->get();
 
         return Inertia::render('admin/users/Show', [
-            'user' => $user->only([
-                'id',
-                'name',
-                'email',
-                'email_verified_at',
-                'phone',
-                'role',
-                'is_active',
-                'two_factor_enabled',
-                'two_factor_confirmed_at',
-                'office_designation_id',
-                'position_title',
-                'created_at',
-                'updated_at',
-            ]),
+            'user' => $this->showPayloadForUser($user),
             'officeDesignation' => $user->officeDesignation?->only(['id', 'name']),
             'officeDesignations' => $officeDesignations,
             'roleOptions' => Role::options(),
@@ -215,6 +217,33 @@ class UserManagementController extends Controller
         return back()->with('status', 'Email marked as verified.');
     }
 
+    public function toggleAdminVerification(Request $request, User $user, AuditLogger $auditLogger): RedirectResponse
+    {
+        Gate::authorize('update', $user);
+
+        if (! $this->usersTableHasAdminVerifiedAtColumn()) {
+            return back()->with('error', 'Manual admin verification is unavailable until database migrations are up to date.');
+        }
+
+        if (! $user->requiresManualAdminVerification()) {
+            abort(403, 'This account does not use manual admin verification.');
+        }
+
+        if ($user->isApprovedByAdmin()) {
+            $user->update(['admin_verified_at' => null]);
+
+            $auditLogger->log($request, 'user.admin_verification.revoked', $user);
+
+            return back()->with('status', 'Manual verification removed. The user can no longer access the app until approved again.');
+        }
+
+        $user->update(['admin_verified_at' => now()]);
+
+        $auditLogger->log($request, 'user.admin_verification.granted', $user);
+
+        return back()->with('status', 'User verified. They may now access the application.');
+    }
+
     public function deactivate(Request $request, User $user, AuditLogger $auditLogger): RedirectResponse
     {
         Gate::authorize('deactivate', $user);
@@ -244,5 +273,41 @@ class UserManagementController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('status', 'User account has been permanently deleted.');
+    }
+
+    private function showPayloadForUser(User $user): array
+    {
+        $payload = $user->only([
+            'id',
+            'name',
+            'email',
+            'email_verified_at',
+            'phone',
+            'role',
+            'is_active',
+            'two_factor_enabled',
+            'two_factor_confirmed_at',
+            'office_designation_id',
+            'position_title',
+            'created_at',
+            'updated_at',
+        ]);
+
+        $payload['admin_verified_at'] = $this->usersTableHasAdminVerifiedAtColumn()
+            ? $user->admin_verified_at
+            : null;
+
+        return $payload;
+    }
+
+    private function usersTableHasAdminVerifiedAtColumn(): bool
+    {
+        try {
+            return Schema::hasColumn('users', 'admin_verified_at');
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return false;
+        }
     }
 }

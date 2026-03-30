@@ -36,6 +36,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'email_verified_at',
+        'admin_verified_at',
         'role',
         'phone',
         'is_active',
@@ -65,6 +66,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'admin_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'two_factor_enabled' => 'boolean',
@@ -127,6 +129,22 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isActive(): bool
     {
         return $this->is_active ?? true;
+    }
+
+    /**
+     * Whether this account must be approved by an administrator before using the app.
+     */
+    public function requiresManualAdminVerification(): bool
+    {
+        return ! $this->role->isAdmin();
+    }
+
+    /**
+     * Whether an administrator has approved this account for full access.
+     */
+    public function isApprovedByAdmin(): bool
+    {
+        return $this->admin_verified_at !== null;
     }
 
     /**

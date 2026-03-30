@@ -8,9 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreRegisteredUserRequest;
 use App\Models\ReferenceValue;
 use App\Models\User;
+use App\Notifications\Admin\NewUserRegisteredNotification;
 use App\Services\TwoFactorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -40,7 +43,7 @@ class RegisteredUserController extends Controller
         $user = null;
 
         try {
-            $user = User::create([
+            $attributes = [
                 'name' => $data['name'],
                 'position_title' => $data['position_title'],
                 'office_designation_id' => $data['office_designation_id'],
@@ -51,7 +54,22 @@ class RegisteredUserController extends Controller
                 'two_factor_enabled' => true,
                 'workos_id' => Str::uuid()->toString(),
                 'avatar' => '',
-            ]);
+            ];
+
+            if ($this->usersTableHasAdminVerifiedAtColumn()) {
+                $attributes['admin_verified_at'] = null;
+            }
+
+            $user = User::create($attributes);
+
+            $admins = User::query()
+                ->whereIn('role', [Role::ADMIN, Role::SUPER_ADMIN])
+                ->where('is_active', true)
+                ->get();
+
+            if ($admins->isNotEmpty()) {
+                Notification::send($admins, new NewUserRegisteredNotification($user));
+            }
 
             $request->session()->put('two_factor.pending_user_id', $user->id);
             $request->session()->put('two_factor.purpose', 'login');
@@ -78,6 +96,17 @@ class RegisteredUserController extends Controller
             return back()->withErrors([
                 'email' => 'Something went wrong on our end. Please try again later.',
             ])->onlyInput('name', 'email', 'position_title', 'office_designation_id');
+        }
+    }
+
+    private function usersTableHasAdminVerifiedAtColumn(): bool
+    {
+        try {
+            return Schema::hasColumn('users', 'admin_verified_at');
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return false;
         }
     }
 }

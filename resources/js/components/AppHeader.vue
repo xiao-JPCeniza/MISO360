@@ -12,6 +12,7 @@ import {
     Tag,
     CheckCircle2,
     ChevronDown,
+    Bell,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -65,6 +66,7 @@ const headerAvatarUrl = computed(() => {
 const { urlIsActive } = useActiveUrl();
 const userRole = computed(() => auth.value?.user?.role ?? '');
 const isSubmitOnly = computed(() => userRole.value === 'submit_only');
+const isAdmin = computed(() => ['admin', 'super_admin'].includes(userRole.value));
 const headerHomeHref = computed(() => (isSubmitOnly.value ? '/submit-request' : dashboard()));
 
 function activeItemClasses(url: NonNullable<InertiaLinkProps['href']>) {
@@ -73,9 +75,14 @@ function activeItemClasses(url: NonNullable<InertiaLinkProps['href']>) {
         : 'text-[#0b1b3a] dark:text-white';
 }
 
-const mainNavItems = computed(() => {
-    const isAdmin = ['admin', 'super_admin'].includes(userRole.value);
+const unreadCount = computed(() => {
+    const value = (page.props as { notifications?: { unreadCount?: number } | null })?.notifications
+        ?.unreadCount;
 
+    return typeof value === 'number' ? value : 0;
+});
+
+const mainNavItems = computed(() => {
     if (isSubmitOnly.value) {
         return [
             {
@@ -105,7 +112,7 @@ const mainNavItems = computed(() => {
     ];
 
     // Add admin-only items
-    if (isAdmin) {
+    if (isAdmin.value) {
         baseItems.push({
             title: 'Inventory',
             href: '/inventory',
@@ -117,9 +124,7 @@ const mainNavItems = computed(() => {
 });
 
 const adminPanelItems = computed<NavItem[]>(() => {
-    const isAdmin = ['admin', 'super_admin'].includes(userRole.value);
-
-    if (!isAdmin) {
+    if (!isAdmin.value) {
         return [];
     }
 
@@ -321,6 +326,21 @@ const isAdminPanelActive = computed(() =>
 
                 <div v-if="auth?.user" class="ml-auto flex items-center gap-1">
                     <ThemeSwitcher />
+                    <Link
+                        href="/notifications"
+                        class="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[#0b1b3a] transition-colors hover:bg-[#2563eb]/10 dark:text-white dark:hover:bg-white/10 sm:min-h-10 sm:min-w-10"
+                        aria-label="Notifications"
+                        preserve-scroll
+                        preserve-state
+                    >
+                        <Bell class="h-5 w-5" />
+                        <span
+                            v-if="unreadCount > 0"
+                            class="absolute right-1.5 top-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold leading-5 text-white"
+                        >
+                            {{ unreadCount > 99 ? '99+' : unreadCount }}
+                        </span>
+                    </Link>
                     <DropdownMenu>
                         <DropdownMenuTrigger :as-child="true">
                             <Button

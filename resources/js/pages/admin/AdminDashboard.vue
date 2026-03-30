@@ -81,6 +81,9 @@ const exportArchiveUrl = computed(() => {
 });
 
 const page = usePage();
+const isAdmin = computed(() =>
+    ['admin', 'super_admin'].includes(page.props.auth?.user?.role ?? ''),
+);
 const isSuperAdmin = computed(
     () => page.props.auth?.user?.role === 'super_admin',
 );
@@ -284,6 +287,25 @@ function displayText(value: string | null, fallback = '—'): string {
                             </p>
                             <p class="text-xs text-muted-foreground">
                                 {{ totalGenerated }} codes generated
+                            </p>
+                        </div>
+                    </Link>
+                    <Link
+                        v-if="isAdmin"
+                        href="/admin/posts"
+                        class="flex items-center gap-3 rounded-xl border border-sidebar-border/60 bg-card p-4 shadow-sm hover:bg-muted/30 dark:border-white/10 dark:hover:bg-white/5"
+                    >
+                        <div
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                        >
+                            <Icon name="image" class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-foreground">
+                                Post Management
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                Manage homepage profile slides
                             </p>
                         </div>
                     </Link>

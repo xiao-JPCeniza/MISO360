@@ -45,14 +45,15 @@ class InventoryBorrowedFilterTest extends TestCase
         $activeBorrow = TicketRequest::factory()->create([
             'nature_of_request_id' => $borrowNature->id,
             'status_id' => $pendingStatus->id,
-            'control_ticket_number' => 'CTN-20260219-0001',
+            'control_ticket_number' => 'CTN-2026-00001',
         ]);
         $completedBorrow = TicketRequest::factory()->create([
             'nature_of_request_id' => $borrowNature->id,
             'status_id' => $completedStatus->id,
-            'control_ticket_number' => 'CTN-20260219-0002',
+            'control_ticket_number' => 'CTN-2026-00002',
         ]);
 
+        /** @var User $admin */
         $admin = User::factory()->admin()->create();
 
         $response = $this
@@ -64,7 +65,7 @@ class InventoryBorrowedFilterTest extends TestCase
             ->component('inventory/Inventory')
             ->has('borrowedRequests', 1)
             ->where('borrowedRequests.0.id', $activeBorrow->id)
-            ->where('borrowedRequests.0.controlTicketNumber', 'CTN-20260219-0001')
+            ->where('borrowedRequests.0.controlTicketNumber', 'CTN-2026-00001')
             ->where('counts.borrowed', 1)
         );
     }
@@ -105,6 +106,7 @@ class InventoryBorrowedFilterTest extends TestCase
 
     public function test_regular_user_cannot_access_inventory(): void
     {
+        /** @var User $user */
         $user = User::factory()->create();
 
         $response = $this

@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { Form, Head, Link, useForm } from '@inertiajs/vue3';
+import {
+    destroy as destroyUser,
+    toggleAdminVerification as adminVerificationToggle,
+} from '@/actions/App/Http/Controllers/Admin/UserManagementController';
+import { Form, Head, Link, router, useForm } from '@inertiajs/vue3';
 
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
@@ -18,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
+import { CheckCircle2, Loader2, XCircle } from 'lucide-vue-next';
 import { ref } from 'vue';
 
 type AuditLogEntry = {
@@ -37,6 +42,7 @@ type ManagedUser = {
     name: string;
     email: string;
     email_verified_at?: string | null;
+    admin_verified_at?: string | null;
     phone?: string | null;
     role: string;
     is_active: boolean;
@@ -101,7 +107,58 @@ const deactivateModalOpen = ref(false);
 const deleteModalOpen = ref(false);
 
 const deactivateUrl = `/admin/users/${props.user.id}/deactivate`;
-const deleteUrl = `/admin/users/${props.user.id}`;
+
+const verificationToggling = ref(false);
+
+function roleIsElevated(role: string): boolean {
+    return role === 'admin' || role === 'super_admin';
+}
+
+function isManagedUserApproved(): boolean {
+    if (roleIsElevated(props.user.role)) {
+        return true;
+    }
+
+    return props.user.admin_verified_at != null && props.user.admin_verified_at !== '';
+}
+
+function showVerificationActionTitle(): string {
+    if (isManagedUserApproved()) {
+        return 'Click to switch to unverified — block access until approved again';
+    }
+
+    return 'Click to switch to verified — allow sign-in and app access';
+}
+
+function showVerificationAriaLabel(): string {
+    if (isManagedUserApproved()) {
+        return `Unverify ${props.user.name}`;
+    }
+
+    return `Verify ${props.user.name}`;
+}
+
+function submitShowVerificationToggle(): void {
+    if (roleIsElevated(props.user.role) || verificationToggling.value) {
+        return;
+    }
+
+    verificationToggling.value = true;
+    const { url } = adminVerificationToggle.post(props.user.id);
+    router.post(
+        url,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                verificationToggling.value = false;
+            },
+            onError: () => {
+                verificationToggling.value = false;
+            },
+        },
+    );
+}
 </script>
 
 <template>
@@ -137,6 +194,43 @@ const deleteUrl = `/admin/users/${props.user.id}`;
                         </span>
                         <span class="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-semibold text-foreground">
                             {{ props.roleOptions[props.user.role] || props.user.role }}
+                        </span>
+                        <button
+                            v-if="!roleIsElevated(props.user.role)"
+                            type="button"
+                            class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold shadow-sm transition hover:brightness-95 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 dark:hover:brightness-110"
+                            :class="props.user.admin_verified_at
+                                ? 'border-emerald-600/25 bg-emerald-100 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/20 dark:text-emerald-200'
+                                : 'border-rose-600/25 bg-rose-100 text-rose-800 dark:border-rose-400/30 dark:bg-rose-500/20 dark:text-rose-200'"
+                            :disabled="verificationToggling"
+                            :title="showVerificationActionTitle()"
+                            :aria-label="showVerificationAriaLabel()"
+                            :aria-busy="verificationToggling"
+                            @click.stop.prevent="submitShowVerificationToggle"
+                        >
+                            <Loader2
+                                v-if="verificationToggling"
+                                class="size-3.5 shrink-0 animate-spin"
+                                aria-hidden="true"
+                            />
+                            <CheckCircle2
+                                v-else-if="props.user.admin_verified_at"
+                                class="size-3.5 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <XCircle
+                                v-else
+                                class="size-3.5 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <span>{{ verificationToggling ? 'Updating' : props.user.admin_verified_at ? 'Verified' : 'Unverified' }}</span>
+                        </button>
+                        <span
+                            v-else
+                            class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200"
+                        >
+                            <CheckCircle2 class="size-3.5 shrink-0" aria-hidden="true" />
+                            Verified
                         </span>
                     </div>
                 </div>
@@ -486,8 +580,8 @@ const deleteUrl = `/admin/users/${props.user.id}`;
                                                 </Button>
                                             </DialogClose>
                                             <Form
-                                                :action="deleteUrl"
-                                                method="delete"
+                                                :action="destroyUser.url(props.user.id)"
+                                                method="post"
                                                 :options="{ preserveScroll: false }"
                                                 class="inline"
                                                 @success="deleteModalOpen = false"

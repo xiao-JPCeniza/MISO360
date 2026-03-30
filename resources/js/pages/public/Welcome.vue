@@ -39,7 +39,7 @@ const props = withDefaults(
 
 const currentSlideIndex = ref(0);
 const slideInterval = ref<ReturnType<typeof setInterval> | null>(null);
-const AUTO_PLAY_MS = 6000;
+const AUTO_PLAY_MS = 5000;
 
 const slides = computed(() => props.profileSlides ?? []);
 
@@ -612,46 +612,6 @@ function getGovernanceServicesForDivision(division: Division): string[] {
                             </h2>
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        class="absolute top-1/2 left-3 z-20 -translate-y-1/2 rounded-full bg-white/15 p-2.5 text-white backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white/30 focus:ring-2 focus:ring-white/50 focus:outline-none sm:left-4"
-                        aria-label="Previous slide"
-                        @click="prevSlide"
-                    >
-                        <svg
-                            class="h-5 w-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M15 19l-7-7 7-7"
-                            />
-                        </svg>
-                    </button>
-                    <button
-                        type="button"
-                        class="absolute top-1/2 right-3 z-20 -translate-y-1/2 rounded-full bg-white/15 p-2.5 text-white backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white/30 focus:ring-2 focus:ring-white/50 focus:outline-none sm:right-4"
-                        aria-label="Next slide"
-                        @click="nextSlide"
-                    >
-                        <svg
-                            class="h-5 w-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M9 5l7 7-7 7"
-                            />
-                        </svg>
-                    </button>
                     <div
                         class="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3"
                     >

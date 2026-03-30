@@ -2,8 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
+use Throwable;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -35,11 +38,13 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'csrf_token' => $request->session()->token(),
@@ -47,7 +52,61 @@ class HandleInertiaRequests extends Middleware
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
                 'status' => $request->session()->get('status'),
+                'warning' => $request->session()->get('warning'),
+                'info' => $request->session()->get('info'),
             ],
+            'notifications' => $user ? [
+                'unreadCount' => $this->resolveUnreadNotificationCount($user),
+            ] : null,
         ];
+    }
+
+    private function resolveUnreadNotificationCount(mixed $user): int
+    {
+        if (! $this->notificationsTableExists()) {
+            return 0;
+        }
+
+        try {
+            return (int) $user->unreadNotifications()->count();
+        } catch (Throwable $exception) {
+            if (! $this->isMissingNotificationsTableException($exception)) {
+                report($exception);
+            }
+
+            return 0;
+        }
+    }
+
+    private function notificationsTableExists(): bool
+    {
+        try {
+            return Schema::hasTable('notifications');
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return false;
+        }
+    }
+
+    private function isMissingNotificationsTableException(Throwable $exception): bool
+    {
+        if (! $exception instanceof QueryException) {
+            return false;
+        }
+
+        $errorInfo = $exception->errorInfo ?? [];
+        $driverCode = (string) ($errorInfo[1] ?? '');
+        $sqlState = (string) ($errorInfo[0] ?? '');
+
+        if ($driverCode === '1146') {
+            return true;
+        }
+
+        if ($sqlState === 'HY000' && str_contains(strtolower($exception->getMessage()), 'no such table')) {
+            return true;
+        }
+
+        return false;
     }
 }

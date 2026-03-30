@@ -652,16 +652,16 @@ function submitTicket() {
         }
 
         Object.entries(surveyErrors.value).forEach(([key, message]) => {
-            form.setError(key as never, message);
+            form.setError(key as never, String(message));
         });
         Object.entries(systemDevelopmentFormUploadErrors.value).forEach(([key, message]) => {
-            form.setError(key as never, message);
+            form.setError(key as never, String(message));
         });
         Object.entries(systemChangeRequestFormUploadErrors.value).forEach(([key, message]) => {
-            form.setError(key as never, message);
+            form.setError(key as never, String(message));
         });
         Object.entries(systemIssueReportErrors.value).forEach(([key, message]) => {
-            form.setError(key as never, message);
+            form.setError(key as never, String(message));
         });
         return;
     }

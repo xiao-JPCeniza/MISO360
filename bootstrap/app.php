@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Http\Middleware\EnsureUserCanManageRoles;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\EnsureUserIsAdminVerified;
 use App\Http\Middleware\EnsureUserIsSuperAdmin;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -34,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'super_admin' => EnsureUserIsSuperAdmin::class,
             'can-manage-roles' => EnsureUserCanManageRoles::class,
             'active' => EnsureUserIsActive::class,
+            'admin-verified' => EnsureUserIsAdminVerified::class,
             'two-factor-verified' => EnsureTwoFactorVerified::class,
             'submit-only-access' => EnsureSubmitOnlyRouteAccess::class,
         ]);

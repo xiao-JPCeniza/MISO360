@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 
 type EnrollmentPayload = {
@@ -125,6 +125,14 @@ const form = reactive<EnrollmentPayload>({
     },
 });
 
+// Storage is stored in the backend as a single string (e.g. "512 GB SSD + 1 TB HDD").
+// These local values let the UI offer a second storage dropdown while still submitting
+// to the existing `specification.storage` column.
+const storagePrimary = ref<string>('');
+const storageSecondary = ref<string>('');
+const useSecondaryStorage = ref<boolean>(false);
+let isHydratingStorage = false;
+
 const isReadonlyId = computed(() => Boolean(props.readonlyId && props.scannedId));
 const natureOptionsWithLegacy = computed<NatureOption[]>(() => {
     const options = (props.natureOptions ?? []).map((option) => ({
@@ -185,6 +193,135 @@ function withLegacyOption<T extends ReferenceOption>(options: T[], currentValue:
     ];
 }
 
+function withLegacyStringOption(options: string[], currentValue: string) {
+    const normalizedValue = currentValue?.trim();
+
+    if (!normalizedValue) {
+        return options;
+    }
+
+    if (options.includes(normalizedValue)) {
+        return options;
+    }
+
+    // Keep showing the user's existing value (even if it's no longer in our standard list)
+    return [normalizedValue, ...options];
+}
+
+const MEMORY_DROPDOWN_OPTIONS = [
+    '4 GB',
+    '6 GB',
+    '8 GB',
+    '12 GB',
+    '16 GB',
+    '24 GB',
+    'Other / Not sure',
+];
+
+const STORAGE_DROPDOWN_OPTIONS = [
+    '128 GB',
+    '256 GB',
+    '512 GB',
+    '1 TB',
+    '2 TB+',
+    'Other / Not sure',
+];
+
+const OPERATING_SYSTEM_DROPDOWN_OPTIONS = [
+    'Windows 11',
+    'Windows 10',
+    'Windows 11 Pro',
+    'Windows 10 Pro',
+    'Ubuntu',
+    'Linux',
+    'Other / Not sure',
+];
+
+const memoryOptionsWithLegacy = computed(() =>
+    withLegacyStringOption(MEMORY_DROPDOWN_OPTIONS, form.specification.memory),
+);
+
+const storageOptionsWithLegacy = computed(() =>
+    withLegacyStringOption(STORAGE_DROPDOWN_OPTIONS, storagePrimary.value),
+);
+
+const storageSecondaryOptionsWithLegacy = computed(() =>
+    withLegacyStringOption(STORAGE_DROPDOWN_OPTIONS, storageSecondary.value),
+);
+
+const operatingSystemOptionsWithLegacy = computed(() =>
+    withLegacyStringOption(
+        OPERATING_SYSTEM_DROPDOWN_OPTIONS,
+        form.specification.operatingSystem,
+    ),
+);
+
+function hydrateStorageFromValue(rawValue: string | null | undefined): void {
+    const normalizedValue = rawValue?.trim() ?? '';
+
+    isHydratingStorage = true;
+    try {
+        if (!normalizedValue) {
+            storagePrimary.value = '';
+            storageSecondary.value = '';
+            useSecondaryStorage.value = false;
+            return;
+        }
+
+        // We store as: "<storage1> + <storage2>"
+        const parts = normalizedValue.split(/\s*\+\s*/);
+        if (parts.length >= 2) {
+            storagePrimary.value = parts[0]?.trim() ?? '';
+            storageSecondary.value = parts[1]?.trim() ?? '';
+            useSecondaryStorage.value = true;
+            return;
+        }
+
+        storagePrimary.value = normalizedValue;
+        storageSecondary.value = '';
+        useSecondaryStorage.value = false;
+    } finally {
+        isHydratingStorage = false;
+    }
+}
+
+watch(
+    useSecondaryStorage,
+    (enabled) => {
+        if (enabled) {
+            return;
+        }
+
+        if (isHydratingStorage) {
+            return;
+        }
+
+        storageSecondary.value = '';
+    },
+    { immediate: false },
+);
+
+watch(
+    [storagePrimary, storageSecondary, useSecondaryStorage],
+    () => {
+        const primary = storagePrimary.value?.trim() ?? '';
+        const secondary = storageSecondary.value?.trim() ?? '';
+
+        if (!primary) {
+            form.specification.storage = '';
+            return;
+        }
+
+        if (useSecondaryStorage.value && secondary) {
+            form.specification.storage = `${primary} + ${secondary}`;
+            return;
+        }
+
+        form.specification.storage = primary;
+    },
+    { immediate: true },
+);
+
 const categoryOptionsWithLegacy = computed(() =>
     withLegacyOption(props.referenceOptions?.equipmentType ?? [], form.equipmentType),
 );
@@ -243,10 +380,18 @@ watch(
         form.equipmentImageUrls =
             value.equipmentImageUrls ?? form.equipmentImageUrls;
 
-        form.specification = {
-            ...form.specification,
-            ...value.specification,
-        };
+        // Keep `storage` synced via the local storage dropdown state
+        // (so we can support "storage 1 + storage 2").
+        form.specification.memory =
+            value.specification?.memory ?? form.specification.memory;
+        form.specification.operatingSystem =
+            value.specification?.operatingSystem ?? form.specification.operatingSystem;
+        form.specification.networkAddress =
+            value.specification?.networkAddress ?? form.specification.networkAddress;
+        form.specification.accessories =
+            value.specification?.accessories ?? form.specification.accessories;
+
+        hydrateStorageFromValue(value.specification?.storage);
         form.locationAssignment = {
             ...form.locationAssignment,
             ...value.locationAssignment,
@@ -269,7 +414,6 @@ watch(
         );
         const hasLocation = Boolean(
             value.locationAssignment?.assignedTo ||
-                value.locationAssignment?.officeDivision ||
                 value.locationAssignment?.dateIssued,
         );
         const hasRequestHistory = Boolean(
@@ -303,8 +447,89 @@ watch(
     { immediate: true },
 );
 
+/**
+ * Build the HTTP payload: Identification is always included. Optional blocks mirror the toggles—
+ * when a section is on, every field from that section is sent; when off, those columns are cleared on save.
+ */
+function payloadForSubmit(): EnrollmentPayload {
+    const emptySpecification = {
+        memory: '',
+        storage: '',
+        operatingSystem: '',
+        networkAddress: '',
+        accessories: '',
+    };
+    const emptyRequestHistory = {
+        natureOfRequest: '',
+        date: '',
+        actionTaken: '',
+        assignedStaff: '',
+        remarks: '',
+    };
+    const emptyScheduledMaintenance = { date: '', remarks: '' };
+
+    const officeDivision =
+        selectedOfficeOption.value?.name ?? form.locationAssignment.officeDivision ?? '';
+
+    return {
+        uniqueId: form.uniqueId,
+        equipmentName: form.equipmentName,
+        officeId: form.officeId,
+        equipmentType: form.equipmentType,
+        brand: form.brand,
+        model: form.model,
+        serialNumber: form.serialNumber,
+        assetTag: form.assetTag,
+        supplier: form.supplier,
+        purchaseDate: form.purchaseDate,
+        expiryDate: form.expiryDate,
+        warrantyStatus: form.warrantyStatus,
+        equipmentImageUrls: [...form.equipmentImageUrls],
+        equipmentImages: [...form.equipmentImages],
+        specification: form.sections.specification
+            ? {
+                  memory: form.specification.memory,
+                  storage: form.specification.storage,
+                  operatingSystem: form.specification.operatingSystem,
+                  networkAddress: form.specification.networkAddress,
+                  accessories: form.specification.accessories,
+              }
+            : emptySpecification,
+        locationAssignment: {
+            officeDivision,
+            assignedTo: form.sections.locationAssignment
+                ? form.locationAssignment.assignedTo
+                : '',
+            dateIssued: form.sections.locationAssignment
+                ? form.locationAssignment.dateIssued
+                : '',
+        },
+        requestHistory: form.sections.requestHistory
+            ? {
+                  natureOfRequest: form.requestHistory.natureOfRequest,
+                  date: form.requestHistory.date,
+                  actionTaken: form.requestHistory.actionTaken,
+                  assignedStaff: form.requestHistory.assignedStaff,
+                  remarks: form.requestHistory.remarks,
+              }
+            : emptyRequestHistory,
+        scheduledMaintenance: form.sections.scheduledMaintenance
+            ? {
+                  date: form.scheduledMaintenance.date,
+                  remarks: form.scheduledMaintenance.remarks,
+              }
+            : emptyScheduledMaintenance,
+        sections: {
+            specification: form.sections.specification,
+            locationAssignment: form.sections.locationAssignment,
+            requestHistory: form.sections.requestHistory,
+            scheduledMaintenance: form.sections.scheduledMaintenance,
+        },
+    };
+}
+
 function submit() {
-    emit('submit', { ...form });
+    emit('submit', payloadForSubmit());
 }
 </script>
 
@@ -484,7 +709,8 @@ function submit() {
                     <div>
                         <h4 class="enroll-title">Optional sections</h4>
                         <p class="enroll-subtitle">
-                            Include the details that apply to this asset.
+                            Turn on a section to edit it. On save, enabled sections write all their fields to
+                            the database; disabled sections clear those stored values.
                         </p>
                     </div>
                     <span class="enroll-badge">Include this section</span>
@@ -534,30 +760,67 @@ function submit() {
                     <div class="enroll-grid enroll-grid--tight">
                         <div>
                             <label class="enroll-label">Memory (RAM)</label>
-                            <input
-                                v-model="form.specification.memory"
-                                type="text"
-                                class="enroll-input"
-                                placeholder="16 GB"
-                            />
+                            <select v-model="form.specification.memory" class="enroll-input">
+                                <option value="">Not specified</option>
+                                <option
+                                    v-for="option in memoryOptionsWithLegacy"
+                                    :key="option"
+                                    :value="option"
+                                >
+                                    {{ option }}
+                                </option>
+                            </select>
                         </div>
                         <div>
                             <label class="enroll-label">Storage</label>
-                            <input
-                                v-model="form.specification.storage"
-                                type="text"
-                                class="enroll-input"
-                                placeholder="512 GB SSD"
-                            />
+                            <select v-model="storagePrimary" class="enroll-input">
+                                <option value="">Not specified</option>
+                                <option
+                                    v-for="option in storageOptionsWithLegacy"
+                                    :key="option"
+                                    :value="option"
+                                >
+                                    {{ option }}
+                                </option>
+                            </select>
+                            <label class="enroll-toggle">
+                                <input
+                                    v-model="useSecondaryStorage"
+                                    type="checkbox"
+                                    class="enroll-checkbox"
+                                />
+                                <span>Add another storage</span>
+                            </label>
+
+                            <div v-if="useSecondaryStorage">
+                                <label class="enroll-label">Storage 2</label>
+                                <select v-model="storageSecondary" class="enroll-input">
+                                    <option value="">Not specified</option>
+                                    <option
+                                        v-for="option in storageSecondaryOptionsWithLegacy"
+                                        :key="option"
+                                        :value="option"
+                                    >
+                                        {{ option }}
+                                    </option>
+                                </select>
+                            </div>
                         </div>
                         <div>
                             <label class="enroll-label">Operating System</label>
-                            <input
+                            <select
                                 v-model="form.specification.operatingSystem"
-                                type="text"
                                 class="enroll-input"
-                                placeholder="Windows 11"
-                            />
+                            >
+                                <option value="">Not specified</option>
+                                <option
+                                    v-for="option in operatingSystemOptionsWithLegacy"
+                                    :key="option"
+                                    :value="option"
+                                >
+                                    {{ option }}
+                                </option>
+                            </select>
                         </div>
                         <div>
                             <label class="enroll-label">Network/IP Address</label>
@@ -727,7 +990,10 @@ function submit() {
 
         <div class="enroll-footer">
             <button type="submit" class="enroll-submit">Save enrollment</button>
-            <p class="enroll-footnote">Sections remain hidden until enabled.</p>
+            <p class="enroll-footnote">
+                Identification is always saved. Optional sections persist every visible field only while
+                their toggle is on.
+            </p>
         </div>
     </form>
 </template>

@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { BrowserQRCodeReader, type IScannerControls } from '@zxing/browser';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
+import enrollmentController from '@/actions/App/Http/Controllers/EnrollmentController';
 import TicketEnrollmentForm from '@/components/TicketEnrollmentForm.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
@@ -262,8 +263,8 @@ async function startScan() {
     }
 
     const callback = (
-        result: { getText: () => string } | null,
-        error: { name: string } | null,
+        result: { getText: () => string } | undefined,
+        error: { name?: string } | undefined,
     ) => {
         if (!isScanning.value || isResolvingScan.value) {
             return;
@@ -472,9 +473,11 @@ function submitEnrollment(payload: EnrollmentPayload) {
     submission.sections = payload.sections;
 
     if (isEditMode.value) {
-        submission.put(`/admin/enrollments/${encodeURIComponent(payload.uniqueId)}`);
+        const updateRoute =
+            enrollmentController.update['/admin/enrollments/{uniqueId}/update'];
+        submission.post(updateRoute.url(payload.uniqueId));
     } else {
-        submission.post('/admin/enrollments');
+        submission.post(enrollmentController.store.url());
     }
 }
 </script>

@@ -24,6 +24,7 @@ class UserFactory extends Factory
             'office_designation_id' => null,
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
+            'admin_verified_at' => now(),
             'password' => bcrypt('password'),
             'role' => Role::USER,
             'is_active' => true,
@@ -41,6 +42,16 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Account created but not yet approved by an administrator.
+     */
+    public function pendingAdminVerification(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'admin_verified_at' => null,
         ]);
     }
 

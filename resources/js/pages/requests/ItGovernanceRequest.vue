@@ -22,6 +22,80 @@ type SystemIssueReportAttachment = {
     url?: string | null;
 };
 
+type ServiceOrFeatureEntry = {
+    serviceFeature?: string;
+    specifics?: string;
+    accessibility?: string;
+};
+
+type DataGatheringEntry = {
+    dataRequired?: string;
+    specifics?: string;
+};
+
+type FormReferenceEntry = {
+    titleOfForm?: string;
+    description?: string;
+};
+
+type SystemDevelopmentSurveyData = {
+    titleOfProposedSystem?: string;
+    targetCompletion?: string;
+    assignedSystemsEngineer?: string;
+    officeEndUser?: string;
+    servicesOrFeatures?: ServiceOrFeatureEntry[];
+    dataGathering?: DataGatheringEntry[];
+    forms?: FormReferenceEntry[];
+    flowSop?: string;
+    headOfOffice?: string;
+};
+
+type SystemChangeRequestFormData = {
+    controlNumber?: string;
+    date?: string;
+    officeDivision?: string;
+    requestedByName?: string;
+    nameOfSoftware?: string;
+    typeOfRequest?: string;
+    descriptionOfRequest?: string;
+    purposeObjectiveOfModification?: string;
+    detailedDescriptionOfRequestedChange?: string;
+    evaluatedBy?: string;
+    approvedBy?: string;
+    notedBy?: string;
+    remarks?: string;
+};
+
+type SystemIssueReportData = {
+    controlNumber?: string;
+    requestingDepartment?: string;
+    dateFiled?: string;
+    requestingEmployee?: string;
+    employeeContactNo?: string;
+    employeeId?: string;
+    signatureOfEmployee?: string;
+    natureOfAppointment?: string;
+    natureOfAppointmentOthersSpecify?: string;
+    coTerminusUntilDate?: string;
+    nameOfSoftware?: string;
+    typeOfRequest?: string[];
+    typeOfRequestOthersSpecify?: string;
+    errorSummaryTitle?: string;
+    detailedDescription?: string;
+    reportedBy?: string;
+    reportedByDate?: string;
+    reportedBySignature?: string;
+    acceptedBy?: string;
+    acceptedByDate?: string;
+    acceptedBySignature?: string;
+    evaluatedBy?: string;
+    evaluatedByDate?: string;
+    evaluatedBySignature?: string;
+    approvedBy?: string;
+    approvedByDate?: string;
+    approvedBySignature?: string;
+};
+
 type TicketDetails = {
     controlTicketNumber: string;
     requestedBy: string | null;
@@ -33,9 +107,9 @@ type TicketDetails = {
     natureOfRequestId?: number | string | null;
     requestDescription: string | null;
     attachments: Attachment[];
-    systemDevelopmentSurvey?: Record<string, unknown> | null;
-    systemChangeRequestForm?: Record<string, unknown> | null;
-    systemIssueReport?: Record<string, unknown> | null;
+    systemDevelopmentSurvey?: SystemDevelopmentSurveyData | null;
+    systemChangeRequestForm?: SystemChangeRequestFormData | null;
+    systemIssueReport?: SystemIssueReportData | null;
     systemIssueReportPdfUrl?: string | null;
     systemIssueReportAttachments?: SystemIssueReportAttachment[];
     remarksId?: number | string | null;
@@ -145,6 +219,20 @@ type FormFields = {
         approvedBy: string;
         notedBy: string;
         remarks: string;
+    };
+    systemIssueReport: {
+        reportedBy: string;
+        reportedByDate: string;
+        reportedBySignature: string;
+        acceptedBy: string;
+        acceptedByDate: string;
+        acceptedBySignature: string;
+        evaluatedBy: string;
+        evaluatedByDate: string;
+        evaluatedBySignature: string;
+        approvedBy: string;
+        approvedByDate: string;
+        approvedBySignature: string;
     };
 };
 

@@ -13,6 +13,9 @@ export const alertVariants = cva(
         default: "bg-card text-card-foreground",
         destructive:
           "text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
+        warning:
+          "border-amber-500/40 bg-amber-50 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/35 dark:text-amber-50 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400 *:data-[slot=alert-description]:text-amber-900/90 dark:*:data-[slot=alert-description]:text-amber-100/90",
+        info: "border-sky-500/40 bg-sky-50 text-sky-950 dark:border-sky-500/30 dark:bg-sky-950/35 dark:text-sky-50 [&>svg]:text-sky-600 dark:[&>svg]:text-sky-400 *:data-[slot=alert-description]:text-sky-900/90 dark:*:data-[slot=alert-description]:text-sky-100/90",
       },
     },
     defaultVariants: {

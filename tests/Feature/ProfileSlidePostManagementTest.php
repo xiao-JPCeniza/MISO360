@@ -13,7 +13,7 @@ class ProfileSlidePostManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_cannot_access_post_management(): void
+    public function test_admin_can_access_post_management_index(): void
     {
         $admin = User::factory()->admin()->create();
 
@@ -24,7 +24,8 @@ class ProfileSlidePostManagementTest extends TestCase
             ])
             ->get('/admin/posts');
 
-        $response->assertStatus(403);
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page->component('admin/posts/Index')->has('slides'));
     }
 
     public function test_super_admin_can_access_post_management_index(): void

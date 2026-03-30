@@ -8,9 +8,11 @@ use App\Models\ReferenceValue;
 use App\Models\TicketArchive;
 use App\Models\TicketEnrollment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Throwable;
 
 class EnrollmentController extends Controller
 {
@@ -313,10 +315,9 @@ class EnrollmentController extends Controller
             array_filter(array_merge($existingImages, $uploadedImages)),
         );
 
-        return [
+        $payload = [
             'unique_id' => strtoupper(trim($data['uniqueId'])),
             'equipment_name' => data_get($data, 'officeSelection.name'),
-            'office_id' => data_get($data, 'officeSelection.id'),
             'equipment_type' => $data['equipmentType'] ?? null,
             'brand' => $data['brand'] ?? null,
             'model' => $data['model'] ?? null,
@@ -344,6 +345,12 @@ class EnrollmentController extends Controller
             'maintenance_date' => data_get($data, 'scheduledMaintenance.date'),
             'maintenance_remarks' => data_get($data, 'scheduledMaintenance.remarks'),
         ];
+
+        if ($this->ticketEnrollmentHasOfficeIdColumn()) {
+            $payload['office_id'] = data_get($data, 'officeSelection.id');
+        }
+
+        return $payload;
     }
 
     private function mapToPayload(TicketEnrollment $enrollment): array
@@ -404,5 +411,16 @@ class EnrollmentController extends Controller
             ->value('id');
 
         return $officeId ? (int) $officeId : null;
+    }
+
+    private function ticketEnrollmentHasOfficeIdColumn(): bool
+    {
+        try {
+            return Schema::hasColumn('ticket_enrollments', 'office_id');
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return false;
+        }
     }
 }

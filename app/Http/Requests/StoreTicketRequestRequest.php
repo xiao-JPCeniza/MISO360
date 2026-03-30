@@ -100,7 +100,7 @@ class StoreTicketRequestRequest extends FormRequest
                 'required',
                 'string',
                 'max:25',
-                'regex:/^CTN-\\d{8}-\\d{4}$/',
+                'regex:/^CTN-\\d{4}-\\d{5}$/',
             ],
             'natureOfRequestId' => [
                 'required',

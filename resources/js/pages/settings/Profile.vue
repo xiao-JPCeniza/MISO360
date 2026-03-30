@@ -68,7 +68,7 @@ type ProfileAvatarUploaderOptions = {
 
 declare global {
     interface Window {
-        profileAvatarUploader: (options: ProfileAvatarUploaderOptions) => Record<string, unknown>;
+        profileAvatarUploader: (options: ProfileAvatarUploaderOptions) => any;
     }
 }
 
@@ -166,7 +166,7 @@ window.profileAvatarUploader = (options: ProfileAvatarUploaderOptions) => {
                 forceFormData: true,
                 preserveState: false,
                 onProgress: (event) => {
-                    this.progress = event?.percent ?? 0;
+                    this.progress = typeof event?.progress === 'number' ? Math.round(event.progress * 100) : 0;
                 },
                 onSuccess: () => {
                     this.success = 'Profile photo updated.';
@@ -184,7 +184,7 @@ window.profileAvatarUploader = (options: ProfileAvatarUploaderOptions) => {
                 onFinish: () => {
                     this.uploading = false;
                     if (!this.error) {
-                        router.reload({ preserveState: false });
+                        router.reload();
                     }
                 },
             });
@@ -271,7 +271,7 @@ window.profileAvatarUploader = (options: ProfileAvatarUploaderOptions) => {
                         <div x-show="file" class="flex flex-wrap items-center gap-2" x-cloak>
                             <Button
                                 type="button"
-                                :disabled="uploading"
+                                x-bind:disabled="uploading"
                                 data-test="save-avatar-button"
                                 class="gap-2"
                                 x-on:click="save"
@@ -282,7 +282,7 @@ window.profileAvatarUploader = (options: ProfileAvatarUploaderOptions) => {
                             <Button
                                 type="button"
                                 variant="outline"
-                                :disabled="uploading"
+                                x-bind:disabled="uploading"
                                 class="gap-2"
                                 x-on:click="clearSelection"
                             >

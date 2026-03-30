@@ -6,10 +6,12 @@ import { SidebarInset } from '@/components/ui/sidebar';
 interface Props {
     variant?: 'header' | 'sidebar';
     class?: string | string[] | Record<string, boolean>;
+    fullWidth?: boolean;
 }
 
 const props = defineProps<Props>();
 const className = computed(() => props.class);
+const maxWidthClass = computed(() => (props.fullWidth ? 'max-w-none' : 'max-w-7xl'));
 </script>
 
 <template>
@@ -18,8 +20,8 @@ const className = computed(() => props.class);
     </SidebarInset>
     <main
         v-else
-        class="mx-auto flex h-full w-full max-w-7xl flex-1 flex-col gap-4 rounded-xl"
-        :class="className"
+        class="mx-auto flex h-full w-full flex-1 flex-col gap-4 rounded-xl"
+        :class="[maxWidthClass, className]"
     >
         <slot />
     </main>

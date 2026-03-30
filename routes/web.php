@@ -6,10 +6,13 @@ use App\Http\Controllers\Admin\NatureOfRequestsReportController;
 use App\Http\Controllers\Admin\ProfileSlideController;
 use App\Http\Controllers\Admin\StatusManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Auth\PendingApprovalController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Dev\NotificationTestController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\NatureOfRequestOptionsController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\ReferenceValueOptionsController;
 use App\Http\Controllers\ScanController;
@@ -55,7 +58,35 @@ Route::middleware([
     'active',
     'submit-only-access',
 ])->group(function () {
+    Route::get('pending-approval', [PendingApprovalController::class, 'show'])
+        ->name('pending-approval');
+});
+
+Route::middleware([
+    'auth',
+    'verified',
+    'active',
+    'admin-verified',
+    'submit-only-access',
+])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('notifications', fn () => Inertia::render('notifications/Notifications'))
+        ->name('notifications.page');
+    Route::get('notifications/data', [NotificationController::class, 'index'])
+        ->name('notifications.index');
+    Route::get('notifications/visit/{notification}', [NotificationController::class, 'visit'])
+        ->name('notifications.visit');
+    Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])
+        ->name('notifications.mark-all-read');
+
+    if (app()->environment(['local', 'testing'])) {
+        Route::get('dev/notifications-test', [NotificationTestController::class, 'index'])
+            ->name('dev.notifications-test');
+        Route::get('dev/notifications-test/flash/{type}', [NotificationTestController::class, 'flash'])
+            ->whereIn('type', ['success', 'error', 'warning', 'info', 'status'])
+            ->name('dev.notifications-test.flash');
+    }
 
     Route::get('admin/dashboard', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])
         ->middleware('admin')
@@ -78,9 +109,11 @@ Route::middleware([
             ->name('admin.users.password');
         Route::post('admin/users/{user}/verify-email', [UserManagementController::class, 'forceVerifyEmail'])
             ->name('admin.users.verify-email');
+        Route::post('admin/users/{user}/toggle-admin-verification', [UserManagementController::class, 'toggleAdminVerification'])
+            ->name('admin.users.toggle-admin-verification');
         Route::post('admin/users/{user}/deactivate', [UserManagementController::class, 'deactivate'])
             ->name('admin.users.deactivate');
-        Route::delete('admin/users/{user}', [UserManagementController::class, 'destroy'])
+        Route::post('admin/users/{user}/destroy', [UserManagementController::class, 'destroy'])
             ->name('admin.users.destroy');
 
         Route::get('admin/audit-logs', [AuditLogController::class, 'index'])
@@ -143,11 +176,23 @@ Route::middleware([
         ->middleware('admin')
         ->name('admin.enrollments.store');
 
-    Route::put('admin/enrollments/{uniqueId}', [EnrollmentController::class, 'update'])
+    Route::post('admin/enrollments/{uniqueId}/update', [EnrollmentController::class, 'update'])
         ->middleware('admin')
         ->name('admin.enrollments.update');
 
-    Route::middleware(['super_admin'])->prefix('admin/posts')->name('admin.posts.')->group(function () {
+    Route::get('admin/enrollments/{uniqueId}', function (string $uniqueId) {
+        return redirect()->route('inventory.edit', [
+            'uniqueId' => strtoupper(trim($uniqueId)),
+        ]);
+    })
+        ->middleware('admin')
+        ->where('uniqueId', '^MIS-UID-\d{5}$');
+
+    Route::match(['post', 'put'], 'admin/enrollments/{uniqueId}', [EnrollmentController::class, 'update'])
+        ->middleware('admin')
+        ->where('uniqueId', '^MIS-UID-\d{5}$');
+
+    Route::middleware(['admin'])->prefix('admin/posts')->name('admin.posts.')->group(function () {
         Route::get('/', [ProfileSlideController::class, 'index'])->name('index');
         Route::get('/create', [ProfileSlideController::class, 'create'])->name('create');
         Route::post('/', [ProfileSlideController::class, 'store'])->name('store');
@@ -203,9 +248,9 @@ Route::middleware([
         ->name('requests.equipment-network.update');
 
     Route::get('nature-of-request/options', NatureOfRequestOptionsController::class)
-        ->name('nature-of-request.options');
+        ->name('nature-of-request.list');
     Route::get('reference-values/options', ReferenceValueOptionsController::class)
-        ->name('reference-values.options');
+        ->name('reference-values.list');
 
     Route::get('scan', [ScanController::class, 'index'])
         ->name('scan.index');

@@ -192,7 +192,9 @@ class UserManagementTest extends TestCase
                 '_token' => 'test-token',
                 'two_factor.verified_at' => Carbon::now()->timestamp,
             ])
-            ->delete("/admin/users/{$userId}")
+            ->post("/admin/users/{$userId}/destroy", [
+                '_token' => 'test-token',
+            ])
             ->assertRedirect(route('admin.users.index'));
 
         $this->assertNull(User::find($userId));
@@ -213,7 +215,9 @@ class UserManagementTest extends TestCase
                 '_token' => 'test-token',
                 'two_factor.verified_at' => Carbon::now()->timestamp,
             ])
-            ->delete("/admin/users/{$superAdmin->id}")
+            ->post("/admin/users/{$superAdmin->id}/destroy", [
+                '_token' => 'test-token',
+            ])
             ->assertStatus(403);
 
         $this->assertNotNull(User::find($superAdmin->id));

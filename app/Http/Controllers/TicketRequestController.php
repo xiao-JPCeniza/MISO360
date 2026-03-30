@@ -12,6 +12,8 @@ use App\Models\TicketArchive;
 use App\Models\TicketEnrollment;
 use App\Models\TicketRequest;
 use App\Models\User;
+use App\Notifications\Admin\NewTicketRequestSubmittedNotification;
+use App\Notifications\TicketCompletedNotification;
 use App\Services\AuditLogger;
 use App\Services\ServiceTimerService;
 use Carbon\Carbon;
@@ -22,6 +24,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -395,6 +398,17 @@ class TicketRequestController extends Controller
             'office_designation_id' => $officeDesignationId !== null && $officeDesignationId !== '' ? (int) $officeDesignationId : null,
         ]);
 
+        $ticketRequest->load(['requestedForUser:id,name', 'user:id,name']);
+
+        $admins = User::query()
+            ->whereIn('role', [\App\Enums\Role::ADMIN, \App\Enums\Role::SUPER_ADMIN])
+            ->where('is_active', true)
+            ->get();
+
+        if ($admins->isNotEmpty()) {
+            Notification::send($admins, new NewTicketRequestSubmittedNotification($ticketRequest));
+        }
+
         if ($qrCodeNumber) {
             $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
         }
@@ -643,6 +657,8 @@ class TicketRequestController extends Controller
     public function updateItGovernance(Request $request, TicketRequest $ticketRequest, AuditLogger $auditLogger)
     {
         // Access restricted to admin/super_admin via middleware.
+        $ticketRequest->loadMissing('status');
+        $previousStatus = $ticketRequest->status?->name;
 
         $validated = $request->validate([
             'natureOfRequestId' => ['nullable', 'integer', 'exists:nature_of_requests,id'],
@@ -753,7 +769,6 @@ class TicketRequestController extends Controller
 
         $timerService = app(ServiceTimerService::class);
         $newStatus = $statusId ? ReferenceValue::find($statusId)?->name : null;
-        $previousStatus = $ticketRequest->status?->name;
         $timerUpdates = $timerService->computeTimerUpdates(
             $newStatus,
             $previousStatus,
@@ -772,6 +787,7 @@ class TicketRequestController extends Controller
 
         $ticketRequest->load(['natureOfRequest', 'status', 'remarks', 'assignedStaff']);
         $this->syncTicketRequestToEnrollment($ticketRequest);
+        $this->notifyTicketCompletedIfTransitioned($ticketRequest, $previousStatus);
 
         if (isset($validated['systemDevelopmentSurvey']) && is_array($validated['systemDevelopmentSurvey'])) {
             $this->updateSystemDevelopmentSurvey($ticketRequest, $validated['systemDevelopmentSurvey']);
@@ -970,6 +986,9 @@ class TicketRequestController extends Controller
             abort(403, 'Only Admin and Super Admin can save equipment and network updates.');
         }
 
+        $ticketRequest->loadMissing('status');
+        $previousStatus = $ticketRequest->status?->name;
+
         $validated = $request->validate([
             'natureOfRequestId' => ['nullable', 'integer', 'exists:nature_of_requests,id'],
             'remarksId' => [
@@ -1119,6 +1138,7 @@ class TicketRequestController extends Controller
 
         $ticketRequest->load(['natureOfRequest', 'status', 'remarks', 'assignedStaff']);
         $this->syncTicketRequestToEnrollment($ticketRequest);
+        $this->notifyTicketCompletedIfTransitioned($ticketRequest, $previousStatus);
 
         $isBorrowCompleted = $ticketRequest->natureOfRequest?->name === 'Borrow Unit'
             && $ticketRequest->status?->name === 'Completed';
@@ -1130,6 +1150,27 @@ class TicketRequestController extends Controller
 
         return redirect()->route('requests.equipment-network.show', $ticketRequest)
             ->with('success', 'Equipment and network request updated successfully.');
+    }
+
+    private function notifyTicketCompletedIfTransitioned(TicketRequest $ticketRequest, ?string $previousStatusName): void
+    {
+        $currentStatus = $ticketRequest->status?->name;
+        if ($currentStatus !== 'Completed' || $previousStatusName === 'Completed') {
+            return;
+        }
+
+        $ticketRequest->loadMissing(['user', 'requestedForUser']);
+
+        $recipients = collect([$ticketRequest->user, $ticketRequest->requestedForUser])
+            ->filter()
+            ->unique('id')
+            ->values();
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        Notification::send($recipients, new TicketCompletedNotification($ticketRequest));
     }
 
     /**
@@ -1486,16 +1527,16 @@ class TicketRequestController extends Controller
 
     private function generateControlTicketNumber(): string
     {
-        $date = now()->format('Ymd');
+        $year = now()->format('Y');
 
-        return $this->generateUniqueTicketNumber($date);
+        return $this->generateUniqueTicketNumber($year);
     }
 
     private function resolveControlTicketNumber(?string $provided): string
     {
-        $date = now()->format('Ymd');
+        $year = now()->format('Y');
 
-        if ($provided && preg_match('/^CTN-\d{8}-\d{4}$/', $provided)) {
+        if ($provided && preg_match('/^CTN-\d{4}-\d{5}$/', $provided)) {
             $isUnique = ! TicketRequest::query()
                 ->where('control_ticket_number', $provided)
                 ->exists();
@@ -1505,14 +1546,25 @@ class TicketRequestController extends Controller
             }
         }
 
-        return $this->generateUniqueTicketNumber($date);
+        return $this->generateUniqueTicketNumber($year);
     }
 
-    private function generateUniqueTicketNumber(string $date): string
+    private function generateUniqueTicketNumber(string $year): string
     {
+        $latestForYear = TicketRequest::query()
+            ->where('control_ticket_number', 'like', "CTN-{$year}-%")
+            ->orderByDesc('control_ticket_number')
+            ->value('control_ticket_number');
+
+        $nextSequence = 1;
+        if (is_string($latestForYear) && preg_match('/^CTN-\d{4}-(\d{5})$/', $latestForYear, $matches)) {
+            $nextSequence = ((int) $matches[1]) + 1;
+        }
+
         do {
-            $sequence = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-            $candidate = "CTN-{$date}-{$sequence}";
+            $sequence = str_pad((string) $nextSequence, 5, '0', STR_PAD_LEFT);
+            $candidate = "CTN-{$year}-{$sequence}";
+            $nextSequence++;
         } while (TicketRequest::query()->where('control_ticket_number', $candidate)->exists());
 
         return $candidate;

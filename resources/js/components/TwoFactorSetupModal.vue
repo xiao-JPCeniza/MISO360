@@ -16,13 +16,6 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
-import { confirm } from '@/routes/two-factor';
-
-import {
-    PinInput,
-    PinInputGroup,
-    PinInputSlot,
-} from '@/components/ui/pin-input';
 
 interface Props {
     requiresConfirmation: boolean;
@@ -35,12 +28,15 @@ const isOpen = defineModel<boolean>('isOpen');
 const { copy, copied } = useClipboard();
 const { qrCodeSvg, manualSetupKey, clearSetupData, fetchSetupData, errors } =
     useTwoFactorAuth();
+const confirmAction = '/user/confirmed-two-factor-authentication';
 
 const showVerificationStep = ref(false);
-const code = ref<number[]>([]);
-const codeValue = computed<string>(() => code.value.join(''));
+const code = ref('');
+const codeValue = computed<string>(() =>
+    code.value.replace(/\D/g, '').slice(0, 6),
+);
 
-const pinInputContainerRef = useTemplateRef('pinInputContainerRef');
+const verificationCodeInputRef = useTemplateRef('verificationCodeInputRef');
 
 const modalConfig = computed<{
     title: string;
@@ -77,7 +73,7 @@ const handleModalNextStep = () => {
         showVerificationStep.value = true;
 
         nextTick(() => {
-            pinInputContainerRef.value?.querySelector('input')?.focus();
+            verificationCodeInputRef.value?.focus();
         });
 
         return;
@@ -93,7 +89,7 @@ const resetModalState = () => {
     }
 
     showVerificationStep.value = false;
-    code.value = [];
+    code.value = '';
 };
 
 watch(
@@ -234,42 +230,34 @@ watch(
 
                 <template v-else>
                     <Form
-                        v-bind="confirm.form()"
+                        :action="confirmAction"
+                        method="post"
                         reset-on-error
-                        @finish="code = []"
+                        @finish="code = ''"
                         @success="isOpen = false"
                         v-slot="{ errors, processing }"
                     >
                         <input type="hidden" name="code" :value="codeValue" />
                         <div
-                            ref="pinInputContainerRef"
                             class="relative w-full space-y-3"
                         >
                             <div
                                 class="flex w-full flex-col items-center justify-center space-y-3 py-2"
                             >
-                                <PinInput
+                                <input
+                                    ref="verificationCodeInputRef"
                                     id="otp"
-                                    placeholder="○"
                                     v-model="code"
-                                    type="number"
-                                    otp
-                                >
-                                    <PinInputGroup>
-                                        <PinInputSlot
-                                            autofocus
-                                            v-for="(id, index) in 6"
-                                            :key="id"
-                                            :index="index"
-                                            :disabled="processing"
-                                        />
-                                    </PinInputGroup>
-                                </PinInput>
+                                    type="text"
+                                    inputmode="numeric"
+                                    maxlength="6"
+                                    autocomplete="one-time-code"
+                                    :disabled="processing"
+                                    class="w-full rounded-lg border border-input bg-background px-3 py-2 text-center text-lg tracking-[0.35em]"
+                                    placeholder="000000"
+                                />
                                 <InputError
-                                    :message="
-                                        errors?.confirmTwoFactorAuthentication
-                                            ?.code
-                                    "
+                                    :message="errors?.code"
                                 />
                             </div>
 

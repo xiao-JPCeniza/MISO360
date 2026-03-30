@@ -6,6 +6,7 @@ use App\Enums\ReferenceValueGroup;
 use App\Enums\Role;
 use App\Models\ReferenceValue;
 use App\Models\User;
+use App\Notifications\Admin\NewUserRegisteredNotification;
 use App\Notifications\TwoFactorCodeNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -53,6 +54,7 @@ class RegistrationTest extends TestCase
         $user = User::where('email', $payload['email'])->first();
         $this->assertTrue($user->two_factor_enabled);
         $this->assertTrue($user->is_active);
+        $this->assertNull($user->admin_verified_at);
     }
 
     public function test_registration_validation_errors_do_not_render_500_error_page(): void
@@ -103,5 +105,31 @@ class RegistrationTest extends TestCase
         $second = $this->post('/register', $payload);
         $second->assertSessionHasErrors('email');
         $this->assertDatabaseCount('users', 1);
+    }
+
+    public function test_registration_creates_admin_notification_for_new_user(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $office = ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::OfficeDesignation->value,
+        ]);
+
+        $payload = [
+            'name' => 'New Registrant',
+            'position_title' => 'Administrative Officer',
+            'office_designation_id' => $office->id,
+            'email' => 'new-registrant@example.com',
+            'password' => 'SecurePass1!@#',
+            'password_confirmation' => 'SecurePass1!@#',
+        ];
+
+        $this->post('/register', $payload)->assertRedirect(route('two-factor.challenge'));
+
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_type' => User::class,
+            'notifiable_id' => $admin->id,
+            'type' => NewUserRegisteredNotification::class,
+        ]);
     }
 }

@@ -9,6 +9,7 @@ use App\Models\ReferenceValue;
 use App\Models\TicketEnrollment;
 use App\Models\TicketRequest;
 use App\Models\User;
+use App\Notifications\Admin\NewTicketRequestSubmittedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +18,37 @@ use Tests\TestCase;
 class TicketRequestSubmissionTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_ticket_submission_creates_admin_notification(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer Repair',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-12345', now()->format('Y'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Keyboard is broken.',
+                'hasQrCode' => false,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_type' => User::class,
+            'notifiable_id' => $admin->id,
+            'type' => NewTicketRequestSubmittedNotification::class,
+        ]);
+    }
 
     public function test_user_can_submit_ticket_request_with_attachments_and_qr_code(): void
     {
@@ -28,7 +60,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0001', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00001', now()->format('Y'));
 
         $response = $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -77,7 +109,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0011', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00011', now()->format('Y'));
 
         $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -102,7 +134,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0022', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00022', now()->format('Y'));
 
         $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -135,7 +167,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0004', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00004', now()->format('Y'));
 
         $this->actingAs($admin)
             ->withSession(['_token' => $csrfToken])
@@ -166,7 +198,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0002', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00002', now()->format('Y'));
 
         $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -190,7 +222,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0101', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00101', now()->format('Y'));
 
         $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -214,7 +246,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0102', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00102', now()->format('Y'));
 
         $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -243,7 +275,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0201', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00201', now()->format('Y'));
 
         $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -267,7 +299,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0202', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00202', now()->format('Y'));
 
         $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -303,7 +335,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0050', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00050', now()->format('Y'));
 
         $response = $this->actingAs($admin)
             ->withSession(['_token' => $csrfToken])
@@ -373,7 +405,7 @@ class TicketRequestSubmissionTest extends TestCase
             'name' => 'Computer repair',
             'is_active' => true,
         ]);
-        $controlTicketNumber = sprintf('CTN-%s-0123', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00123', now()->format('Y'));
 
         $csrfToken = 'test-token';
         $this->actingAs($submitOnlyUser)
@@ -410,7 +442,7 @@ class TicketRequestSubmissionTest extends TestCase
             'name' => 'Computer repair',
             'is_active' => true,
         ]);
-        $controlTicketNumber = sprintf('CTN-%s-0999', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00999', now()->format('Y'));
 
         $csrfToken = 'test-token';
         $this->actingAs($submitOnlyUser)
@@ -440,7 +472,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0003', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00003', now()->format('Y'));
 
         $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -509,8 +541,11 @@ class TicketRequestSubmissionTest extends TestCase
             ->where('name', 'Pending')
             ->firstOrFail();
 
+        /** @var User $admin */
         $admin = User::factory()->admin()->create();
+        /** @var User $otherAdmin */
         $otherAdmin = User::factory()->admin()->create(['name' => 'Other Admin']);
+        /** @var User $regularUser */
         $regularUser = User::factory()->create();
 
         // Unassigned pending ticket – should be visible for admin
@@ -562,7 +597,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0055', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00055', now()->format('Y'));
 
         $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -588,7 +623,7 @@ class TicketRequestSubmissionTest extends TestCase
             'is_active' => true,
         ]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-0066', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-00066', now()->format('Y'));
 
         $response = $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -668,7 +703,7 @@ class TicketRequestSubmissionTest extends TestCase
         $officeUser = User::factory()->create(['office_designation_id' => $office->id]);
         $natureOfRequest = NatureOfRequest::create(['name' => 'Computer repair', 'is_active' => true]);
         $csrfToken = 'test-token';
-        $controlTicketNumber = sprintf('CTN-%s-9999', now()->format('Ymd'));
+        $controlTicketNumber = sprintf('CTN-%s-09999', now()->format('Y'));
 
         $this->actingAs($admin)
             ->withSession(['_token' => $csrfToken])

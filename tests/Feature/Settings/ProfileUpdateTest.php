@@ -51,9 +51,8 @@ class ProfileUpdateTest extends TestCase
         $response = $this
             ->actingAs($user)
             ->withSession(['_token' => 'test-token'])
-            ->delete(route('profile.destroy'), [
+            ->post(route('profile.destroy'), [
                 '_token' => 'test-token',
-                'password' => 'password',
             ]);
 
         $response

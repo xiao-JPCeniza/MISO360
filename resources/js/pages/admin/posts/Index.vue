@@ -114,13 +114,6 @@ function excerpt(text: string | null, max = 60) {
                             Manage profile slides shown on the homepage. Create, reorder, and toggle visibility with a few clicks.
                         </p>
                     </div>
-                    <Link
-                        href="/admin/posts/create"
-                        class="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all duration-200 hover:shadow-lg hover:shadow-primary/30 hover:brightness-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    >
-                        <ImageIcon class="h-4 w-4" />
-                        Add slide
-                    </Link>
                 </div>
 
                 <!-- Success message with subtle animation -->

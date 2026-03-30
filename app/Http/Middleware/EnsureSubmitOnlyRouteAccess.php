@@ -15,6 +15,7 @@ class EnsureSubmitOnlyRouteAccess
     private const ALLOWED_ROUTE_NAMES = [
         'submit-request',
         'submit-request.store',
+        'pending-approval',
     ];
 
     private static bool $submitOnlyIdResolved = false;

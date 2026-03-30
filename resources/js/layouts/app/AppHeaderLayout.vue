@@ -11,10 +11,12 @@ import type { BreadcrumbItemType } from '@/types';
 
 interface Props {
     breadcrumbs?: BreadcrumbItemType[];
+    fullWidth?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
+    fullWidth: false,
 });
 const page = usePage();
 const canAccessFooter = computed(
@@ -33,7 +35,10 @@ const contentBottomPadding = computed(() => (canAccessFooter.value ? 'pb-24' : '
     <AppShell class="flex-col" variant="header">
         <FlashAlert />
         <AppHeader :breadcrumbs="breadcrumbs" />
-        <AppContent :class="['px-4 pt-20 sm:px-6', contentPadding, contentBottomPadding]">
+        <AppContent
+            :class="['px-4 pt-20 sm:px-6', contentPadding, contentBottomPadding]"
+            :fullWidth="props.fullWidth"
+        >
             <slot />
         </AppContent>
         <AppFooter v-if="canAccessFooter" />
