@@ -783,13 +783,7 @@ function submitForm() {
                         <h2 class="text-[10px] font-semibold uppercase tracking-widest text-white/70">
                             System Issue Report
                         </h2>
-                        <a
-                            v-if="props.ticket.systemIssueReportPdfUrl"
-                            :href="props.ticket.systemIssueReportPdfUrl"
-                            class="inline-flex items-center rounded border border-white/35 bg-white/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white hover:bg-white/25"
-                        >
-                            Download PDF
-                        </a>
+                     
                     </div>
                     <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         <div class="grid gap-0.5">

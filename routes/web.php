@@ -75,8 +75,8 @@ Route::middleware([
         ->name('notifications.page');
     Route::get('notifications/data', [NotificationController::class, 'index'])
         ->name('notifications.index');
-    Route::get('notifications/visit/{notification}', [NotificationController::class, 'visit'])
-        ->name('notifications.visit');
+    Route::post('notifications/{notification}/mark-read', [NotificationController::class, 'markRead'])
+        ->name('notifications.mark-read');
     Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])
         ->name('notifications.mark-all-read');
 

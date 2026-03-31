@@ -150,13 +150,7 @@ function formatSize(size?: number | null) {
                                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                                     System Issue Report
                                 </p>
-                                <a
-                                    v-if="ticket.systemIssueReportPdfUrl"
-                                    :href="ticket.systemIssueReportPdfUrl"
-                                    class="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-blue-700 hover:bg-blue-100"
-                                >
-                                    Download PDF
-                                </a>
+                             
                             </div>
                             <div class="mt-3 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
                                 <div>

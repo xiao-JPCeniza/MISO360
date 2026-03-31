@@ -59,7 +59,7 @@ class TicketCompletedNotificationTest extends TestCase
         ]);
     }
 
-    public function test_clicking_notification_opens_external_site_then_returns_to_ticket_and_marks_read(): void
+    public function test_notification_mark_read_marks_notification_as_read(): void
     {
         /** @var User $user */
         $user = User::factory()->create();
@@ -76,15 +76,15 @@ class TicketCompletedNotificationTest extends TestCase
             ->where('notifiable_id', $user->id)
             ->firstOrFail();
 
-        $response = $this->actingAs($user)
-            ->get(route('notifications.visit', $notification));
+        $csrfToken = 'test-token';
 
-        $response->assertOk();
-        $response->assertInertia(fn ($page) => $page
-            ->component('notifications/Visit')
-            ->where('externalUrl', 'https://feedback.manolofortich.gov.ph/')
-            ->where('returnUrl', route('requests.show', $ticket))
-        );
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post(route('notifications.mark-read', $notification), [
+                '_token' => $csrfToken,
+            ])
+            ->assertOk()
+            ->assertJson(['ok' => true]);
 
         $notification->refresh();
         $this->assertNotNull($notification->read_at);

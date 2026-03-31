@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { router } from '@inertiajs/vue3';
 import { onMounted, ref } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/composables/useNotifications';
+
+/** Customer satisfaction / feedback (opens in a new browser window). */
+const FEEDBACK_URL = 'https://feedback.manolofortich.gov.ph/';
 
 type NotificationItem = {
     id: string;
@@ -17,6 +21,46 @@ const toast = useNotifications();
 const items = ref<NotificationItem[]>([]);
 const unreadCount = ref<number>(0);
 const loading = ref(true);
+
+function notificationReturnPath(n: NotificationItem): string {
+    const raw = n.data.url;
+    if (typeof raw !== 'string' || raw.trim() === '') {
+        return '/dashboard';
+    }
+
+    const u = raw.trim();
+    if (u.startsWith('/')) {
+        return u;
+    }
+
+    try {
+        const parsed = new URL(u);
+        if (parsed.origin === window.location.origin) {
+            return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        }
+    } catch {
+        /* ignore invalid URL */
+    }
+
+    return '/dashboard';
+}
+
+function openNotification(n: NotificationItem): void {
+    window.open(FEEDBACK_URL, '_blank', 'noopener,noreferrer');
+    void fetch(`/notifications/${n.id}/mark-read`, {
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN':
+                (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ?? '',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: '{}',
+    });
+    router.visit(notificationReturnPath(n));
+}
 
 async function load(): Promise<void> {
     loading.value = true;
@@ -99,9 +143,10 @@ onMounted(() => {
                     <a
                         v-for="n in items"
                         :key="n.id"
-                        class="block rounded-xl border border-border/70 p-4 transition-colors hover:bg-muted/50"
+                        href="#"
+                        class="block cursor-pointer rounded-xl border border-border/70 p-4 transition-colors hover:bg-muted/50"
                         :class="[n.readAt ? 'opacity-85' : 'ring-1 ring-[#2563eb]/20']"
-                        :href="`/notifications/visit/${n.id}`"
+                        @click.prevent="openNotification(n)"
                     >
                         <div class="flex items-start justify-between gap-4">
                             <div class="space-y-1">

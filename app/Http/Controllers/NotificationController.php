@@ -7,8 +7,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Schema;
-use Inertia\Inertia;
-use Inertia\Response;
 use Throwable;
 
 class NotificationController extends Controller
@@ -68,7 +66,7 @@ class NotificationController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function visit(Request $request, DatabaseNotification $notification): Response
+    public function markRead(Request $request, DatabaseNotification $notification): JsonResponse
     {
         $user = $request->user();
         if (! $user) {
@@ -79,18 +77,11 @@ class NotificationController extends Controller
             abort(404);
         }
 
-        if (! $notification->read_at) {
+        if ($this->notificationsTableExists() && ! $notification->read_at) {
             $notification->markAsRead();
         }
 
-        $returnUrl = is_array($notification->data) ? ($notification->data['url'] ?? null) : null;
-        $returnUrl = is_string($returnUrl) && trim($returnUrl) !== '' ? $returnUrl : '/dashboard';
-
-        return Inertia::render('notifications/Visit', [
-            'externalUrl' => 'https://feedback.manolofortich.gov.ph/',
-            'returnUrl' => $returnUrl,
-            'notificationId' => $notification->id,
-        ]);
+        return response()->json(['ok' => true]);
     }
 
     private function notificationsTableExists(): bool
