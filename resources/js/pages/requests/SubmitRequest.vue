@@ -931,9 +931,6 @@ function submitTicket() {
                                 </p>
                                 <a
                                     :href="formDownloadUrls.systemsDevelopmentSurvey"
-                                    download
-                                    target="_blank"
-                                    rel="noopener noreferrer"
                                     class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
                                 >
                                     Download Systems Development Survey Form (PDF)
@@ -983,9 +980,6 @@ function submitTicket() {
                                 </p>
                                 <a
                                     :href="formDownloadUrls.accessRightsEnrolment"
-                                    download
-                                    target="_blank"
-                                    rel="noopener noreferrer"
                                     class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
                                 >
                                     Download Access Rights Enrolment Form (PDF)
@@ -1006,9 +1000,6 @@ function submitTicket() {
                                 </p>
                                 <a
                                     :href="formDownloadUrls.systemChangeRequest"
-                                    download
-                                    target="_blank"
-                                    rel="noopener noreferrer"
                                     class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
                                 >
                                     Download System Change Request Form (PDF)
@@ -1058,9 +1049,6 @@ function submitTicket() {
                                 </p>
                                 <a
                                     :href="formDownloadUrls.systemIssueReport"
-                                    download
-                                    target="_blank"
-                                    rel="noopener noreferrer"
                                     class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
                                 >
                                     Download System Issue Report Form (PDF)

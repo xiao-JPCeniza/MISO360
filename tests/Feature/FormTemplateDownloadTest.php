@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class FormTemplateDownloadTest extends TestCase
@@ -55,5 +56,21 @@ class FormTemplateDownloadTest extends TestCase
     {
         $this->get(route('forms.download', ['form' => 'systems-development-survey']))
             ->assertRedirect();
+    }
+
+    public function test_submit_request_page_includes_working_form_download_urls(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('submit-request'));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('requests/SubmitRequest')
+            ->where('formDownloadUrls.systemsDevelopmentSurvey', route('forms.download', ['form' => 'systems-development-survey']))
+            ->where('formDownloadUrls.accessRightsEnrolment', route('forms.download', ['form' => 'access-rights-enrolment']))
+            ->where('formDownloadUrls.systemIssueReport', route('forms.download', ['form' => 'system-issue-report']))
+            ->where('formDownloadUrls.systemChangeRequest', route('forms.download', ['form' => 'system-change-request']))
+        );
     }
 }
