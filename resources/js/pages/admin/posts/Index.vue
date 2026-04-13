@@ -81,7 +81,7 @@ function cancelArchive() {
 function doArchive() {
     if (archiveConfirmSlide.value === null) return;
     const id = archiveConfirmSlide.value.id;
-    router.patch(`/admin/posts/${id}/archive`, {}, {
+    router.post(`/admin/posts/${id}/archive`, {}, {
         preserveScroll: true,
         onSuccess: () => {
             archiveConfirmSlide.value = null;

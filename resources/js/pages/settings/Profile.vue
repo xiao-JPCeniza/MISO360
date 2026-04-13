@@ -326,7 +326,7 @@ window.profileAvatarUploader = (options: ProfileAvatarUploaderOptions) => {
                     />
 
                 <form
-                    @submit.prevent="form.patch('/settings/profile')"
+                    @submit.prevent="form.post('/settings/profile')"
                     class="space-y-6"
                 >
                     <div class="grid gap-2">

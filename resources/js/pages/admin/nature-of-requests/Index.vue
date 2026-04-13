@@ -65,7 +65,7 @@ function startEdit(request: NatureRequestRow) {
 
 function submit() {
     if (isEditing.value && editingId.value !== null) {
-        form.patch(`/admin/nature-of-request/${editingId.value}`, {
+        form.post(`/admin/nature-of-request/${editingId.value}`, {
             preserveScroll: true,
             onSuccess: startCreate,
         });
@@ -94,7 +94,7 @@ function remove(request: NatureRequestRow) {
 }
 
 function restore(request: NatureRequestRow) {
-    router.patch(
+    router.post(
         `/admin/nature-of-request/${request.id}`,
         {
             name: request.name,

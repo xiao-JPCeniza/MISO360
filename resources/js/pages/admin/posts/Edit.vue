@@ -81,7 +81,7 @@ function submit() {
             sort_order: Number(data.sort_order),
             ...(hasFile && { image: form.image }),
         }))
-        .patch(`/admin/posts/${props.slide.id}`, {
+        .post(`/admin/posts/${props.slide.id}`, {
             forceFormData: hasFile,
             onSuccess: () => {
                 if (hasFile) {

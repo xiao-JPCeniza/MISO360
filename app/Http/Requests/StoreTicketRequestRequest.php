@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Enums\ReferenceValueGroup;
+use App\Models\IssuedUid;
 use App\Models\NatureOfRequest;
+use App\Models\TicketArchive;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -58,6 +60,12 @@ class StoreTicketRequestRequest extends FormRequest
             foreach ($normalized as $key => $value) {
                 $this->files->set($key, $value);
             }
+        }
+
+        if ($this->has('qrCodeNumber') && is_string($this->input('qrCodeNumber'))) {
+            $this->merge([
+                'qrCodeNumber' => strtoupper(trim($this->input('qrCodeNumber'))),
+            ]);
         }
     }
 
@@ -224,6 +232,10 @@ class StoreTicketRequestRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            $this->validateQrCodeAgainstInventory($validator);
+        });
+
+        $validator->after(function (Validator $validator) {
             if ($this->isSystemModification()) {
                 $attachments = $this->input('systemChangeRequestFormAttachments');
                 if (! is_array($attachments) || count($attachments) === 0) {
@@ -255,6 +267,35 @@ class StoreTicketRequestRequest extends FormRequest
                 );
             }
         });
+    }
+
+    private function validateQrCodeAgainstInventory(Validator $validator): void
+    {
+        if (! $this->boolean('hasQrCode')) {
+            return;
+        }
+
+        $qr = $this->input('qrCodeNumber');
+        if (! is_string($qr) || trim($qr) === '') {
+            return;
+        }
+
+        $uid = strtoupper(trim($qr));
+        if (! IssuedUid::query()->where('uid', $uid)->exists()) {
+            $validator->errors()->add(
+                'qrCodeNumber',
+                'This MIS-UID was not issued by the system. Use the code printed on your unit label, or contact IT for help.',
+            );
+
+            return;
+        }
+
+        if (TicketArchive::query()->where('unique_id', $uid)->exists()) {
+            $validator->errors()->add(
+                'qrCodeNumber',
+                'This QR code is archived and cannot be linked to a new request.',
+            );
+        }
     }
 
     public function messages(): array

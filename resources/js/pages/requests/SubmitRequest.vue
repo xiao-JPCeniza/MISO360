@@ -76,14 +76,12 @@ type SystemChangeRequestForm = {
     remarks: string;
 };
 
-/** URL to download the required Systems Development Survey Form (PDF). */
-const SYSTEMS_DEVELOPMENT_SURVEY_FORM_PDF_URL = '/storage/Forms/Systems%20Development%20Survey%20Form.pdf';
-/** URL to download the Access Rights Enrolment Form (PDF). */
-const ACCESS_RIGHTS_ENROLMENT_FORM_PDF_URL = '/storage/Forms/Access%20Rights%20Enrolment%20Form.pdf';
-/** URL to download the System Issue Report Form (PDF). */
-const SYSTEM_ISSUE_REPORT_FORM_PDF_URL = '/storage/Forms/System%20Issue%20Report%20Form.pdf';
-/** URL to download the System Change Request Form (PDF) for System Modification requests. */
-const SYSTEM_CHANGE_REQUEST_FORM_PDF_URL = '/storage/Forms/System%20Change%20Request%20Form.docx.pdf';
+type FormDownloadUrls = {
+    systemsDevelopmentSurvey: string;
+    accessRightsEnrolment: string;
+    systemIssueReport: string;
+    systemChangeRequest: string;
+};
 
 type SystemIssueReport = {
     controlNumber: string;
@@ -115,6 +113,7 @@ const props = withDefaults(
         officeOptions: OfficeOption[];
         officeUsers: OfficeUser[];
         systemsEngineerOptions: SystemsEngineerOption[];
+        formDownloadUrls: FormDownloadUrls;
         maxAttachments: number;
         maxAttachmentSizeMb: number;
         qrCodePattern: string;
@@ -149,6 +148,7 @@ const validPreSelectedId =
     props.natureOfRequests.some((n) => n.id === props.preSelectedNatureId)
         ? String(props.preSelectedNatureId)
         : '';
+const formDownloadUrls = computed(() => props.formDownloadUrls);
 
 const form = useForm({
     controlTicketNumber: props.controlTicketNumber,
@@ -841,7 +841,7 @@ function submitTicket() {
                                             QR Code for Unit
                                         </p>
                                         <p class="text-xs text-muted-foreground">
-                                            Only admins/super admin can add a MIS-UID. If no QR code UID is available, an admin can assign one later.
+                                            Link this request to a unit by entering the MIS-UID from its QR label (must be an issued code). Leave off if the request does not apply to a specific unit.
                                         </p>
                                     </div>
                                     <label
@@ -930,7 +930,7 @@ function submitTicket() {
                                     Download the form below, complete it offline, then upload the completed form before submitting your request.
                                 </p>
                                 <a
-                                    :href="SYSTEMS_DEVELOPMENT_SURVEY_FORM_PDF_URL"
+                                    :href="formDownloadUrls.systemsDevelopmentSurvey"
                                     download
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -982,7 +982,7 @@ function submitTicket() {
                                     Download the form below and complete it offline.
                                 </p>
                                 <a
-                                    :href="ACCESS_RIGHTS_ENROLMENT_FORM_PDF_URL"
+                                    :href="formDownloadUrls.accessRightsEnrolment"
                                     download
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -1005,7 +1005,7 @@ function submitTicket() {
                                     Download the form below, complete it offline, then upload the completed form before submitting your request.
                                 </p>
                                 <a
-                                    :href="SYSTEM_CHANGE_REQUEST_FORM_PDF_URL"
+                                    :href="formDownloadUrls.systemChangeRequest"
                                     download
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -1057,7 +1057,7 @@ function submitTicket() {
                                     This form must be completed before the ticket can be submitted. You may download the PDF form below for reference.
                                 </p>
                                 <a
-                                    :href="SYSTEM_ISSUE_REPORT_FORM_PDF_URL"
+                                    :href="formDownloadUrls.systemIssueReport"
                                     download
                                     target="_blank"
                                     rel="noopener noreferrer"

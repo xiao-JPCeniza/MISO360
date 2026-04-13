@@ -53,6 +53,7 @@ class TicketRequestSubmissionTest extends TestCase
     public function test_user_can_submit_ticket_request_with_attachments_and_qr_code(): void
     {
         Storage::fake('public');
+        IssuedUid::create(['uid' => 'MIS-UID-00001', 'sequence' => 1]);
         /** @var User $user */
         $user = User::factory()->create();
         $natureOfRequest = NatureOfRequest::create([
@@ -90,8 +91,12 @@ class TicketRequestSubmissionTest extends TestCase
             'nature_of_request_id' => $natureOfRequest->id,
             'user_id' => $user->id,
         ]);
-        $this->assertFalse($ticketRequest->has_qr_code);
-        $this->assertNull($ticketRequest->qr_code_number);
+        $this->assertTrue($ticketRequest->has_qr_code);
+        $this->assertSame('MIS-UID-00001', $ticketRequest->qr_code_number);
+
+        $enrollment = TicketEnrollment::where('unique_id', 'MIS-UID-00001')->first();
+        $this->assertNotNull($enrollment);
+        $this->assertSame('System Development', $enrollment->request_nature);
 
         $this->assertNotEmpty($ticketRequest->attachments);
         $fileAttachment = collect($ticketRequest->attachments)
@@ -211,6 +216,34 @@ class TicketRequestSubmissionTest extends TestCase
                 'qrCodeNumber' => '',
             ])
             ->assertSessionHasErrors(['qrCodeNumber']);
+    }
+
+    public function test_submit_request_rejects_unissued_qr_for_any_user(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer repair',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-90001', now()->format('Y'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Need repair for workstation with label.',
+                'hasQrCode' => true,
+                'qrCodeNumber' => 'MIS-UID-99999',
+            ])
+            ->assertSessionHasErrors(['qrCodeNumber']);
+
+        $this->assertDatabaseMissing('ticket_requests', [
+            'control_ticket_number' => $controlTicketNumber,
+        ]);
     }
 
     public function test_password_reset_or_account_recovery_requires_personal_email(): void
@@ -724,5 +757,6 @@ class TicketRequestSubmissionTest extends TestCase
 
         $enrollment = TicketEnrollment::where('unique_id', 'MIS-UID-00099')->first();
         $this->assertNotNull($enrollment);
+        $this->assertSame('Computer repair', $enrollment->request_nature);
     }
 }

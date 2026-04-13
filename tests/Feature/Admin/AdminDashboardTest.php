@@ -52,6 +52,11 @@ class AdminDashboardTest extends TestCase
     {
         $superAdmin = User::factory()->superAdmin()->create();
 
+        $borrowNature = NatureOfRequest::create(['name' => 'Borrow Unit', 'is_active' => true]);
+        TicketRequest::factory()->create([
+            'nature_of_request_id' => $borrowNature->id,
+        ]);
+
         $response = $this->actingAsTwoFactorVerified($superAdmin)
             ->get(route('admin.dashboard'));
 

@@ -21,17 +21,26 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AdminDashboardController extends Controller
 {
+    private const BORROW_UNIT_NATURE_NAME = 'Borrow Unit';
+
     public function index(Request $request): Response
     {
         $user = $request->user();
+        $borrowNatureId = $this->borrowUnitNatureId();
 
         $activeCountQuery = TicketRequest::query()
             ->pending()
             ->forQueueViewer($user);
+        if ($borrowNatureId) {
+            $activeCountQuery->where('nature_of_request_id', '!=', $borrowNatureId);
+        }
         $activeCount = $activeCountQuery->count();
-        $totalReceived = TicketRequest::query()->count();
+        $totalReceived = TicketRequest::query()
+            ->when($borrowNatureId, fn (Builder $q) => $q->where('nature_of_request_id', '!=', $borrowNatureId))
+            ->count();
         $assignedToMe = TicketRequest::query()
             ->where('assigned_staff_id', $user->id)
+            ->when($borrowNatureId, fn (Builder $q) => $q->where('nature_of_request_id', '!=', $borrowNatureId))
             ->where(function (Builder $q) {
                 $q->whereHas('status', fn (Builder $sq) => $sq->where('name', '!=', 'Completed'))
                     ->orWhereNull('status_id');
@@ -48,7 +57,8 @@ class AdminDashboardController extends Controller
                 'user:id,name',
                 'requestedForUser:id,name',
             ])
-            ->forQueueViewer($user);
+            ->forQueueViewer($user)
+            ->when($borrowNatureId, fn (Builder $q) => $q->where('nature_of_request_id', '!=', $borrowNatureId));
 
         $this->applyQueueFilters($activeQuery, $request);
 
@@ -79,7 +89,8 @@ class AdminDashboardController extends Controller
                 'category:id,name',
                 'user:id,name',
                 'requestedForUser:id,name',
-            ]);
+            ])
+            ->when($borrowNatureId, fn (Builder $q) => $q->where('nature_of_request_id', '!=', $borrowNatureId));
 
         if ($request->filled('archive_search')) {
             $term = '%'.$request->string('archive_search')->trim().'%';
@@ -213,6 +224,8 @@ class AdminDashboardController extends Controller
      */
     private function buildArchiveExportQuery(Request $request): \Illuminate\Database\Eloquent\Builder
     {
+        $borrowNatureId = $this->borrowUnitNatureId();
+
         $query = TicketRequest::query()
             ->completed()
             ->with([
@@ -225,6 +238,9 @@ class AdminDashboardController extends Controller
                 'enrollment',
                 'enrollment.assignedAdmin:id,name',
             ]);
+        if ($borrowNatureId) {
+            $query->where('nature_of_request_id', '!=', $borrowNatureId);
+        }
 
         if ($request->filled('archive_search')) {
             $term = '%'.$request->string('archive_search')->trim().'%';
@@ -258,5 +274,14 @@ class AdminDashboardController extends Controller
         if ($request->filled('control_ticket_number')) {
             $query->where('control_ticket_number', 'like', '%'.$request->string('control_ticket_number')->trim().'%');
         }
+    }
+
+    private function borrowUnitNatureId(): ?int
+    {
+        $id = \App\Models\NatureOfRequest::query()
+            ->where('name', self::BORROW_UNIT_NATURE_NAME)
+            ->value('id');
+
+        return is_numeric($id) ? (int) $id : null;
     }
 }

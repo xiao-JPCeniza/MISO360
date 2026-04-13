@@ -268,6 +268,8 @@ Route::middleware([
     Route::post('submit-request', [TicketRequestController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('submit-request.store');
+    Route::get('forms/{form}/download', [TicketRequestController::class, 'downloadFormTemplate'])
+        ->name('forms.download');
     Route::get('requests/{ticketRequest}/system-issue-report/pdf', [TicketRequestController::class, 'downloadSystemIssueReportPdf'])
         ->name('requests.system-issue-report.pdf');
     Route::get('requests/{ticketRequest}', [TicketRequestController::class, 'show'])

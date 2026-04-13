@@ -152,7 +152,7 @@ function submit(groupKey: GroupKey) {
     const editId = editingId[groupKey];
 
     if (editId) {
-        form.patch(`/admin/status/${editId}`, {
+        form.post(`/admin/status/${editId}`, {
             preserveScroll: true,
             onSuccess: () => startCreate(groupKey),
         });
@@ -181,7 +181,7 @@ function remove(groupKey: GroupKey, row: ReferenceRow) {
 }
 
 function restore(groupKey: GroupKey, row: ReferenceRow) {
-    router.patch(`/admin/status/${row.id}`, {
+    router.post(`/admin/status/${row.id}`, {
         name: row.name,
         is_active: true,
     }, {

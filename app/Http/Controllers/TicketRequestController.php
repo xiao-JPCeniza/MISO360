@@ -34,11 +34,55 @@ use Throwable;
 
 class TicketRequestController extends Controller
 {
+    private const BORROW_UNIT_NATURE_NAME = 'Borrow Unit';
+
+    /**
+     * Downloadable form templates used in Submit Request.
+     *
+     * `paths` are checked on the public disk first (allows server-specific overrides).
+     * `bundled_filename` is a copy shipped in `resources/forms/` so production deploys work without committing `storage/app/public`.
+     *
+     * @var array<string, array{download_name: string, paths: array<int, string>, bundled_filename: string}>
+     */
+    private const FORM_TEMPLATE_FILES = [
+        'systems-development-survey' => [
+            'download_name' => 'Systems Development Survey Form.pdf',
+            'paths' => [
+                'Forms/Systems Development Survey Form.pdf',
+            ],
+            'bundled_filename' => 'Systems Development Survey Form.pdf',
+        ],
+        'access-rights-enrolment' => [
+            'download_name' => 'Access Rights Enrolment Form.pdf',
+            'paths' => [
+                'Forms/Access Rights Enrolment Form.pdf',
+            ],
+            'bundled_filename' => 'Access Rights Enrolment Form.pdf',
+        ],
+        'system-issue-report' => [
+            'download_name' => 'System Issue Report Form.pdf',
+            'paths' => [
+                'Forms/System Issue Report Form.pdf',
+            ],
+            'bundled_filename' => 'System Issue Report Form.pdf',
+        ],
+        'system-change-request' => [
+            'download_name' => 'System Change Request Form.pdf',
+            'paths' => [
+                'Forms/System Change Request Form.pdf',
+                'Forms/System Change Request Form.docx.pdf',
+            ],
+            'bundled_filename' => 'System Change Request Form.pdf',
+        ],
+    ];
+
     public function index(Request $request): Response
     {
         $user = $request->user();
         $isAdmin = $user?->isAdmin() ?? false;
         $isSuperAdmin = $user?->isSuperAdmin() ?? false;
+
+        $borrowNatureId = $this->borrowUnitNatureId();
 
         $query = TicketRequest::query()
             ->with([
@@ -51,6 +95,10 @@ class TicketRequestController extends Controller
                 'requestedForUser:id,name,position_title',
                 'user:id,name,position_title',
             ]);
+
+        if ($borrowNatureId) {
+            $query->where('nature_of_request_id', '!=', $borrowNatureId);
+        }
 
         if ($user && ! $isAdmin) {
             // Regular users: only their own requests.
@@ -80,6 +128,7 @@ class TicketRequestController extends Controller
     {
         $user = $request->user();
         $isAdmin = $user?->isAdmin() ?? false;
+        $borrowNatureId = $this->borrowUnitNatureId();
 
         $archivedRequests = TicketRequest::query()
             ->with([
@@ -93,6 +142,7 @@ class TicketRequestController extends Controller
                 'user:id,name,position_title',
             ])
             ->when(! $isAdmin && $user, fn ($query) => $query->where('user_id', $user->id))
+            ->when($borrowNatureId, fn ($query) => $query->where('nature_of_request_id', '!=', $borrowNatureId))
             ->archived()
             ->latest()
             ->limit(200)
@@ -137,8 +187,11 @@ class TicketRequestController extends Controller
         $canSubmitAsPrivilegedRequester = $user?->canSubmitAsPrivilegedRequester() ?? false;
         $user?->load('officeDesignation');
 
+        $borrowNatureId = $this->borrowUnitNatureId();
+
         $natureOfRequests = NatureOfRequest::query()
             ->where('is_active', true)
+            ->when($borrowNatureId, fn ($query) => $query->whereKeyNot($borrowNatureId))
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -155,6 +208,7 @@ class TicketRequestController extends Controller
             'isSubmitOnlyUser' => $user?->isSubmitOnly() ?? false,
             'requesterName' => $user?->name,
             'defaultOfficeDivision' => $user?->officeDesignation?->name,
+            'formDownloadUrls' => $this->formTemplateUrls(),
             'systemsEngineerOptions' => User::query()
                 ->where('is_active', true)
                 ->whereIn('role', [\App\Enums\Role::ADMIN, \App\Enums\Role::SUPER_ADMIN])
@@ -183,6 +237,70 @@ class TicketRequestController extends Controller
         ]);
     }
 
+    public function downloadFormTemplate(string $form)
+    {
+        $template = self::FORM_TEMPLATE_FILES[$form] ?? null;
+        if (! is_array($template)) {
+            abort(404, 'Unknown form template.');
+        }
+
+        $absolutePath = $this->resolveFormTemplateAbsolutePath($form);
+        if (! is_string($absolutePath) || ! is_file($absolutePath)) {
+            abort(404, 'Form template file is not available.');
+        }
+
+        $downloadName = $template['download_name'] ?? basename($absolutePath);
+
+        return response()->download(
+            $absolutePath,
+            is_string($downloadName) && trim($downloadName) !== '' ? $downloadName : basename($absolutePath),
+            ['Content-Type' => 'application/pdf'],
+        );
+    }
+
+    private function resolveFormTemplateAbsolutePath(string $form): ?string
+    {
+        $template = self::FORM_TEMPLATE_FILES[$form] ?? null;
+        if (! is_array($template)) {
+            return null;
+        }
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('public');
+
+        foreach ($template['paths'] ?? [] as $candidate) {
+            if (! is_string($candidate) || trim($candidate) === '') {
+                continue;
+            }
+            if ($disk->exists($candidate)) {
+                return $disk->path($candidate);
+            }
+        }
+
+        $bundled = $template['bundled_filename'] ?? null;
+        if (is_string($bundled) && trim($bundled) !== '') {
+            $path = resource_path('forms/'.$bundled);
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{systemsDevelopmentSurvey: string, accessRightsEnrolment: string, systemIssueReport: string, systemChangeRequest: string}
+     */
+    private function formTemplateUrls(): array
+    {
+        return [
+            'systemsDevelopmentSurvey' => route('forms.download', ['form' => 'systems-development-survey']),
+            'accessRightsEnrolment' => route('forms.download', ['form' => 'access-rights-enrolment']),
+            'systemIssueReport' => route('forms.download', ['form' => 'system-issue-report']),
+            'systemChangeRequest' => route('forms.download', ['form' => 'system-change-request']),
+        ];
+    }
+
     /**
      * Resolve a service name (from Services Hub) to an active nature-of-request ID.
      * Uses case-insensitive match so hub labels and DB names can differ slightly.
@@ -202,6 +320,15 @@ class TicketRequestController extends Controller
         }
 
         return null;
+    }
+
+    private function borrowUnitNatureId(): ?int
+    {
+        $id = NatureOfRequest::query()
+            ->where('name', self::BORROW_UNIT_NATURE_NAME)
+            ->value('id');
+
+        return is_numeric($id) ? (int) $id : null;
     }
 
     public function store(StoreTicketRequestRequest $request, AuditLogger $auditLogger)
@@ -376,10 +503,13 @@ class TicketRequestController extends Controller
             }
         }
 
-        $allowUnitQr = $canSubmitAsPrivilegedRequester;
-        $qrCodeNumber = $allowUnitQr && ! empty(trim((string) ($validated['qrCodeNumber'] ?? '')))
-            ? strtoupper(trim((string) $validated['qrCodeNumber']))
-            : null;
+        $hasQr = (bool) $validated['hasQrCode'];
+        $qrCodeNumber = null;
+        if ($hasQr) {
+            $qrCodeNumber = ! empty(trim((string) ($validated['qrCodeNumber'] ?? '')))
+                ? strtoupper(trim((string) $validated['qrCodeNumber']))
+                : null;
+        }
         if ($qrCodeNumber) {
             $this->validateQrNotAssignedToAnotherRequest($qrCodeNumber);
         }
@@ -390,7 +520,7 @@ class TicketRequestController extends Controller
             'personal_email' => $validated['personalEmail'] ?? null,
             'office_email' => $validated['officeEmail'] ?? null,
             'description' => $validated['description'],
-            'has_qr_code' => $allowUnitQr && (bool) $validated['hasQrCode'],
+            'has_qr_code' => $hasQr && $qrCodeNumber !== null,
             'qr_code_number' => $qrCodeNumber,
             'attachments' => $attachments ?: null,
             'user_id' => $requester->id,
@@ -411,6 +541,8 @@ class TicketRequestController extends Controller
 
         if ($qrCodeNumber) {
             $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
+            $ticketRequest->load(['natureOfRequest', 'officeDesignation']);
+            $this->syncTicketRequestToEnrollment($ticketRequest);
         }
 
         if (is_array($systemIssueReport)) {
@@ -452,6 +584,7 @@ class TicketRequestController extends Controller
             abort(404, 'System issue report data was not found for this request.');
         }
 
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
         $pdfPath = $this->systemIssueReportPdfPath($ticketRequest);
         if (! $disk->exists($pdfPath)) {
@@ -727,26 +860,6 @@ class TicketRequestController extends Controller
             ->where('name', 'Completed')
             ->exists();
 
-        $qrCodeNumber = isset($validated['qrCodeNumber']) && trim((string) $validated['qrCodeNumber']) !== ''
-            ? strtoupper(trim((string) $validated['qrCodeNumber']))
-            : null;
-        if ($qrCodeNumber) {
-            if (! IssuedUid::where('uid', $qrCodeNumber)->exists()) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'qrCodeNumber' => ['The selected QR code (UID) was not issued by the system. Generate one from this page or use an existing issued UID.'],
-                ]);
-            }
-            if (TicketArchive::where('unique_id', $qrCodeNumber)->exists()) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'qrCodeNumber' => ['This QR code is archived and cannot be assigned to a request.'],
-                ]);
-            }
-            $this->validateQrNotAssignedToAnotherRequest($qrCodeNumber, $ticketRequest->id);
-        }
-        if ($qrCodeNumber) {
-            $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
-        }
-
         $dateReceived = isset($validated['dateReceived']) && $validated['dateReceived'] !== '' ? $validated['dateReceived'] : null;
         $dateStarted = isset($validated['dateStarted']) && $validated['dateStarted'] !== '' ? $validated['dateStarted'] : null;
         $estimatedCompletionDate = isset($validated['estimatedCompletionDate']) && $validated['estimatedCompletionDate'] !== '' ? $validated['estimatedCompletionDate'] : null;
@@ -763,9 +876,31 @@ class TicketRequestController extends Controller
             'action_taken' => $actionTaken,
             'status_id' => $statusId,
             'category_id' => $categoryId,
-            'has_qr_code' => (bool) $qrCodeNumber,
-            'qr_code_number' => $qrCodeNumber,
         ];
+
+        if (array_key_exists('qrCodeNumber', $validated)) {
+            $qrCodeNumber = trim((string) ($validated['qrCodeNumber'] ?? '')) !== ''
+                ? strtoupper(trim((string) $validated['qrCodeNumber']))
+                : null;
+            if ($qrCodeNumber) {
+                if (! IssuedUid::where('uid', $qrCodeNumber)->exists()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'qrCodeNumber' => ['The selected QR code (UID) was not issued by the system. Generate one from this page or use an existing issued UID.'],
+                    ]);
+                }
+                if (TicketArchive::where('unique_id', $qrCodeNumber)->exists()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'qrCodeNumber' => ['This QR code is archived and cannot be assigned to a request.'],
+                    ]);
+                }
+                $this->validateQrNotAssignedToAnotherRequest($qrCodeNumber, $ticketRequest->id);
+            }
+            if ($qrCodeNumber) {
+                $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
+            }
+            $updatePayload['has_qr_code'] = (bool) $qrCodeNumber;
+            $updatePayload['qr_code_number'] = $qrCodeNumber;
+        }
 
         $timerService = app(ServiceTimerService::class);
         $newStatus = $statusId ? ReferenceValue::find($statusId)?->name : null;
@@ -1046,24 +1181,6 @@ class TicketRequestController extends Controller
 
         $this->validateRequestDateOrder($validated, 'dateReceived', 'dateStarted', 'estimatedCompletionDate');
 
-        $qrCodeNumber = isset($validated['qrCodeNumber']) && trim((string) $validated['qrCodeNumber']) !== ''
-            ? strtoupper(trim((string) $validated['qrCodeNumber']))
-            : null;
-        if ($qrCodeNumber) {
-            if (! IssuedUid::where('uid', $qrCodeNumber)->exists()) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'qrCodeNumber' => ['The selected QR code (UID) was not issued by the system. Generate one from this page or use an existing issued UID.'],
-                ]);
-            }
-            if (TicketArchive::where('unique_id', $qrCodeNumber)->exists()) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'qrCodeNumber' => ['This QR code is archived and cannot be assigned to a request.'],
-                ]);
-            }
-            $this->validateQrNotAssignedToAnotherRequest($qrCodeNumber, $ticketRequest->id);
-            $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
-        }
-
         $remarksId = isset($validated['remarksId']) && $validated['remarksId'] !== '' ? (int) $validated['remarksId'] : null;
         $assignedStaffId = isset($validated['assignedStaffId']) && $validated['assignedStaffId'] !== '' ? (int) $validated['assignedStaffId'] : null;
         $natureOfRequestId = array_key_exists('natureOfRequestId', $validated)
@@ -1108,9 +1225,29 @@ class TicketRequestController extends Controller
             'status_id' => $resolvedStatusId,
             'category_id' => $categoryId,
             'equipment_network_details' => $this->normalizeEquipmentNetworkDetails($validated['equipmentNetworkDetails'] ?? []),
-            'has_qr_code' => (bool) $qrCodeNumber,
-            'qr_code_number' => $qrCodeNumber,
         ];
+
+        if (array_key_exists('qrCodeNumber', $validated)) {
+            $qrCodeNumber = trim((string) ($validated['qrCodeNumber'] ?? '')) !== ''
+                ? strtoupper(trim((string) $validated['qrCodeNumber']))
+                : null;
+            if ($qrCodeNumber) {
+                if (! IssuedUid::where('uid', $qrCodeNumber)->exists()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'qrCodeNumber' => ['The selected QR code (UID) was not issued by the system. Generate one from this page or use an existing issued UID.'],
+                    ]);
+                }
+                if (TicketArchive::where('unique_id', $qrCodeNumber)->exists()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'qrCodeNumber' => ['This QR code is archived and cannot be assigned to a request.'],
+                    ]);
+                }
+                $this->validateQrNotAssignedToAnotherRequest($qrCodeNumber, $ticketRequest->id);
+                $this->ensureEnrollmentForUid($qrCodeNumber, $ticketRequest->control_ticket_number);
+            }
+            $updatePayload['has_qr_code'] = (bool) $qrCodeNumber;
+            $updatePayload['qr_code_number'] = $qrCodeNumber;
+        }
 
         $timerService = app(ServiceTimerService::class);
         $newStatus = $resolvedStatusId ? ReferenceValue::find($resolvedStatusId)?->name : null;
@@ -1475,6 +1612,7 @@ class TicketRequestController extends Controller
 
     private function publicFileToDataUri(string $path): ?string
     {
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
         if (! $disk->exists($path)) {
             return null;
@@ -1485,7 +1623,10 @@ class TicketRequestController extends Controller
             return null;
         }
 
-        $mime = $disk->mimeType($path) ?: 'application/octet-stream';
+        $absolutePath = $disk->path($path);
+        $mime = is_string($absolutePath) && is_file($absolutePath)
+            ? (mime_content_type($absolutePath) ?: 'application/octet-stream')
+            : 'application/octet-stream';
 
         return 'data:'.$mime.';base64,'.base64_encode($content);
     }

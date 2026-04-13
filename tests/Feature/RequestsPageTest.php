@@ -54,6 +54,14 @@ class RequestsPageTest extends TestCase
             'description' => 'Network connection issue.',
             'created_at' => now(),
         ]);
+        $borrowNature = NatureOfRequest::query()->firstOrCreate(
+            ['name' => 'Borrow Unit'],
+            ['is_active' => true],
+        );
+        TicketRequest::factory()->create([
+            'nature_of_request_id' => $borrowNature->id,
+            'created_at' => now()->addSecond(),
+        ]);
 
         $response = $this
             ->actingAs($admin)
@@ -209,6 +217,51 @@ class RequestsPageTest extends TestCase
         $ticket->refresh();
         $this->assertTrue($ticket->has_qr_code);
         $this->assertSame('MIS-UID-00100', $ticket->qr_code_number);
+    }
+
+    public function test_it_governance_update_without_qr_field_preserves_existing_qr_when_nature_changes(): void
+    {
+        $admin = User::factory()->admin()->create();
+        IssuedUid::create(['uid' => 'MIS-UID-00101', 'sequence' => 101]);
+        $natureOriginal = NatureOfRequest::query()->firstOrCreate(
+            ['name' => 'Original Nature For Qr Test'],
+            ['is_active' => true]
+        );
+        $natureNew = NatureOfRequest::query()->firstOrCreate(
+            ['name' => 'New Nature For Qr Test'],
+            ['is_active' => true]
+        );
+
+        $ticket = TicketRequest::factory()->create([
+            'nature_of_request_id' => $natureOriginal->id,
+            'has_qr_code' => true,
+            'qr_code_number' => 'MIS-UID-00101',
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => now()->timestamp,
+            ])
+            ->patch(route('requests.it-governance.update', $ticket), [
+                '_token' => 'test-token',
+                'natureOfRequestId' => (string) $natureNew->id,
+                'remarksId' => '',
+                'assignedStaffId' => (string) $admin->id,
+                'dateReceived' => now()->toDateString(),
+                'dateStarted' => '',
+                'estimatedCompletionDate' => '',
+                'actionTaken' => '',
+                'categoryId' => '',
+                'statusId' => '',
+            ]);
+
+        $response->assertRedirect();
+        $ticket->refresh();
+        $this->assertSame($natureNew->id, $ticket->nature_of_request_id);
+        $this->assertTrue($ticket->has_qr_code);
+        $this->assertSame('MIS-UID-00101', $ticket->qr_code_number);
     }
 
     public function test_super_admin_can_edit_request_at_show_page(): void
