@@ -57,6 +57,15 @@ class TicketCompletedNotificationTest extends TestCase
             'notifiable_id' => $user->id,
             'type' => TicketCompletedNotification::class,
         ]);
+
+        $notification = DatabaseNotification::query()
+            ->where('notifiable_type', User::class)
+            ->where('notifiable_id', $user->id)
+            ->where('type', TicketCompletedNotification::class)
+            ->firstOrFail();
+
+        $this->assertSame('ticket_completed', $notification->data['kind'] ?? null);
+        $this->assertStringContainsString('customer satisfaction feedback', (string) ($notification->data['message'] ?? ''));
     }
 
     public function test_notification_mark_read_marks_notification_as_read(): void

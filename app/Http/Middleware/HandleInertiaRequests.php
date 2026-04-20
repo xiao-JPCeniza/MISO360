@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
+use App\Notifications\Admin\AdminInAppNotificationKinds;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -68,7 +70,12 @@ class HandleInertiaRequests extends Middleware
         }
 
         try {
-            return (int) $user->unreadNotifications()->count();
+            $query = $user->unreadNotifications();
+            if ($user instanceof User && $user->isAdmin()) {
+                $query->whereIn('data->kind', AdminInAppNotificationKinds::all());
+            }
+
+            return (int) $query->count();
         } catch (Throwable $exception) {
             if (! $this->isMissingNotificationsTableException($exception)) {
                 report($exception);

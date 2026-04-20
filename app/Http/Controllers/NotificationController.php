@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use App\Notifications\Admin\AdminInAppNotificationKinds;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,10 +27,9 @@ class NotificationController extends Controller
             ]);
         }
 
-        $unreadCount = $user->unreadNotifications()->count();
+        $unreadCount = $this->unreadNotificationsVisibleToUser($user)->count();
 
-        $items = $user->notifications()
-            ->latest()
+        $items = $this->notificationsVisibleToUser($user)
             ->limit(8)
             ->get()
             ->map(function (DatabaseNotification $n): array {
@@ -59,7 +60,7 @@ class NotificationController extends Controller
             return response()->json(['ok' => true]);
         }
 
-        $user->unreadNotifications()->update([
+        $this->unreadNotificationsVisibleToUser($user)->update([
             'read_at' => now(),
         ]);
 
@@ -77,11 +78,41 @@ class NotificationController extends Controller
             abort(404);
         }
 
+        if ($user instanceof User && $user->isAdmin() && ! AdminInAppNotificationKinds::contains($notification->data['kind'] ?? null)) {
+            abort(404);
+        }
+
         if ($this->notificationsTableExists() && ! $notification->read_at) {
             $notification->markAsRead();
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * @param  \Illuminate\Contracts\Auth\Authenticatable&object  $user
+     */
+    private function notificationsVisibleToUser(object $user)
+    {
+        $query = $user->notifications()->latest();
+        if ($user instanceof User && $user->isAdmin()) {
+            $query->whereIn('data->kind', AdminInAppNotificationKinds::all());
+        }
+
+        return $query;
+    }
+
+    /**
+     * @param  \Illuminate\Contracts\Auth\Authenticatable&object  $user
+     */
+    private function unreadNotificationsVisibleToUser(object $user)
+    {
+        $query = $user->unreadNotifications();
+        if ($user instanceof User && $user->isAdmin()) {
+            $query->whereIn('data->kind', AdminInAppNotificationKinds::all());
+        }
+
+        return $query;
     }
 
     private function notificationsTableExists(): bool

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { onMounted, ref } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -18,9 +18,56 @@ type NotificationItem = {
 };
 
 const toast = useNotifications();
+const page = usePage();
 const items = ref<NotificationItem[]>([]);
 const unreadCount = ref<number>(0);
 const loading = ref(true);
+
+/**
+ * Prefer Inertia shared `csrf_token` — the root HTML meta tag is not updated on client-side
+ * Inertia visits, so it can go stale and cause 419 responses on POST.
+ */
+function getCsrfToken(): string {
+    const fromProps = (page.props as { csrf_token?: string }).csrf_token;
+    if (fromProps) {
+        return fromProps;
+    }
+    if (typeof document === 'undefined') {
+        return '';
+    }
+    const meta = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null;
+    if (meta?.content) {
+        return meta.content;
+    }
+    const tokenMatch = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+    if (tokenMatch?.[1]) {
+        return decodeURIComponent(tokenMatch[1]);
+    }
+    return '';
+}
+
+function buildJsonPostHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+    const csrf = getCsrfToken();
+    if (csrf) {
+        headers['X-CSRF-TOKEN'] = csrf;
+        headers['X-XSRF-TOKEN'] = csrf;
+    }
+    return headers;
+}
+
+function notificationKind(n: NotificationItem): string | undefined {
+    const k = n.data.kind;
+    return typeof k === 'string' ? k : undefined;
+}
+
+function isTicketCompletedNotification(n: NotificationItem): boolean {
+    return notificationKind(n) === 'ticket_completed';
+}
 
 function notificationReturnPath(n: NotificationItem): string {
     const raw = n.data.url;
@@ -46,16 +93,12 @@ function notificationReturnPath(n: NotificationItem): string {
 }
 
 function openNotification(n: NotificationItem): void {
-    window.open(FEEDBACK_URL, '_blank', 'noopener,noreferrer');
+    if (isTicketCompletedNotification(n)) {
+        window.open(FEEDBACK_URL, '_blank', 'noopener,noreferrer');
+    }
     void fetch(`/notifications/${n.id}/mark-read`, {
         method: 'POST',
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN':
-                (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ?? '',
-            'X-Requested-With': 'XMLHttpRequest',
-        },
+        headers: buildJsonPostHeaders(),
         credentials: 'same-origin',
         body: '{}',
     });
@@ -86,14 +129,14 @@ async function markAllRead(): Promise<void> {
     try {
         const res = await fetch('/notifications/mark-all-read', {
             method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)
-                    ?.content,
-            },
+            headers: buildJsonPostHeaders(),
             credentials: 'same-origin',
+            body: '{}',
         });
         if (!res.ok) {
+            if (res.status === 419) {
+                throw new Error('Your session has expired. Please refresh the page and try again.');
+            }
             throw new Error('Failed to mark notifications as read.');
         }
         await load();
@@ -155,6 +198,13 @@ onMounted(() => {
                                 </p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ String(n.data.message ?? '') }}
+                                </p>
+                                <p
+                                    v-if="isTicketCompletedNotification(n)"
+                                    class="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100"
+                                >
+                                    Please complete our customer satisfaction feedback — the form opens in a new tab when
+                                    you open this notification.
                                 </p>
                             </div>
                             <span
