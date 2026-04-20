@@ -58,7 +58,6 @@ class TwoFactorController extends Controller
             ]);
         }
 
-        $request->session()->put('two_factor.verified_at', now()->timestamp);
         $request->session()->forget('two_factor.purpose');
 
         if (! $user->two_factor_confirmed_at) {
@@ -71,9 +70,13 @@ class TwoFactorController extends Controller
 
         if ($request->session()->has('two_factor.pending_user_id')) {
             $request->session()->forget('two_factor.pending_user_id');
-            Auth::login($user);
-            $request->session()->regenerate();
+
+            if (! Auth::check()) {
+                Auth::login($user);
+            }
         }
+
+        $request->session()->put('two_factor.verified_at', now()->timestamp);
 
         if ($user instanceof MustVerifyEmail && ! $user->hasVerifiedEmail()) {
             $verificationSentKey = 'verification_email_sent:'.$user->id;

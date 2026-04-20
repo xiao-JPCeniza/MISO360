@@ -128,6 +128,11 @@ class NatureOfRequestManagementTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->assertDatabaseCount('nature_of_requests', 22);
+        $this->assertDatabaseHas('nature_of_requests', [
+            'name' => 'Data release request and approval',
+            'is_active' => true,
+        ]);
+
+        $this->assertDatabaseCount('nature_of_requests', 23);
     }
 }

@@ -10,6 +10,8 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    private const BORROW_UNIT_NATURE_NAME = 'Borrow Unit';
+
     public function index(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
@@ -18,13 +20,23 @@ class DashboardController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
+        $borrowNatureId = $this->borrowUnitNatureId();
+
         $queuedCountForUser = TicketRequest::query()
             ->where('user_id', $user->id)
             ->pending()
+            ->when(
+                $borrowNatureId,
+                fn ($q) => $q->where('nature_of_request_id', '!=', $borrowNatureId)
+            )
             ->count();
 
         $totalRequestsForUser = TicketRequest::query()
             ->where('user_id', $user->id)
+            ->when(
+                $borrowNatureId,
+                fn ($q) => $q->where('nature_of_request_id', '!=', $borrowNatureId)
+            )
             ->count();
 
         $queueQuery = TicketRequest::query()
@@ -36,6 +48,10 @@ class DashboardController extends Controller
                 'status:id,name',
                 'category:id,name',
             ])
+            ->when(
+                $borrowNatureId,
+                fn ($q) => $q->where('nature_of_request_id', '!=', $borrowNatureId)
+            )
             ->orderBy('created_at');
 
         $activeQueueTotal = $queueQuery->count();
@@ -58,5 +74,14 @@ class DashboardController extends Controller
             'currentQueue' => $currentQueue,
             'activeQueueTotal' => $activeQueueTotal,
         ]);
+    }
+
+    private function borrowUnitNatureId(): ?int
+    {
+        $id = \App\Models\NatureOfRequest::query()
+            ->where('name', self::BORROW_UNIT_NATURE_NAME)
+            ->value('id');
+
+        return is_numeric($id) ? (int) $id : null;
     }
 }

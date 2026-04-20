@@ -7,6 +7,8 @@ use App\Models\IssuedUid;
 use App\Models\NatureOfRequest;
 use App\Models\TicketArchive;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -15,6 +17,12 @@ class StoreTicketRequestRequest extends FormRequest
     private const PASSWORD_RESET_ACCOUNT_RECOVERY_NATURE = 'password reset or account recovery (gov mail)';
 
     private const SYSTEM_ACCOUNT_CREATION_NATURE = 'system account creation';
+
+    private const REQUEST_NEW_SYSTEM_MODULE_OR_ENHANCEMENT_NATURE = 'request for new system module or enhancement';
+
+    private const DATA_RELEASE_REQUEST_AND_APPROVAL_NATURE = 'data release request and approval';
+
+    private const DATA_REQUEST_AND_APPROVAL_NATURE = 'data request and approval';
 
     /**
      * Determine if the user is authorized to make this request.
@@ -51,6 +59,12 @@ class StoreTicketRequestRequest extends FormRequest
         if (isset($files['systemChangeRequestFormAttachments'])) {
             $att = $files['systemChangeRequestFormAttachments'];
             $normalized['systemChangeRequestFormAttachments'] = is_array($att)
+                ? $att
+                : [0 => $att];
+        }
+        if (isset($files['dataReleaseRequestFormAttachments'])) {
+            $att = $files['dataReleaseRequestFormAttachments'];
+            $normalized['dataReleaseRequestFormAttachments'] = is_array($att)
                 ? $att
                 : [0 => $att];
         }
@@ -143,19 +157,25 @@ class StoreTicketRequestRequest extends FormRequest
             'attachments' => ['nullable', 'array', 'max:5'],
             'attachments.*' => [
                 'file',
-                'mimes:jpg,jpeg,png,webp,mp4,mov',
+                'mimes:jpg,jpeg,png,webp,mp4,mov,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,rtf,odt,ods,odp',
                 'max:10240',
             ],
             'systemDevelopmentSurveyFormAttachments' => ['nullable', 'array', 'max:5'],
             'systemDevelopmentSurveyFormAttachments.*' => [
                 'file',
-                'mimes:pdf',
+                'extensions:pdf,doc,docx',
                 'max:10240',
             ],
             'systemChangeRequestFormAttachments' => ['nullable', 'array', 'max:5'],
             'systemChangeRequestFormAttachments.*' => [
                 'file',
-                'mimes:pdf',
+                'extensions:pdf,doc,docx',
+                'max:10240',
+            ],
+            'dataReleaseRequestFormAttachments' => ['nullable', 'array', 'max:5'],
+            'dataReleaseRequestFormAttachments.*' => [
+                'file',
+                'extensions:pdf,doc,docx',
                 'max:10240',
             ],
             'systemDevelopmentSurvey' => ['nullable', 'array'],
@@ -236,34 +256,40 @@ class StoreTicketRequestRequest extends FormRequest
         });
 
         $validator->after(function (Validator $validator) {
-            if ($this->isSystemModification()) {
-                $attachments = $this->input('systemChangeRequestFormAttachments');
-                if (! is_array($attachments) || count($attachments) === 0) {
+            if ($this->requiresSystemChangeRequestPdf()) {
+                $hasPdf = $this->hasValidUploadedFiles('systemChangeRequestFormAttachments');
+                if (! $hasPdf) {
                     $validator->errors()->add(
                         'systemChangeRequestFormAttachments',
-                        'Completed System Change Request Form (PDF) is required. Download the form, complete it offline, then upload it here.',
+                        'Completed System Change Request Form (PDF, DOC, or DOCX) is required. Download the form, complete it offline, then upload it here.',
                     );
                 }
-                if (is_array($this->input('systemChangeRequestForm'))) {
+                if (! $hasPdf && is_array($this->input('systemChangeRequestForm'))) {
                     $this->validateSystemChangeRequestForm($validator);
                 }
 
                 return;
             }
 
-            if (! $this->isSystemDevelopment()) {
-                if ($this->isSystemErrorBugReport()) {
-                    $this->validateSystemIssueReport($validator);
+            if ($this->isDataReleaseRequestAndApproval()) {
+                if (! $this->hasValidUploadedFiles('dataReleaseRequestFormAttachments')) {
+                    $validator->errors()->add(
+                        'dataReleaseRequestFormAttachments',
+                        'Completed Data Request and Approval Form (PDF, DOC, or DOCX) is required. Download the form, complete it offline, then upload it here.',
+                    );
                 }
 
                 return;
             }
 
-            $attachments = $this->input('systemDevelopmentSurveyFormAttachments');
-            if (! is_array($attachments) || count($attachments) === 0) {
+            if (! $this->isSystemDevelopment()) {
+                return;
+            }
+
+            if (! $this->hasValidUploadedFiles('systemDevelopmentSurveyFormAttachments')) {
                 $validator->errors()->add(
                     'systemDevelopmentSurveyFormAttachments',
-                    'Completed Systems Development Survey Form (PDF) is required. Download the form from the submit page, complete it offline, then upload it here.',
+                    'Completed Systems Development Survey Form (PDF, DOC, or DOCX) is required. Download the form from the submit page, complete it offline, then upload it here.',
                 );
             }
         });
@@ -301,6 +327,9 @@ class StoreTicketRequestRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'systemDevelopmentSurveyFormAttachments.*.extensions' => 'Each systems development form attachment must be a PDF, DOC, or DOCX file.',
+            'systemChangeRequestFormAttachments.*.extensions' => 'Each system change request attachment must be a PDF, DOC, or DOCX file.',
+            'dataReleaseRequestFormAttachments.*.extensions' => 'Each data request attachment must be a PDF, DOC, or DOCX file.',
             'natureOfRequestId.required' => 'Please select a nature of request.',
             'officeDesignationId.required' => 'Please select an office designation.',
             'requestedForUserId.required' => 'Please select a user for this request.',
@@ -314,6 +343,7 @@ class StoreTicketRequestRequest extends FormRequest
             'description.min' => 'Description must be at least 10 characters.',
             'description.max' => 'Description may not exceed 1000 characters.',
             'systemDevelopmentSurveyFormAttachments.max' => 'You may upload up to 5 system development form attachments.',
+            'dataReleaseRequestFormAttachments.max' => 'You may upload up to 5 data request form attachments.',
             'systemIssueReportAttachments.max' => 'You may upload up to 5 system issue report attachments.',
         ];
     }
@@ -374,6 +404,65 @@ class StoreTicketRequestRequest extends FormRequest
             ->value('name');
 
         return is_string($name) && strtolower(trim($name)) === 'system modification';
+    }
+
+    private function isRequestForNewSystemModuleOrEnhancement(): bool
+    {
+        $natureId = $this->integer('natureOfRequestId');
+        if (! $natureId) {
+            return false;
+        }
+
+        $name = NatureOfRequest::query()
+            ->whereKey($natureId)
+            ->value('name');
+
+        return is_string($name)
+            && strtolower(trim($name)) === self::REQUEST_NEW_SYSTEM_MODULE_OR_ENHANCEMENT_NATURE;
+    }
+
+    private function isDataReleaseRequestAndApproval(): bool
+    {
+        $natureId = $this->integer('natureOfRequestId');
+        if (! $natureId) {
+            return false;
+        }
+
+        $name = NatureOfRequest::query()
+            ->whereKey($natureId)
+            ->value('name');
+
+        if (! is_string($name)) {
+            return false;
+        }
+
+        $normalized = strtolower(trim($name));
+
+        return $normalized === self::DATA_RELEASE_REQUEST_AND_APPROVAL_NATURE
+            || $normalized === self::DATA_REQUEST_AND_APPROVAL_NATURE;
+    }
+
+    private function requiresSystemChangeRequestPdf(): bool
+    {
+        return $this->isSystemModification() || $this->isRequestForNewSystemModuleOrEnhancement();
+    }
+
+    /**
+     * @param  'systemChangeRequestFormAttachments'|'systemDevelopmentSurveyFormAttachments'  $key
+     */
+    private function hasValidUploadedFiles(string $key): bool
+    {
+        if (! $this->hasFile($key)) {
+            return false;
+        }
+
+        foreach (Arr::wrap($this->file($key)) as $file) {
+            if ($file instanceof UploadedFile && $file->isValid()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isSystemErrorBugReport(): bool
@@ -448,7 +537,7 @@ class StoreTicketRequestRequest extends FormRequest
         if (! is_array($form)) {
             $validator->errors()->add(
                 'systemChangeRequestForm',
-                'System Change Request Form is required for System Modification requests.',
+                'System Change Request Form is required for this type of request.',
             );
 
             return;

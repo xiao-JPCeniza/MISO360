@@ -157,7 +157,17 @@ class User extends Authenticatable implements MustVerifyEmail
             return false;
         }
 
-        return $this->two_factor_enabled !== false;
+        if ($this->two_factor_enabled === false) {
+            return false;
+        }
+
+        if (config('security.two_factor.skip_for_fully_verified_users', true)
+            && $this->hasVerifiedEmail()
+            && $this->isApprovedByAdmin()) {
+            return false;
+        }
+
+        return true;
     }
 
     public function officeDesignation(): BelongsTo

@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import { useDebounceFn } from '@vueuse/core';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 import { toggleAdminVerification as adminVerificationToggle } from '@/actions/App/Http/Controllers/Admin/UserManagementController';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
-import { CheckCircle2, Loader2, XCircle } from 'lucide-vue-next';
+import { CheckCircle2, Loader2, Search, XCircle } from 'lucide-vue-next';
 import { type BreadcrumbItem } from '@/types';
 
 type Paginated<T> = {
@@ -28,11 +29,16 @@ type UserRow = {
     two_factor_enabled: boolean;
     admin_verified_at?: string | null;
     created_at: string;
+    office_designation?: { id: number; name: string } | null;
 };
 
 const props = defineProps<{
     users: Paginated<UserRow>;
     roleOptions: Record<string, string>;
+    filters: {
+        verification: 'all' | 'verified' | 'unverified';
+        search: string;
+    };
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -47,6 +53,39 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const togglingUserId = ref<number | null>(null);
+
+const localVerification = ref(props.filters.verification);
+const localSearch = ref(props.filters.search);
+
+watch(
+    () => props.filters,
+    (next) => {
+        localVerification.value = next.verification;
+        localSearch.value = next.search;
+    },
+    { deep: true },
+);
+
+function visitWithFilters(): void {
+    router.get(
+        '/admin/users',
+        {
+            verification: localVerification.value,
+            search: localSearch.value.trim() || undefined,
+        },
+        { preserveState: true, preserveScroll: true, replace: true },
+    );
+}
+
+const debouncedVisitWithFilters = useDebounceFn(() => visitWithFilters(), 350);
+
+function onVerificationChange(): void {
+    visitWithFilters();
+}
+
+function onSearchInput(): void {
+    debouncedVisitWithFilters();
+}
 
 function roleIsElevated(role: string): boolean {
     return role === 'admin' || role === 'super_admin';
@@ -126,8 +165,40 @@ function verificationToggleAriaLabel(row: UserRow): string {
             </section>
 
             <section class="rounded-3xl border border-sidebar-border/60 bg-background p-6">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <h2 class="text-lg font-semibold">Users</h2>
+                    <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+                        <label class="flex min-w-[10rem] flex-col gap-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                            Verification
+                            <select
+                                v-model="localVerification"
+                                class="h-10 rounded-xl border border-sidebar-border/70 bg-background px-3 text-sm font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:bg-background"
+                                @change="onVerificationChange"
+                            >
+                                <option value="all">All users</option>
+                                <option value="verified">Verified</option>
+                                <option value="unverified">Unverified</option>
+                            </select>
+                        </label>
+                        <label class="flex min-w-0 flex-1 flex-col gap-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:min-w-[16rem]">
+                            Search
+                            <span class="relative block">
+                                <Search
+                                    class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                <input
+                                    v-model="localSearch"
+                                    type="search"
+                                    name="search"
+                                    autocomplete="off"
+                                    placeholder="Name or office…"
+                                    class="h-10 w-full rounded-xl border border-sidebar-border/70 bg-background py-2 pl-9 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:bg-background"
+                                    @input="onSearchInput"
+                                />
+                            </span>
+                        </label>
+                    </div>
                 </div>
 
                 <div v-if="!props.users.data.length" class="mt-6 rounded-2xl border border-dashed border-sidebar-border/70 p-8 text-center text-sm text-muted-foreground">
@@ -136,7 +207,7 @@ function verificationToggleAriaLabel(row: UserRow): string {
 
                 <div v-else class="mt-6 overflow-hidden rounded-2xl border border-sidebar-border/60">
                     <div class="hidden grid-cols-[1.2fr_1.2fr_0.55fr_0.55fr_0.5fr_0.4fr] gap-4 border-b border-sidebar-border/60 bg-muted/30 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:grid">
-                        <span>User</span>
+                        <span>User & office</span>
                         <span>Contact</span>
                         <span>Role</span>
                         <span>Verified</span>
@@ -152,6 +223,10 @@ function verificationToggleAriaLabel(row: UserRow): string {
                             <div>
                                 <p class="font-semibold">{{ user.name }}</p>
                                 <p class="text-xs text-muted-foreground">{{ user.email }}</p>
+                                <p v-if="user.office_designation?.name" class="mt-1 text-xs text-muted-foreground">
+                                    Office:
+                                    <span class="font-medium text-foreground/80">{{ user.office_designation.name }}</span>
+                                </p>
                             </div>
                             <div class="text-xs text-muted-foreground">
                                 <p>{{ user.phone || 'No phone on file' }}</p>

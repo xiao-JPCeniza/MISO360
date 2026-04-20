@@ -191,8 +191,11 @@ const systemIssueReportAttachments = computed(() => props.ticket.systemIssueRepo
 const isSystemDevelopment = computed(() => {
     return (props.ticket.natureOfRequest ?? '').trim().toLowerCase() === 'system development';
 });
-const isSystemModification = computed(() => {
-    return (props.ticket.natureOfRequest ?? '').trim().toLowerCase() === 'system modification';
+const isSystemChangeRequestNature = computed(() => {
+    const n = (props.ticket.natureOfRequest ?? '').trim().toLowerCase();
+    return (
+        n === 'system modification' || n === 'request for new system module or enhancement'
+    );
 });
 const isSystemErrorBugReport = computed(() => {
     return (props.ticket.natureOfRequest ?? '').trim().toLowerCase() === 'system error / bug report';
@@ -622,7 +625,7 @@ function submitForm() {
                 </div>
 
                 <div
-                    v-if="isSystemModification && systemChangeRequestForm"
+                    v-if="isSystemChangeRequestNature && systemChangeRequestForm"
                     class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm"
                 >
                     <h2 class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/70">

@@ -78,6 +78,17 @@ class TicketRequestSubmissionTest extends TestCase
                 'attachments' => [
                     UploadedFile::fake()->image('photo.jpg')->size(512),
                     UploadedFile::fake()->create('video.mp4', 1024, 'video/mp4'),
+                    UploadedFile::fake()->create('request.pdf', 256, 'application/pdf'),
+                    UploadedFile::fake()->create(
+                        'request.docx',
+                        256,
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    ),
+                    UploadedFile::fake()->create(
+                        'request.xlsx',
+                        256,
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    ),
                 ],
             ]);
 
@@ -103,6 +114,43 @@ class TicketRequestSubmissionTest extends TestCase
             ->first(fn (array $attachment) => isset($attachment['path']));
         $this->assertNotNull($fileAttachment);
         $this->assertTrue(Storage::disk('public')->exists($fileAttachment['path']));
+    }
+
+    public function test_user_can_submit_ticket_request_with_text_attachment(): void
+    {
+        Storage::fake('public');
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer Repair',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00007', now()->format('Y'));
+
+        $response = $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Submitting a ticket with text attachment for diagnostics.',
+                'hasQrCode' => false,
+                'attachments' => [
+                    UploadedFile::fake()->create('diagnostics.txt', 128, 'text/plain'),
+                ],
+            ]);
+
+        $response->assertRedirect();
+
+        $ticketRequest = TicketRequest::query()
+            ->where('control_ticket_number', $controlTicketNumber)
+            ->firstOrFail();
+        $this->assertNotEmpty($ticketRequest->attachments);
+        $attachment = collect($ticketRequest->attachments)
+            ->first(fn (array $entry) => isset($entry['path']) && str_contains(($entry['name'] ?? ''), 'diagnostics.txt'));
+        $this->assertNotNull($attachment);
+        $this->assertTrue(Storage::disk('public')->exists($attachment['path']));
     }
 
     public function test_system_development_requires_uploaded_form(): void
@@ -621,7 +669,7 @@ class TicketRequestSubmissionTest extends TestCase
         );
     }
 
-    public function test_system_error_bug_report_requires_system_issue_report_form(): void
+    public function test_system_error_bug_report_can_submit_without_embedded_system_issue_report_form(): void
     {
         /** @var User $user */
         $user = User::factory()->create();
@@ -641,9 +689,12 @@ class TicketRequestSubmissionTest extends TestCase
                 'description' => 'The application crashes when submitting the form.',
                 'hasQrCode' => false,
             ])
-            ->assertSessionHasErrors([
-                'systemIssueReport',
-            ]);
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('ticket_requests', [
+            'control_ticket_number' => $controlTicketNumber,
+            'nature_of_request_id' => $natureOfRequest->id,
+        ]);
     }
 
     public function test_user_can_submit_ticket_request_with_system_issue_report(): void
@@ -758,5 +809,202 @@ class TicketRequestSubmissionTest extends TestCase
         $enrollment = TicketEnrollment::where('unique_id', 'MIS-UID-00099')->first();
         $this->assertNotNull($enrollment);
         $this->assertSame('Computer repair', $enrollment->request_nature);
+    }
+
+    public function test_system_modification_submits_when_scr_pdf_uploaded_even_if_inline_form_incomplete(): void
+    {
+        Storage::fake('public');
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'System Modification',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00888', now()->format('Y'));
+
+        $response = $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Details are provided in the uploaded System Change Request Form (PDF).',
+                'hasQrCode' => false,
+                'systemChangeRequestFormAttachments' => [
+                    0 => UploadedFile::fake()->create('completed-form.pdf', 200, 'application/pdf'),
+                ],
+                'systemChangeRequestForm' => [
+                    'controlNumber' => $controlTicketNumber,
+                    'date' => now()->format('Y-m-d'),
+                    'officeDivision' => '',
+                    'requestedByName' => '',
+                    'nameOfSoftware' => '',
+                    'typeOfRequest' => '',
+                    'descriptionOfRequest' => '',
+                    'purposeObjectiveOfModification' => '',
+                    'detailedDescriptionOfRequestedChange' => '',
+                    'evaluatedBy' => '',
+                    'approvedBy' => '',
+                    'notedBy' => '',
+                    'remarks' => '',
+                ],
+            ]);
+
+        $response->assertRedirect();
+
+        $ticketRequest = TicketRequest::firstOrFail();
+        $hasScrAttachment = collect($ticketRequest->attachments ?? [])
+            ->contains(fn (array $a) => ($a['type'] ?? null) === 'system_change_request_form_attachment');
+        $this->assertTrue($hasScrAttachment);
+    }
+
+    public function test_system_modification_accepts_scr_docx_upload(): void
+    {
+        Storage::fake('public');
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'System Modification',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00891', now()->format('Y'));
+
+        $response = $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Details are provided in the uploaded System Change Request Form.',
+                'hasQrCode' => false,
+                'systemChangeRequestFormAttachments' => [
+                    0 => UploadedFile::fake()->create(
+                        'completed-form.docx',
+                        200,
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    ),
+                ],
+            ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('ticket_requests', [
+            'control_ticket_number' => $controlTicketNumber,
+        ]);
+    }
+
+    public function test_system_modification_accepts_scr_pdf_with_application_octet_stream_mime(): void
+    {
+        Storage::fake('public');
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'System Modification',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00889', now()->format('Y'));
+
+        $response = $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Details are provided in the uploaded System Change Request Form (PDF).',
+                'hasQrCode' => false,
+                'systemChangeRequestFormAttachments' => [
+                    0 => UploadedFile::fake()->create('saved-from-acrobat.pdf', 200, 'application/octet-stream'),
+                ],
+            ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('ticket_requests', [
+            'control_ticket_number' => $controlTicketNumber,
+        ]);
+    }
+
+    public function test_request_for_new_system_module_or_enhancement_requires_scr_pdf(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Request for new system module or enhancement',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00890', now()->format('Y'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Requesting a new module or enhancement for an existing system.',
+                'hasQrCode' => false,
+            ])
+            ->assertSessionHasErrors([
+                'systemChangeRequestFormAttachments',
+            ]);
+    }
+
+    public function test_data_request_and_approval_requires_uploaded_form(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Data request and approval',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00892', now()->format('Y'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Requesting data release and approval.',
+                'hasQrCode' => false,
+            ])
+            ->assertSessionHasErrors([
+                'dataReleaseRequestFormAttachments',
+            ]);
+    }
+
+    public function test_data_request_and_approval_accepts_doc_upload(): void
+    {
+        Storage::fake('public');
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Data request and approval',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00893', now()->format('Y'));
+
+        $response = $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Details are provided in the uploaded Data Request and Approval Form.',
+                'hasQrCode' => false,
+                'dataReleaseRequestFormAttachments' => [
+                    0 => UploadedFile::fake()->create('data-request.doc', 180, 'application/msword'),
+                ],
+            ]);
+
+        $response->assertRedirect();
+
+        $ticketRequest = TicketRequest::firstOrFail();
+        $hasAttachment = collect($ticketRequest->attachments ?? [])
+            ->contains(fn (array $a) => ($a['type'] ?? null) === 'data_release_request_form_attachment');
+        $this->assertTrue($hasAttachment);
     }
 }

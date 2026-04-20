@@ -74,6 +74,13 @@ class TicketRequestController extends Controller
             ],
             'bundled_filename' => 'System Change Request Form.pdf',
         ],
+        'data-request-approval' => [
+            'download_name' => 'Data Request and Approval Form.docx',
+            'paths' => [
+                'Forms/Data Request and Approval Form.docx',
+            ],
+            'bundled_filename' => 'Data Request and Approval Form.docx',
+        ],
     ];
 
     public function index(Request $request): Response
@@ -251,10 +258,12 @@ class TicketRequestController extends Controller
 
         $downloadName = $template['download_name'] ?? basename($absolutePath);
 
+        $contentType = mime_content_type($absolutePath) ?: 'application/octet-stream';
+
         return response()->download(
             $absolutePath,
             is_string($downloadName) && trim($downloadName) !== '' ? $downloadName : basename($absolutePath),
-            ['Content-Type' => 'application/pdf'],
+            ['Content-Type' => $contentType],
         );
     }
 
@@ -289,7 +298,7 @@ class TicketRequestController extends Controller
     }
 
     /**
-     * @return array{systemsDevelopmentSurvey: string, accessRightsEnrolment: string, systemIssueReport: string, systemChangeRequest: string}
+     * @return array{systemsDevelopmentSurvey: string, accessRightsEnrolment: string, systemIssueReport: string, systemChangeRequest: string, dataRequestApproval: string}
      */
     private function formTemplateUrls(): array
     {
@@ -298,6 +307,7 @@ class TicketRequestController extends Controller
             'accessRightsEnrolment' => route('forms.download', ['form' => 'access-rights-enrolment']),
             'systemIssueReport' => route('forms.download', ['form' => 'system-issue-report']),
             'systemChangeRequest' => route('forms.download', ['form' => 'system-change-request']),
+            'dataRequestApproval' => route('forms.download', ['form' => 'data-request-approval']),
         ];
     }
 
@@ -495,6 +505,25 @@ class TicketRequestController extends Controller
                     'formIndex' => (int) $index,
                     'titleOfForm' => is_string($titleOfForm) ? $titleOfForm : null,
                     'description' => is_string($description) ? $description : null,
+                    'path' => $path,
+                    'name' => $file->getClientOriginalName(),
+                    'size' => $file->getSize() ?: 0,
+                    'mime' => $file->getMimeType() ?: 'application/octet-stream',
+                ];
+            }
+        }
+
+        if ($request->hasFile('dataReleaseRequestFormAttachments')) {
+            $files = $request->file('dataReleaseRequestFormAttachments', []);
+            $files = is_array($files) ? $files : [$files];
+            foreach ($files as $file) {
+                if (! $file || ! $file->isValid()) {
+                    continue;
+                }
+
+                $path = $file->store('ticket-requests/data-request-forms', 'public');
+                $attachments[] = [
+                    'type' => 'data_release_request_form_attachment',
                     'path' => $path,
                     'name' => $file->getClientOriginalName(),
                     'size' => $file->getSize() ?: 0,

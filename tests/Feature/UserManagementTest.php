@@ -9,6 +9,7 @@ use App\Models\ReferenceValue;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class UserManagementTest extends TestCase
@@ -221,5 +222,72 @@ class UserManagementTest extends TestCase
             ->assertStatus(403);
 
         $this->assertNotNull(User::find($superAdmin->id));
+    }
+
+    public function test_admin_users_index_filters_unverified_accounts(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $unverified = User::factory()->pendingAdminVerification()->create([
+            'role' => Role::USER,
+        ]);
+        User::factory()->create([
+            'role' => Role::USER,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => Carbon::now()->timestamp,
+            ])
+            ->get(route('admin.users.index', ['verification' => 'unverified']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/users/Index')
+                ->has('users.data', 1)
+                ->where('users.data.0.id', $unverified->id)
+                ->where('filters.verification', 'unverified')
+            );
+    }
+
+    public function test_admin_users_index_search_matches_name_or_office(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $office = ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::OfficeDesignation->value,
+            'name' => 'Northwing Annex Seven',
+        ]);
+        $byOffice = User::factory()->create([
+            'name' => 'Quiet User',
+            'office_designation_id' => $office->id,
+        ]);
+        User::factory()->create([
+            'name' => 'Other Person',
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => Carbon::now()->timestamp,
+            ])
+            ->get(route('admin.users.index', ['search' => 'Northwing']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/users/Index')
+                ->has('users.data', 1)
+                ->where('users.data.0.id', $byOffice->id)
+            );
+
+        $this->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => Carbon::now()->timestamp,
+            ])
+            ->get(route('admin.users.index', ['search' => 'Quiet User']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/users/Index')
+                ->has('users.data', 1)
+                ->where('users.data.0.id', $byOffice->id)
+            );
     }
 }

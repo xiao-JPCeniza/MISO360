@@ -81,6 +81,7 @@ type FormDownloadUrls = {
     accessRightsEnrolment: string;
     systemIssueReport: string;
     systemChangeRequest: string;
+    dataRequestApproval: string;
 };
 
 type SystemIssueReport = {
@@ -163,6 +164,7 @@ const form = useForm({
     attachments: [] as File[],
     systemDevelopmentSurveyFormAttachments: {} as Record<string, File>,
     systemChangeRequestFormAttachments: {} as Record<string, File>,
+    dataReleaseRequestFormAttachments: {} as Record<string, File>,
     systemDevelopmentSurvey: {
         titleOfProposedSystem: '',
         targetCompletion: '',
@@ -290,8 +292,25 @@ const isSystemModification = computed(() => {
     return selectedNatureName.value.trim().toLowerCase() === 'system modification';
 });
 
+const isRequestForNewSystemModuleOrEnhancement = computed(() => {
+    return (
+        selectedNatureName.value.trim().toLowerCase()
+        === 'request for new system module or enhancement'
+    );
+});
+
+/** System Modification and New Module/Enhancement share the same downloadable SCR PDF workflow. */
+const requiresSystemChangeRequestPdf = computed(
+    () => isSystemModification.value || isRequestForNewSystemModuleOrEnhancement.value,
+);
+
 const isSystemErrorBugReport = computed(() => {
     return selectedNatureName.value.trim().toLowerCase() === 'system error / bug report';
+});
+
+const isDataReleaseRequestAndApproval = computed(() => {
+    const normalized = selectedNatureName.value.trim().toLowerCase();
+    return normalized === 'data release request and approval' || normalized === 'data request and approval';
 });
 
 const isPasswordResetOrAccountRecovery = computed(() => {
@@ -349,7 +368,7 @@ const systemDevelopmentFormUploadErrors = computed(() => {
 });
 
 const systemChangeRequestFormUploadErrors = computed(() => {
-    if (!submitAttempted.value || !isSystemModification.value) {
+    if (!submitAttempted.value || !requiresSystemChangeRequestPdf.value) {
         return {};
     }
     const attachments = form.systemChangeRequestFormAttachments;
@@ -360,7 +379,23 @@ const systemChangeRequestFormUploadErrors = computed(() => {
     }
     return {
         'systemChangeRequestFormAttachments.0':
-            'Completed System Change Request Form (PDF) is required. Download the form above, complete it offline, then upload it here.',
+            'Completed System Change Request Form (PDF, DOC, or DOCX) is required. Download the form above, complete it offline, then upload it here.',
+    };
+});
+
+const dataReleaseRequestFormUploadErrors = computed(() => {
+    if (!submitAttempted.value || !isDataReleaseRequestAndApproval.value) {
+        return {};
+    }
+    const attachments = form.dataReleaseRequestFormAttachments;
+    const hasFile = attachments && typeof attachments === 'object' && Object.keys(attachments).length > 0
+        && Object.values(attachments).some((v) => v instanceof File);
+    if (hasFile) {
+        return {};
+    }
+    return {
+        'dataReleaseRequestFormAttachments.0':
+            'Completed Data Request and Approval Form (PDF, DOC, or DOCX) is required. Download the form above, complete it offline, then upload it here.',
     };
 });
 
@@ -448,6 +483,32 @@ watch(
 );
 
 watch(
+    () => requiresSystemChangeRequestPdf.value,
+    (enabled) => {
+        if (!enabled) {
+            return;
+        }
+        if (form.description.trim().length < 10) {
+            form.description =
+                'Details are provided in the uploaded System Change Request Form (PDF).';
+        }
+    },
+);
+
+watch(
+    () => isDataReleaseRequestAndApproval.value,
+    (enabled) => {
+        if (!enabled) {
+            return;
+        }
+        if (form.description.trim().length < 10) {
+            form.description =
+                'Details are provided in the uploaded Data Request and Approval Form.';
+        }
+    },
+);
+
+watch(
     () => isSystemDevelopment.value,
     (enabled) => {
         if (!enabled) {
@@ -520,8 +581,41 @@ const acceptedTypes = [
     'image/webp',
     'video/mp4',
     'video/quicktime',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain',
+    'text/csv',
+    'application/rtf',
+    'application/vnd.oasis.opendocument.text',
+    'application/vnd.oasis.opendocument.spreadsheet',
+    'application/vnd.oasis.opendocument.presentation',
 ];
-const acceptedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'mov'];
+const acceptedExtensions = [
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+    'mp4',
+    'mov',
+    'pdf',
+    'doc',
+    'docx',
+    'xls',
+    'xlsx',
+    'ppt',
+    'pptx',
+    'txt',
+    'csv',
+    'rtf',
+    'odt',
+    'ods',
+    'odp',
+];
 const acceptAttribute = acceptedExtensions.map((ext) => `.${ext}`).join(',');
 
 function formatSize(size: number) {
@@ -630,6 +724,7 @@ function submitTicket() {
         Object.keys(surveyErrors.value).length > 0 ||
         Object.keys(systemDevelopmentFormUploadErrors.value).length > 0 ||
         Object.keys(systemChangeRequestFormUploadErrors.value).length > 0 ||
+        Object.keys(dataReleaseRequestFormUploadErrors.value).length > 0 ||
         Object.keys(systemIssueReportErrors.value).length > 0
     ) {
         if (natureError.value) {
@@ -660,6 +755,9 @@ function submitTicket() {
         Object.entries(systemChangeRequestFormUploadErrors.value).forEach(([key, message]) => {
             form.setError(key as never, String(message));
         });
+        Object.entries(dataReleaseRequestFormUploadErrors.value).forEach(([key, message]) => {
+            form.setError(key as never, String(message));
+        });
         Object.entries(systemIssueReportErrors.value).forEach(([key, message]) => {
             form.setError(key as never, String(message));
         });
@@ -678,7 +776,7 @@ function submitTicket() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="submit-request-theme -mx-6 -mt-20 min-h-screen bg-background text-foreground">
-            <div class="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 pb-12 pt-12">
+            <div class="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 pb-28 pt-12">
                 <div class="space-y-2">
                     <h1 class="text-3xl font-bold text-foreground md:text-4xl">
                         Submit a Ticket Request
@@ -943,7 +1041,7 @@ function submitTicket() {
                                 </label>
                                 <input
                                     type="file"
-                                    accept=".pdf"
+                                    accept=".pdf,.doc,.docx"
                                     class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
                                     @change="(e) => {
                                         const target = e.target as HTMLInputElement;
@@ -962,7 +1060,7 @@ function submitTicket() {
                                     {{ form.errors['systemDevelopmentSurveyFormAttachments'] || form.errors['systemDevelopmentSurveyFormAttachments.0'] || systemDevelopmentFormUploadErrors['systemDevelopmentSurveyFormAttachments.0'] }}
                                 </p>
                                 <p v-else class="text-xs text-muted-foreground">
-                                    Upload the completed PDF. Only PDF is accepted.
+                                    Upload the completed form. PDF, DOC, or DOCX is accepted.
                                 </p>
                             </div>
                         </div>
@@ -988,15 +1086,15 @@ function submitTicket() {
                         </div>
 
                         <div
-                            v-if="isSystemModification"
+                            v-if="requiresSystemChangeRequestPdf"
                             class="grid gap-5 rounded-2xl border border-border bg-muted/20 p-5 dark:border-white/10 dark:bg-white/5"
                         >
                             <div class="space-y-3">
                                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    System Modification Request – System Change Request Form (Required)
+                                    System Change Request Form (Required)
                                 </p>
                                 <p class="text-sm text-muted-foreground">
-                                    Download the form below, complete it offline, then upload the completed form before submitting your request.
+                                    For system modification, or a request for a new system module or enhancement: download the form below, complete it offline, then upload the completed PDF before submitting.
                                 </p>
                                 <a
                                     :href="formDownloadUrls.systemChangeRequest"
@@ -1012,7 +1110,7 @@ function submitTicket() {
                                 </label>
                                 <input
                                     type="file"
-                                    accept=".pdf"
+                                    accept=".pdf,.doc,.docx"
                                     class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
                                     @change="(e) => {
                                         const target = e.target as HTMLInputElement;
@@ -1031,7 +1129,56 @@ function submitTicket() {
                                     {{ form.errors['systemChangeRequestFormAttachments'] || form.errors['systemChangeRequestFormAttachments.0'] || systemChangeRequestFormUploadErrors['systemChangeRequestFormAttachments.0'] }}
                                 </p>
                                 <p v-else class="text-xs text-muted-foreground">
-                                    Upload the completed PDF. Only PDF is accepted.
+                                    Upload the completed form. PDF, DOC, or DOCX is accepted.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="isDataReleaseRequestAndApproval"
+                            class="grid gap-5 rounded-2xl border border-border bg-muted/20 p-5 dark:border-white/10 dark:bg-white/5"
+                        >
+                            <div class="space-y-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Data Request and Approval Form (Required)
+                                </p>
+                                <p class="text-sm text-muted-foreground">
+                                    Download the form below, complete it offline, then upload the completed PDF, DOC, or DOCX before submitting.
+                                </p>
+                                <a
+                                    :href="formDownloadUrls.dataRequestApproval"
+                                    class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
+                                >
+                                    Download Data Request and Approval Form (DOCX)
+                                </a>
+                            </div>
+
+                            <div class="grid gap-2">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Upload completed form (required)
+                                </label>
+                                <input
+                                    type="file"
+                                    accept=".pdf,.doc,.docx"
+                                    class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
+                                    @change="(e) => {
+                                        const target = e.target as HTMLInputElement;
+                                        const file = target.files?.[0];
+                                        if (file) {
+                                            form.dataReleaseRequestFormAttachments = { '0': file };
+                                        } else {
+                                            form.dataReleaseRequestFormAttachments = {};
+                                        }
+                                    }"
+                                />
+                                <p
+                                    v-if="form.errors['dataReleaseRequestFormAttachments'] || form.errors['dataReleaseRequestFormAttachments.0'] || dataReleaseRequestFormUploadErrors['dataReleaseRequestFormAttachments.0']"
+                                    class="text-xs text-destructive"
+                                >
+                                    {{ form.errors['dataReleaseRequestFormAttachments'] || form.errors['dataReleaseRequestFormAttachments.0'] || dataReleaseRequestFormUploadErrors['dataReleaseRequestFormAttachments.0'] }}
+                                </p>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    Upload the completed form. PDF, DOC, or DOCX is accepted.
                                 </p>
                             </div>
                         </div>
@@ -1057,7 +1204,7 @@ function submitTicket() {
                         </div>
 
                         <div
-                            v-if="!isSystemModification && !isPasswordResetOrAccountRecovery"
+                            v-if="!requiresSystemChangeRequestPdf && !isPasswordResetOrAccountRecovery"
                             class="grid gap-3"
                         >
                             <div class="flex items-center justify-between">
@@ -1119,7 +1266,7 @@ function submitTicket() {
                                     />
                                 </label>
                                 <p class="text-xs text-muted-foreground">
-                                    JPG, PNG, WEBP, MP4, MOV up to {{ maxAttachmentSizeMb }}MB each
+                                    JPG, PNG, WEBP, MP4, MOV, PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, RTF, ODT/ODS/ODP up to {{ maxAttachmentSizeMb }}MB each
                                 </p>
                                 <p v-if="uploadError" class="text-xs text-destructive">
                                     {{ uploadError }}

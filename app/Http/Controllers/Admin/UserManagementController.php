@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\ReferenceValueGroup;
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ListUsersRequest;
 use App\Http\Requests\Admin\UpdateUserPasswordRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Http\Requests\Admin\UpdateUserRoleRequest;
@@ -14,6 +15,7 @@ use App\Models\AuditLog;
 use App\Models\ReferenceValue;
 use App\Models\User;
 use App\Services\AuditLogger;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,9 +26,11 @@ use Throwable;
 
 class UserManagementController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(ListUsersRequest $request): Response
     {
-        Gate::authorize('viewAny', User::class);
+        $validated = $request->validated();
+        $verification = $validated['verification'];
+        $search = trim((string) ($validated['search'] ?? ''));
 
         $selectColumns = [
             'id',
@@ -37,17 +41,35 @@ class UserManagementController extends Controller
             'is_active',
             'two_factor_enabled',
             'created_at',
+            'office_designation_id',
         ];
 
         if ($this->usersTableHasAdminVerifiedAtColumn()) {
             $selectColumns[] = 'admin_verified_at';
         }
 
-        $users = User::query()
+        $query = User::query()
             ->select($selectColumns)
-            ->orderBy('name')
-            ->paginate(15)
-            ->withQueryString();
+            ->with([
+                'officeDesignation' => static function ($relation): void {
+                    $relation->select('id', 'name');
+                },
+            ])
+            ->orderBy('name');
+
+        $this->applyVerificationFilter($query, $verification, $this->usersTableHasAdminVerifiedAtColumn());
+
+        if ($search !== '') {
+            $like = '%'.addcslashes($search, '%_\\').'%';
+            $query->where(static function (Builder $builder) use ($like): void {
+                $builder->where('users.name', 'like', $like)
+                    ->orWhereHas('officeDesignation', static function (Builder $officeQuery) use ($like): void {
+                        $officeQuery->where('name', 'like', $like);
+                    });
+            });
+        }
+
+        $users = $query->paginate(15)->withQueryString();
 
         if (! $this->usersTableHasAdminVerifiedAtColumn()) {
             $users->getCollection()->transform(function (User $user) {
@@ -60,7 +82,37 @@ class UserManagementController extends Controller
         return Inertia::render('admin/users/Index', [
             'users' => $users,
             'roleOptions' => Role::options(),
+            'filters' => [
+                'verification' => $verification,
+                'search' => $search,
+            ],
         ]);
+    }
+
+    private function applyVerificationFilter(Builder $query, string $verification, bool $hasAdminVerifiedAtColumn): void
+    {
+        if ($verification === 'all') {
+            return;
+        }
+
+        $elevatedRoles = [Role::ADMIN->value, Role::SUPER_ADMIN->value];
+
+        if ($verification === 'verified') {
+            $query->where(static function (Builder $builder) use ($elevatedRoles, $hasAdminVerifiedAtColumn): void {
+                $builder->whereIn('role', $elevatedRoles);
+                if ($hasAdminVerifiedAtColumn) {
+                    $builder->orWhereNotNull('admin_verified_at');
+                }
+            });
+
+            return;
+        }
+
+        $query->whereNotIn('role', $elevatedRoles);
+
+        if ($hasAdminVerifiedAtColumn) {
+            $query->whereNull('admin_verified_at');
+        }
     }
 
     public function show(Request $request, User $user): Response

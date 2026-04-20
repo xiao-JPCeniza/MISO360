@@ -18,6 +18,7 @@ class NatureOfRequestSeeder extends Seeder
             'Password reset or account recovery (gov mail)',
             'System error / bug report',
             'Request for new system module or enhancement',
+            'Data release request and approval',
             'System Development',
             'Software license or activation request',
             'Computer repair',
