@@ -2,10 +2,10 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { onMounted, ref } from 'vue';
 
-import AppLayout from '@/layouts/AppLayout.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/composables/useNotifications';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 /** Customer satisfaction / feedback (opens in a new browser window). */
 const FEEDBACK_URL = 'https://feedback.manolofortich.gov.ph/';

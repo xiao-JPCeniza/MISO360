@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { Form, Head, Link, router, useForm } from '@inertiajs/vue3';
+import { CheckCircle2, Loader2, XCircle } from 'lucide-vue-next';
+import { ref } from 'vue';
+
 import {
     destroy as destroyUser,
     toggleAdminVerification as adminVerificationToggle,
 } from '@/actions/App/Http/Controllers/Admin/UserManagementController';
-import { Form, Head, Link, router, useForm } from '@inertiajs/vue3';
-
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -22,8 +24,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { CheckCircle2, Loader2, XCircle } from 'lucide-vue-next';
-import { ref } from 'vue';
+
 
 type AuditLogEntry = {
     id: number;

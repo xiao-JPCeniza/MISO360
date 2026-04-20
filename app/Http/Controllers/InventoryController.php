@@ -8,6 +8,7 @@ use App\Models\ReferenceValue;
 use App\Models\TicketArchive;
 use App\Models\TicketEnrollment;
 use App\Models\TicketRequest;
+use App\Support\EquipmentImageUrls;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -282,8 +283,10 @@ class InventoryController extends Controller
             'purchaseDate' => optional($item->purchase_date)->format('Y-m-d'),
             'expiryDate' => optional($item->expiry_date)->format('Y-m-d'),
             'warrantyStatus' => $item->warranty_status,
-            'equipmentImageUrls' => $item->equipment_images
-                ?: ($item->equipment_image ? [$item->equipment_image] : []),
+            'equipmentImageUrls' => EquipmentImageUrls::publicUrls(
+                $item->equipment_images,
+                $item->equipment_image,
+            ),
             'specification' => [
                 'memory' => $item->spec_memory,
                 'storage' => $item->spec_storage,

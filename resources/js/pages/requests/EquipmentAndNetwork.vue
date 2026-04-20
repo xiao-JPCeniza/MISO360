@@ -211,13 +211,6 @@ function formatDateTime(iso: string | null | undefined): string {
     }
 }
 
-const completedStatusName = 'Completed';
-const isCompleted = computed(() => {
-    const id = form.statusId ? String(form.statusId) : '';
-    const opt = statusList.value.find((o) => String(o.id) === id);
-    return opt?.name === completedStatusName;
-});
-
 const dateIsAfter = (start: string, end: string) => start && end && start > end;
 
 function validateForm() {

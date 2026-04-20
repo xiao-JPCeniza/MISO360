@@ -51,14 +51,6 @@ function goToSlide(index: number, reset: boolean = false) {
     if (reset) resetAutoPlay();
 }
 
-function nextSlide() {
-    goToSlide(currentSlideIndex.value + 1, true);
-}
-
-function prevSlide() {
-    goToSlide(currentSlideIndex.value - 1, true);
-}
-
 function startAutoPlay() {
     if (slideInterval.value) clearInterval(slideInterval.value);
     if (slides.value.length <= 1) return;

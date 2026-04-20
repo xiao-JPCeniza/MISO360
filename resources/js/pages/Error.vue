@@ -4,7 +4,7 @@ import { computed } from 'vue';
 
 import { login } from '@/routes';
 
-const props = defineProps<{
+defineProps<{
     status: number;
     message?: string;
 }>();

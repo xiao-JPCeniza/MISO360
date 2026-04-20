@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { destroy } from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import { Form } from '@inertiajs/vue3';
 
+import { destroy } from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import { Button } from '@/components/ui/button';
 import {

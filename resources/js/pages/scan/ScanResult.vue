@@ -6,6 +6,7 @@ import { computed } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
+import { resolveEquipmentImageUrl } from '@/utils/equipmentImageUrl';
 
 type ScanRecord = {
     uniqueId: string;
@@ -66,9 +67,9 @@ const props = defineProps<{
 }>();
 
 const imageUrls = computed(() =>
-    props.item.equipmentImageUrls.map((image) =>
-        image.startsWith('http') ? image : `/storage/${image}`,
-    ),
+    props.item.equipmentImageUrls
+        .map((image) => resolveEquipmentImageUrl(image))
+        .filter((url) => url !== ''),
 );
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -262,13 +263,20 @@ function submitReview() {
                     <h2 class="text-base font-semibold">Equipment image</h2>
                     <div class="mt-4 rounded-xl border border-dashed border-sidebar-border/70 p-4 text-sm text-muted-foreground">
                         <div v-if="imageUrls.length" class="flex flex-wrap gap-3">
-                            <img
+                            <a
                                 v-for="(image, index) in imageUrls"
                                 :key="`image-${index}`"
-                                :src="image"
-                                :alt="`${item.equipmentName} photo ${index + 1}`"
-                                class="h-20 w-20 rounded-xl object-cover"
-                            />
+                                :href="image"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="rounded-xl ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                <img
+                                    :src="image"
+                                    :alt="`${item.equipmentName} photo ${index + 1}`"
+                                    class="h-20 w-20 cursor-pointer rounded-xl object-cover"
+                                />
+                            </a>
                         </div>
                         <p v-else>Images not provided.</p>
                     </div>

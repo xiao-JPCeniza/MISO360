@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { useDebounceFn } from '@vueuse/core';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { useDebounceFn } from '@vueuse/core';
+import { CheckCircle2, Loader2, Search, XCircle } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
 import { toggleAdminVerification as adminVerificationToggle } from '@/actions/App/Http/Controllers/Admin/UserManagementController';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
-import { CheckCircle2, Loader2, Search, XCircle } from 'lucide-vue-next';
 import { type BreadcrumbItem } from '@/types';
 
 type Paginated<T> = {

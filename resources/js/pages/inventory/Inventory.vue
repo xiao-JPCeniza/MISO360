@@ -2,10 +2,10 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
+import SearchableSelect from '@/components/SearchableSelect.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import SearchableSelect from '@/components/SearchableSelect.vue';
 
 type InventoryItem = {
     id: number;
