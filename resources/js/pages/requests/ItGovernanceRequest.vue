@@ -442,17 +442,18 @@ function submitForm() {
                                 class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
                             />
                         </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Request Description
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="props.ticket.requestDescription ?? ''"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
+                    </div>
+
+                    <div class="mt-3 border-t border-white/10 pt-3">
+                        <label class="mb-1 block text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            Request Description
+                        </label>
+                        <textarea
+                            readonly
+                            rows="3"
+                            :value="props.ticket.requestDescription ?? ''"
+                            class="max-h-56 min-h-0 w-full cursor-default resize-y overflow-y-auto whitespace-pre-wrap rounded-md border border-white/15 bg-slate-100/95 px-3 py-2 text-[11px] leading-relaxed text-slate-700 shadow-inner outline-none [field-sizing:content] dark:text-slate-600"
+                        />
                     </div>
                 </div>
 

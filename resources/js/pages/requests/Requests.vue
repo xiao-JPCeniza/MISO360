@@ -272,9 +272,9 @@ const filteredRequests = computed(() => {
                                         {{ displayText(request.natureOfRequest, 'Unspecified') }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-2">
+                                <td class="max-w-[min(18rem,35vw)] align-top px-3 py-2">
                                     <span
-                                        class="block max-w-[220px] truncate"
+                                        class="line-clamp-2 break-words text-left leading-snug"
                                         :title="displayText(request.requestDescription)"
                                     >
                                         {{ displayText(request.requestDescription) }}

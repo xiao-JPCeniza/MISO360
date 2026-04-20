@@ -223,6 +223,8 @@ const maxAttachments = computed(() => props.maxAttachments);
 const maxSizeBytes = computed(() => props.maxAttachmentSizeMb * 1024 * 1024);
 const descriptionLength = computed(() => form.description.length);
 
+const descriptionMaxLength = 5000;
+
 const descriptionError = computed(() => {
     if (!descriptionTouched.value && !submitAttempted.value) {
         return '';
@@ -233,8 +235,8 @@ const descriptionError = computed(() => {
     if (descriptionLength.value < 10) {
         return 'Description must be at least 10 characters.';
     }
-    if (descriptionLength.value > 1000) {
-        return 'Description may not exceed 1000 characters.';
+    if (descriptionLength.value > descriptionMaxLength) {
+        return `Description may not exceed ${descriptionMaxLength} characters.`;
     }
     return '';
 });
@@ -1205,29 +1207,34 @@ function submitTicket() {
 
                         <div
                             v-if="!requiresSystemChangeRequestPdf && !isPasswordResetOrAccountRecovery"
-                            class="grid gap-3"
+                            class="grid gap-3 rounded-2xl border border-border bg-muted/20 p-4 dark:border-white/10 dark:bg-white/5"
                         >
-                            <div class="flex items-center justify-between">
-                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Description of Request
                                 </label>
-                                <span class="text-xs text-muted-foreground">
-                                    {{ descriptionLength }}/1000
-                                </span>
+                                <div
+                                    class="rounded-md border border-border bg-background px-2.5 py-1 text-[11px] tabular-nums text-muted-foreground shadow-sm dark:border-white/10"
+                                >
+                                    <span class="font-semibold text-foreground">{{ descriptionLength }}</span>
+                                    <span> / {{ descriptionMaxLength }}</span>
+                                </div>
                             </div>
                             <textarea
                                 v-model="form.description"
                                 rows="4"
-                                class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                placeholder="Briefly describe your request..."
+                                class="max-h-72 min-h-0 w-full resize-y overflow-y-auto rounded-lg border border-input bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground shadow-sm [field-sizing:content] focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                placeholder="Context, systems involved, deadlines, expected outcome…"
                                 @blur="descriptionTouched = true"
                             />
-                            <p v-if="descriptionError || serverDescriptionError" class="text-xs text-destructive">
-                                {{ descriptionError || serverDescriptionError }}
-                            </p>
-                            <p v-else class="text-xs text-muted-foreground">
-                                Minimum 10 characters. Maximum 1000 characters.
-                            </p>
+                            <div class="flex flex-col gap-1 border-t border-border pt-2 dark:border-white/10">
+                                <p v-if="descriptionError || serverDescriptionError" class="text-xs text-destructive">
+                                    {{ descriptionError || serverDescriptionError }}
+                                </p>
+                                <p v-else class="text-[11px] leading-snug text-muted-foreground">
+                                    Minimum 10 characters. Up to ~500 words ({{ descriptionMaxLength }} characters).
+                                </p>
+                            </div>
                         </div>
 
                         <div v-if="!isSystemDevelopment && !isPasswordResetOrAccountRecovery" class="grid gap-3">

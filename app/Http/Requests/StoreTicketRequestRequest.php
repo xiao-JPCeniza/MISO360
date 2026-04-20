@@ -145,7 +145,7 @@ class StoreTicketRequestRequest extends FormRequest
                 'max:255',
                 Rule::requiredIf($this->isSystemAccountCreation()),
             ],
-            'description' => ['required', 'string', 'min:10', 'max:1000'],
+            'description' => ['required', 'string', 'min:10', 'max:5000'],
             'hasQrCode' => ['required', 'boolean'],
             'qrCodeNumber' => [
                 'nullable',
@@ -341,7 +341,7 @@ class StoreTicketRequestRequest extends FormRequest
             'qrCodeNumber.required' => 'QR Code Number is required when a QR code is provided.',
             'qrCodeNumber.regex' => 'QR Code Number must match MIS-UID-00000 format.',
             'description.min' => 'Description must be at least 10 characters.',
-            'description.max' => 'Description may not exceed 1000 characters.',
+            'description.max' => 'Description may not exceed 5000 characters.',
             'systemDevelopmentSurveyFormAttachments.max' => 'You may upload up to 5 system development form attachments.',
             'dataReleaseRequestFormAttachments.max' => 'You may upload up to 5 data request form attachments.',
             'systemIssueReportAttachments.max' => 'You may upload up to 5 system issue report attachments.',

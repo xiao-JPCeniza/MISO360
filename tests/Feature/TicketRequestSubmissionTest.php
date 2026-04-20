@@ -567,6 +567,58 @@ class TicketRequestSubmissionTest extends TestCase
             ->assertSessionHasErrors(['description']);
     }
 
+    public function test_ticket_request_rejects_description_exceeding_max_length(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer Repair',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00004', now()->format('Y'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => str_repeat('a', 5001),
+                'hasQrCode' => false,
+            ])
+            ->assertSessionHasErrors(['description']);
+    }
+
+    public function test_ticket_request_accepts_description_at_max_length(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer Repair',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00005', now()->format('Y'));
+        $description = str_repeat('a', 5000);
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => $description,
+                'hasQrCode' => false,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('ticket_requests', [
+            'control_ticket_number' => $controlTicketNumber,
+            'description' => $description,
+        ]);
+    }
+
     public function test_submit_request_create_prefills_nature_when_service_param_matches(): void
     {
         /** @var User $user */
