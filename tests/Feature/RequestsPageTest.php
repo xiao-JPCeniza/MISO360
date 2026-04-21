@@ -454,6 +454,62 @@ class RequestsPageTest extends TestCase
         $this->assertSame('Equipment scope revised.', $ticket->description);
     }
 
+    public function test_it_governance_update_requires_at_least_one_assigned_staff(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $ticket = TicketRequest::factory()->create();
+
+        $response = $this
+            ->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => now()->timestamp,
+            ])
+            ->from(route('requests.show', $ticket))
+            ->patch(route('requests.it-governance.update', $ticket), [
+                '_token' => 'test-token',
+                'remarksId' => '',
+                'assignedStaffIds' => [],
+                'dateReceived' => now()->toDateString(),
+                'dateStarted' => '',
+                'estimatedCompletionDate' => '',
+                'actionTaken' => '',
+                'categoryId' => '',
+                'statusId' => '',
+            ]);
+
+        $response->assertRedirect(route('requests.show', $ticket));
+        $response->assertSessionHasErrors(['assignedStaffIds']);
+    }
+
+    public function test_equipment_and_network_update_requires_at_least_one_assigned_staff(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $ticket = TicketRequest::factory()->create();
+
+        $response = $this
+            ->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => now()->timestamp,
+            ])
+            ->from(route('requests.equipment-network.show', $ticket))
+            ->patch(route('requests.equipment-network.update', $ticket), [
+                '_token' => 'test-token',
+                'remarksId' => '',
+                'assignedStaffIds' => [],
+                'dateReceived' => '',
+                'dateStarted' => '',
+                'estimatedCompletionDate' => '',
+                'actionTaken' => '',
+                'categoryId' => '',
+                'statusId' => '',
+            ]);
+
+        $response->assertRedirect(route('requests.equipment-network.show', $ticket));
+        $response->assertSessionHasErrors(['assignedStaffIds']);
+    }
+
     public function test_regular_user_sees_confirmation_not_edit_at_show_page(): void
     {
         $user = User::factory()->create();
