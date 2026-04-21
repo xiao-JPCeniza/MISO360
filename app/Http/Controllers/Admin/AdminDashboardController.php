@@ -39,7 +39,10 @@ class AdminDashboardController extends Controller
             ->when($borrowNatureId, fn (Builder $q) => $q->where('nature_of_request_id', '!=', $borrowNatureId))
             ->count();
         $assignedToMe = TicketRequest::query()
-            ->where('assigned_staff_id', $user->id)
+            ->whereHas(
+                'assignedStaffMembers',
+                fn (Builder $staffQuery) => $staffQuery->where('users.id', $user->id)
+            )
             ->when($borrowNatureId, fn (Builder $q) => $q->where('nature_of_request_id', '!=', $borrowNatureId))
             ->where(function (Builder $q) {
                 $q->whereHas('status', fn (Builder $sq) => $sq->where('name', '!=', 'Completed'))
@@ -166,12 +169,19 @@ class AdminDashboardController extends Controller
                 'category:id,name',
                 'user:id,name',
                 'requestedForUser:id,name',
+                'assignedStaffMembers:id,name',
                 'enrollment',
                 'enrollment.assignedAdmin:id,name',
             ])
             ->when(
                 $request->filled('assigned_staff_id'),
-                fn (Builder $q) => $q->where('ticket_requests.assigned_staff_id', (int) $request->input('assigned_staff_id'))
+                fn (Builder $q) => $q->whereHas(
+                    'assignedStaffMembers',
+                    fn (Builder $staffQuery) => $staffQuery->where(
+                        'users.id',
+                        (int) $request->input('assigned_staff_id')
+                    )
+                )
             )
             ->get();
 
@@ -235,6 +245,7 @@ class AdminDashboardController extends Controller
                 'category:id,name',
                 'user:id,name',
                 'requestedForUser:id,name',
+                'assignedStaffMembers:id,name',
                 'enrollment',
                 'enrollment.assignedAdmin:id,name',
             ]);
@@ -259,7 +270,13 @@ class AdminDashboardController extends Controller
         }
 
         if ($request->filled('assigned_staff_id')) {
-            $query->where('ticket_requests.assigned_staff_id', (int) $request->input('assigned_staff_id'));
+            $query->whereHas(
+                'assignedStaffMembers',
+                fn (Builder $staffQuery) => $staffQuery->where(
+                    'users.id',
+                    (int) $request->input('assigned_staff_id')
+                )
+            );
         }
 
         $query->latest('ticket_requests.updated_at');

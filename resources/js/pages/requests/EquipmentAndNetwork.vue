@@ -2,7 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-import Icon from '@/components/Icon.vue';
+import AssignedStaffMultiSelect from '@/components/AssignedStaffMultiSelect.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -30,7 +30,7 @@ type TicketDetails = {
     attachments: Attachment[];
     systemDevelopmentSurvey?: Record<string, unknown> | null;
     remarksId?: number | string | null;
-    assignedStaffId?: number | string | null;
+    assignedStaffIds?: string[];
     dateReceived?: string | null;
     dateStarted?: string | null;
     timeStarted?: string | null;
@@ -40,7 +40,7 @@ type TicketDetails = {
     categoryId?: number | string | null;
     statusId?: number | string | null;
     statusName?: string | null;
-    equipmentNetworkDetails?: Record<string, string>;
+    equipmentNetworkDetails?: Record<string, string | boolean>;
     hasQrCode?: boolean;
     qrCodeNumber?: string | null;
     qrCodePattern?: string;
@@ -106,28 +106,68 @@ const isEditable = computed(() => props.canEdit);
 const natureList = computed(() => props.natureOfRequests ?? []);
 
 const equipmentDetailKeys = [
-    'rj45', 'fiberOpticHeatShrink', 'fiberOpticSClamp', 'scConnector', 'napBox',
-    'fiberOpticMeters', 'fiberOpticType', 'utpCableMeters', 'utpCableType',
-    'sfpModuleQty', 'sfpModuleBrand', 'sfpModuleType', 'sfpModuleSerial',
-    'wifiRouterQty', 'wifiRouterBrand', 'wifiRouterSerial', 'wifiRouterModel',
-    'networkSwitchQty', 'networkSwitchBrand', 'networkSwitchSerial', 'networkSwitchModel',
-    'apBeamQty', 'apBeamBrand', 'apBeamSerial', 'apBeamModel',
+    'rj45',
+    'fiberOpticHeatShrink',
+    'fiberOpticSClamp',
+    'scConnector',
+    'napBox',
+    'fiberOpticMeters',
+    'fiberOpticType',
+    'utpCableMeters',
+    'utpCableType',
+    'sfpModuleQty',
+    'sfpModuleBrand',
+    'sfpModuleType',
+    'sfpModuleSerial',
+    'wifiRouterQty',
+    'wifiRouterBrand',
+    'wifiRouterSerial',
+    'wifiRouterModel',
+    'networkSwitchQty',
+    'networkSwitchBrand',
+    'networkSwitchSerial',
+    'networkSwitchModel',
+    'apBeamQty',
+    'apBeamBrand',
+    'apBeamSerial',
+    'apBeamModel',
 ] as const;
 
-function defaultEquipmentDetails(): Record<string, string> {
-    return Object.fromEntries(equipmentDetailKeys.map((k) => [k, '']));
+function defaultEquipmentDetails(): Record<string, string | boolean> {
+    const base = Object.fromEntries(
+        equipmentDetailKeys.map((k) => [k, '']),
+    ) as Record<string, string | boolean>;
+    base.itUseSectionOpen = false;
+
+    return base;
 }
 
-function equipmentNetworkDetailsFromTicket(): Record<string, string> {
+function hasNonEmptyEquipmentFields(details: Record<string, unknown>): boolean {
+    return equipmentDetailKeys.some(
+        (k) => String(details[k] ?? '').trim() !== '',
+    );
+}
+
+function equipmentNetworkDetailsFromTicket(): Record<string, string | boolean> {
     const from = props.ticket.equipmentNetworkDetails ?? {};
     const defaults = defaultEquipmentDetails();
-    return { ...defaults, ...from };
+    const merged: Record<string, string | boolean> = { ...defaults, ...from };
+
+    const rawOpen = from.itUseSectionOpen;
+    if (rawOpen === true) {
+        merged.itUseSectionOpen = true;
+    } else {
+        merged.itUseSectionOpen = false;
+    }
+
+    return merged;
 }
 
 type FormFields = {
     natureOfRequestId: number | string;
     remarksId: number | string;
-    assignedStaffId: number | string;
+    assignedStaffIds: string[];
+    requestDescription: string;
     dateReceived: string;
     dateStarted: string;
     estimatedCompletionDate: string;
@@ -135,35 +175,61 @@ type FormFields = {
     categoryId: number | string;
     statusId: number | string;
     qrCodeNumber: string;
-    equipmentNetworkDetails: Record<string, string>;
+    equipmentNetworkDetails: Record<string, string | boolean>;
 };
 
 type FieldName = keyof FormFields;
 
 const form = useForm<FormFields>({
     natureOfRequestId:
-        props.ticket.natureOfRequestId != null ? String(props.ticket.natureOfRequestId) : '',
-    remarksId: props.ticket.remarksId != null ? String(props.ticket.remarksId) : '',
-    assignedStaffId: props.ticket.assignedStaffId != null ? String(props.ticket.assignedStaffId) : '',
+        props.ticket.natureOfRequestId != null
+            ? String(props.ticket.natureOfRequestId)
+            : '',
+    remarksId:
+        props.ticket.remarksId != null ? String(props.ticket.remarksId) : '',
+    assignedStaffIds: [...(props.ticket.assignedStaffIds ?? [])],
+    requestDescription: props.ticket.requestDescription ?? '',
     dateReceived: props.ticket.dateReceived ?? '',
     dateStarted: props.ticket.dateStarted ?? '',
     estimatedCompletionDate: props.ticket.estimatedCompletionDate ?? '',
     actionTaken: props.ticket.actionTaken ?? '',
-    categoryId: props.ticket.categoryId != null ? String(props.ticket.categoryId) : '',
-    statusId: props.ticket.statusId != null ? String(props.ticket.statusId) : '',
+    categoryId:
+        props.ticket.categoryId != null ? String(props.ticket.categoryId) : '',
+    statusId:
+        props.ticket.statusId != null ? String(props.ticket.statusId) : '',
     qrCodeNumber: props.ticket.qrCodeNumber ?? '',
     equipmentNetworkDetails: equipmentNetworkDetailsFromTicket(),
+});
+
+const showItUseEquipmentFields = computed(() => {
+    if (Boolean(form.equipmentNetworkDetails.itUseSectionOpen)) {
+        return true;
+    }
+
+    if (
+        !isEditable.value &&
+        hasNonEmptyEquipmentFields(
+            form.equipmentNetworkDetails as Record<string, unknown>,
+        )
+    ) {
+        return true;
+    }
+
+    return false;
 });
 
 const localErrors = ref<Partial<Record<FieldName, string>>>({});
 const generatingQr = ref(false);
 const qrGenerateError = ref('');
 
-const fieldError = (field: FieldName) => form.errors[field] ?? localErrors.value[field] ?? '';
+const fieldError = (field: FieldName) =>
+    form.errors[field] ?? localErrors.value[field] ?? '';
 
 function getCsrfToken(): string {
     if (typeof document === 'undefined') return '';
-    const meta = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null;
+    const meta = document.querySelector(
+        'meta[name="csrf-token"]',
+    ) as HTMLMetaElement | null;
     if (meta?.content) return meta.content;
     const tokenMatch = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
     if (tokenMatch?.[1]) return decodeURIComponent(tokenMatch[1]);
@@ -186,10 +252,18 @@ async function generateQrForUnit() {
             headers['X-CSRF-TOKEN'] = csrfToken;
             headers['X-XSRF-TOKEN'] = csrfToken;
         }
-        const res = await fetch(url, { method: 'POST', headers, credentials: 'same-origin' });
-        const data = (await res.json()) as { qrCodeNumber?: string; message?: string };
+        const res = await fetch(url, {
+            method: 'POST',
+            headers,
+            credentials: 'same-origin',
+        });
+        const data = (await res.json()) as {
+            qrCodeNumber?: string;
+            message?: string;
+        };
         if (!res.ok) {
-            qrGenerateError.value = data.message ?? 'Unable to generate QR code. Please try again.';
+            qrGenerateError.value =
+                data.message ?? 'Unable to generate QR code. Please try again.';
             return;
         }
         form.qrCodeNumber = data.qrCodeNumber ?? '';
@@ -205,7 +279,12 @@ function formatDateTime(iso: string | null | undefined): string {
     if (!iso) return '—';
     try {
         const d = new Date(iso);
-        return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'medium' });
+        return Number.isNaN(d.getTime())
+            ? '—'
+            : d.toLocaleString(undefined, {
+                  dateStyle: 'short',
+                  timeStyle: 'medium',
+              });
     } catch {
         return '—';
     }
@@ -219,8 +298,12 @@ function validateForm() {
     if (!form.remarksId) {
         localErrors.value.remarksId = 'Remarks is required.';
     }
-    if (!form.assignedStaffId) {
-        localErrors.value.assignedStaffId = 'Assigned IT staff is required.';
+    if (!form.assignedStaffIds.length) {
+        localErrors.value.assignedStaffIds =
+            'Select at least one assigned IT staff member.';
+    }
+    if (isEditable.value && !String(form.requestDescription ?? '').trim()) {
+        localErrors.value.requestDescription = 'Description of request is required.';
     }
     if (!form.categoryId) {
         localErrors.value.categoryId = 'Category is required.';
@@ -229,8 +312,13 @@ function validateForm() {
         localErrors.value.statusId = 'Status is required.';
     }
 
-    if (form.dateReceived && form.dateStarted && dateIsAfter(form.dateReceived, form.dateStarted)) {
-        localErrors.value.dateStarted = 'Date started must be on or after date received.';
+    if (
+        form.dateReceived &&
+        form.dateStarted &&
+        dateIsAfter(form.dateReceived, form.dateStarted)
+    ) {
+        localErrors.value.dateStarted =
+            'Date started must be on or after date received.';
     }
     if (
         form.dateStarted &&
@@ -267,20 +355,28 @@ function submitForm() {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="-mx-6 -mt-20 min-h-screen bg-[#0b2e59] text-white">
             <form
-                class="mx-auto flex w-full max-w-5xl flex-col gap-0 px-6 pb-12 pt-6"
+                class="mx-auto flex w-full max-w-5xl flex-col gap-0 px-6 pt-6 pb-12"
                 @submit.prevent="submitForm"
             >
-                <h1 class="mb-4 text-lg font-semibold tracking-tight text-white">
+                <h1
+                    class="mb-4 text-lg font-semibold tracking-tight text-white"
+                >
                     Equipment and Network
                 </h1>
 
-                <div class="rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm">
-                    <h2 class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                <div
+                    class="rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm"
+                >
+                    <h2
+                        class="mb-3 text-[10px] font-semibold tracking-widest text-white/70 uppercase"
+                    >
                         Ticket info
                     </h2>
                     <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Control Ticket No.
                             </label>
                             <input
@@ -291,7 +387,9 @@ function submitForm() {
                             />
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Requested By
                             </label>
                             <input
@@ -302,7 +400,9 @@ function submitForm() {
                             />
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Position/Designation
                             </label>
                             <input
@@ -313,7 +413,9 @@ function submitForm() {
                             />
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Office
                             </label>
                             <input
@@ -324,7 +426,9 @@ function submitForm() {
                             />
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Date Filed
                             </label>
                             <input
@@ -335,7 +439,9 @@ function submitForm() {
                             />
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Email
                             </label>
                             <input
@@ -346,15 +452,19 @@ function submitForm() {
                             />
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Nature of Request
                             </label>
                             <select
                                 v-if="isEditable"
                                 v-model="form.natureOfRequestId"
-                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
                             >
-                                <option value="" disabled>Select nature of request</option>
+                                <option value="" disabled>
+                                    Select nature of request
+                                </option>
                                 <option
                                     v-for="opt in natureList"
                                     :key="opt.id"
@@ -374,33 +484,61 @@ function submitForm() {
                     </div>
 
                     <div class="mt-3 border-t border-white/10 pt-3">
-                        <label class="mb-1 block text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                            Request Description
+                        <label
+                            class="mb-1 block text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                        >
+                            Description of Request
                         </label>
                         <textarea
+                            v-if="isEditable"
+                            v-model="form.requestDescription"
+                            rows="4"
+                            class="[field-sizing:content] max-h-56 min-h-0 w-full resize-y overflow-y-auto rounded-md border border-white/30 bg-white px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap text-slate-900 shadow-inner outline-none focus:border-white/60 focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
+                        />
+                        <textarea
+                            v-else
                             readonly
                             rows="3"
                             :value="props.ticket.requestDescription ?? ''"
-                            class="max-h-56 min-h-0 w-full cursor-default resize-y overflow-y-auto whitespace-pre-wrap rounded-md border border-white/15 bg-slate-100/95 px-3 py-2 text-[11px] leading-relaxed text-slate-700 shadow-inner outline-none [field-sizing:content] dark:text-slate-600"
+                            class="[field-sizing:content] max-h-56 min-h-0 w-full cursor-default resize-y overflow-y-auto rounded-md border border-white/15 bg-slate-100/95 px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap text-slate-700 shadow-inner outline-none dark:text-slate-600"
                         />
+                        <p
+                            v-if="fieldError('requestDescription')"
+                            class="mt-0.5 text-[10px] text-red-300"
+                        >
+                            {{ fieldError('requestDescription') }}
+                        </p>
                     </div>
                 </div>
 
-                <div class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm">
-                    <h2 class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                <div
+                    class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm"
+                >
+                    <h2
+                        class="mb-3 text-[10px] font-semibold tracking-widest text-white/70 uppercase"
+                    >
                         Unit QR Code
                     </h2>
                     <p class="mb-3 text-[11px] text-white/80">
-                        Each request should be linked to a QR code for the unit (asset) for tracking. If no QR is assigned yet, generate one or assign an existing issued UID.
+                        Each request should be linked to a QR code for the unit
+                        (asset) for tracking. If no QR is assigned yet, generate
+                        one or assign an existing issued UID.
                     </p>
                     <div
                         v-if="!ticket.hasQrCode || !ticket.qrCodeNumber"
                         class="mb-3 rounded-md border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100"
                     >
-                        This request has no unit QR code. Assign or generate one below to complete the link for tracking.
+                        This request has no unit QR code. Assign or generate one
+                        below to complete the link for tracking.
                     </div>
-                    <div v-if="ticket.hasQrCode && ticket.qrCodeNumber" class="flex flex-wrap items-center gap-3">
-                        <span class="font-mono text-sm font-medium text-white">{{ ticket.qrCodeNumber }}</span>
+                    <div
+                        v-if="ticket.hasQrCode && ticket.qrCodeNumber"
+                        class="flex flex-wrap items-center gap-3"
+                    >
+                        <span
+                            class="font-mono text-sm font-medium text-white"
+                            >{{ ticket.qrCodeNumber }}</span
+                        >
                         <a
                             v-if="ticket.inventoryEditUrl"
                             :href="ticket.inventoryEditUrl"
@@ -410,7 +548,9 @@ function submitForm() {
                         </a>
                     </div>
                     <template v-else>
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <div
+                            class="flex flex-col gap-3 sm:flex-row sm:items-end"
+                        >
                             <div class="flex-1">
                                 <button
                                     type="button"
@@ -418,477 +558,733 @@ function submitForm() {
                                     :disabled="generatingQr || !isEditable"
                                     @click="generateQrForUnit"
                                 >
-                                    {{ generatingQr ? 'Generating…' : 'Generate QR for this unit' }}
+                                    {{
+                                        generatingQr
+                                            ? 'Generating…'
+                                            : 'Generate QR for this unit'
+                                    }}
                                 </button>
-                                <p v-if="qrGenerateError" class="mt-1 text-[10px] text-red-300">
+                                <p
+                                    v-if="qrGenerateError"
+                                    class="mt-1 text-[10px] text-red-300"
+                                >
                                     {{ qrGenerateError }}
                                 </p>
                             </div>
-                            <span class="text-[10px] text-white/60 sm:self-center">or assign existing:</span>
-                            <div class="flex flex-1 flex-col gap-1 sm:flex-row sm:items-end">
+                            <span
+                                class="text-[10px] text-white/60 sm:self-center"
+                                >or assign existing:</span
+                            >
+                            <div
+                                class="flex flex-1 flex-col gap-1 sm:flex-row sm:items-end"
+                            >
                                 <div class="min-w-0 flex-1">
                                     <input
                                         v-model="form.qrCodeNumber"
                                         type="text"
                                         :pattern="ticket.qrCodePattern"
                                         placeholder="MIS-UID-00001"
-                                        class="h-8 w-full rounded border border-white/30 bg-white px-2 font-mono text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
+                                        class="h-8 w-full rounded border border-white/30 bg-white px-2 font-mono text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none disabled:bg-white/70 disabled:text-slate-500"
                                         :disabled="!isEditable"
                                     />
-                                    <p v-if="form.errors.qrCodeNumber" class="mt-0.5 text-[10px] text-red-300">
+                                    <p
+                                        v-if="form.errors.qrCodeNumber"
+                                        class="mt-0.5 text-[10px] text-red-300"
+                                    >
                                         {{ form.errors.qrCodeNumber }}
                                     </p>
                                 </div>
-                                <span class="text-[10px] text-white/60">Then save the form below.</span>
+                                <span class="text-[10px] text-white/60"
+                                    >Then save the form below.</span
+                                >
                             </div>
                         </div>
                     </template>
-                    <div v-if="ticket.hasQrCode && ticket.qrCodeNumber && isEditable" class="mt-3 border-t border-white/15 pt-3">
-                        <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">Change QR code</label>
+                    <div
+                        v-if="
+                            ticket.hasQrCode &&
+                            ticket.qrCodeNumber &&
+                            isEditable
+                        "
+                        class="mt-3 border-t border-white/15 pt-3"
+                    >
+                        <label
+                            class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >Change QR code</label
+                        >
                         <div class="mt-1 flex flex-wrap items-center gap-2">
                             <input
                                 v-model="form.qrCodeNumber"
                                 type="text"
                                 :pattern="ticket.qrCodePattern"
                                 placeholder="MIS-UID-00001"
-                                class="h-8 max-w-48 rounded border border-white/30 bg-white px-2 font-mono text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                class="h-8 max-w-48 rounded border border-white/30 bg-white px-2 font-mono text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
                             />
-                            <span class="text-[10px] text-white/60">Save form to assign a different UID.</span>
+                            <span class="text-[10px] text-white/60"
+                                >Save form to assign a different UID.</span
+                            >
                         </div>
-                        <p v-if="form.errors.qrCodeNumber" class="mt-0.5 text-[10px] text-red-300">
+                        <p
+                            v-if="form.errors.qrCodeNumber"
+                            class="mt-0.5 text-[10px] text-red-300"
+                        >
                             {{ form.errors.qrCodeNumber }}
                         </p>
                     </div>
                 </div>
 
-                <div class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm">
-                    <h2 class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                <div
+                    class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm"
+                >
+                    <h2
+                        class="mb-3 text-[10px] font-semibold tracking-widest text-white/70 uppercase"
+                    >
                         IT processing
                     </h2>
-                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Remarks
                             </label>
                             <select
                                 v-model="form.remarksId"
-                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
+                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none disabled:bg-white/70 disabled:text-slate-500"
                                 :disabled="!isEditable"
                             >
                                 <option value="" disabled>Select remark</option>
-                                <option v-for="option in remarksList" :key="option.id" :value="String(option.id)">
+                                <option
+                                    v-for="option in remarksList"
+                                    :key="option.id"
+                                    :value="String(option.id)"
+                                >
                                     {{ option.name }}
                                 </option>
                             </select>
-                            <p v-if="fieldError('remarksId')" class="mt-0.5 text-[10px] text-red-300">
+                            <p
+                                v-if="fieldError('remarksId')"
+                                class="mt-0.5 text-[10px] text-red-300"
+                            >
                                 {{ fieldError('remarksId') }}
                             </p>
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Assigned IT Staff
-                            </label>
-                            <select
-                                v-model="form.assignedStaffId"
-                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
                             >
-                                <option value="" disabled>Select staff</option>
-                                <option v-for="staff in props.staffOptions" :key="staff.id" :value="String(staff.id)">
-                                    {{ staff.name }}
-                                </option>
-                            </select>
-                            <p v-if="fieldError('assignedStaffId')" class="mt-0.5 text-[10px] text-red-300">
-                                {{ fieldError('assignedStaffId') }}
-                            </p>
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
                                 Date Received
                             </label>
                             <div
-                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white pr-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
-                                :class="{ 'cursor-not-allowed opacity-70': !isEditable }"
+                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white px-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
+                                :class="{
+                                    'cursor-not-allowed opacity-70':
+                                        !isEditable,
+                                }"
                             >
                                 <input
                                     v-model="form.dateReceived"
                                     type="date"
-                                    class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-2 py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                                    class="min-w-0 w-full cursor-pointer border-0 bg-transparent py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
                                     :disabled="!isEditable"
                                     @keydown.prevent
-                                />
-                                <Icon
-                                    name="calendar"
-                                    class="h-4 w-4 shrink-0 text-slate-500 pointer-events-none"
                                 />
                             </div>
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Date Started
                             </label>
                             <div
-                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white pr-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
-                                :class="{ 'cursor-not-allowed opacity-70': !isEditable }"
+                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white px-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
+                                :class="{
+                                    'cursor-not-allowed opacity-70':
+                                        !isEditable,
+                                }"
                             >
                                 <input
                                     v-model="form.dateStarted"
                                     type="date"
-                                    class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-2 py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                                    class="min-w-0 w-full cursor-pointer border-0 bg-transparent py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
                                     :disabled="!isEditable"
                                     @keydown.prevent
                                 />
-                                <Icon
-                                    name="calendar"
-                                    class="h-4 w-4 shrink-0 text-slate-500 pointer-events-none"
-                                />
                             </div>
-                            <p v-if="fieldError('dateStarted')" class="mt-0.5 text-[10px] text-red-300">
+                            <p
+                                v-if="fieldError('dateStarted')"
+                                class="mt-0.5 text-[10px] text-red-300"
+                            >
                                 {{ fieldError('dateStarted') }}
                             </p>
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Time Started
                             </label>
-                            <div class="flex h-8 items-center rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600">
+                            <div
+                                class="flex h-8 items-center rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            >
                                 {{ formatDateTime(ticket.timeStarted) }}
                             </div>
                         </div>
-                        <div class="grid gap-0.5 sm:col-span-2 lg:col-span-1">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                        <div class="grid gap-0.5">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Estimated Completion Date
                             </label>
                             <div
-                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white pr-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
-                                :class="{ 'cursor-not-allowed opacity-70': !isEditable }"
+                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white px-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
+                                :class="{
+                                    'cursor-not-allowed opacity-70':
+                                        !isEditable,
+                                }"
                             >
                                 <input
                                     v-model="form.estimatedCompletionDate"
                                     type="date"
-                                    class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-2 py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                                    class="min-w-0 w-full cursor-pointer border-0 bg-transparent py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
                                     :disabled="!isEditable"
                                     @keydown.prevent
                                 />
-                                <Icon
-                                    name="calendar"
-                                    class="h-4 w-4 shrink-0 text-slate-500 pointer-events-none"
-                                />
                             </div>
-                            <p v-if="fieldError('estimatedCompletionDate')" class="mt-0.5 text-[10px] text-red-300">
+                            <p
+                                v-if="fieldError('estimatedCompletionDate')"
+                                class="mt-0.5 text-[10px] text-red-300"
+                            >
                                 {{ fieldError('estimatedCompletionDate') }}
                             </p>
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Time Completed
                             </label>
-                            <div class="flex h-8 items-center rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600">
+                            <div
+                                class="flex h-8 items-center rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            >
                                 {{ formatDateTime(ticket.timeCompleted) }}
                             </div>
                         </div>
                     </div>
+
+                    <div class="mt-4 grid gap-2 border-t border-white/10 pt-4">
+                        <div class="grid gap-0.5">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
+                                Assigned IT Staff
+                            </label>
+                            <p
+                                class="mb-1 max-w-2xl text-[10px] leading-relaxed text-white/55"
+                            >
+                                Open the list to choose one or more IT staff. At
+                                least one selection is required.
+                            </p>
+                            <AssignedStaffMultiSelect
+                                v-model="form.assignedStaffIds"
+                                :staff-options="props.staffOptions"
+                                :disabled="!isEditable"
+                            />
+                            <p
+                                v-if="fieldError('assignedStaffIds')"
+                                class="mt-0.5 text-[10px] text-red-300"
+                            >
+                                {{ fieldError('assignedStaffIds') }}
+                            </p>
+                        </div>
+                    </div>
+
                     <div class="mt-3 grid gap-0.5">
-                        <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                        <label
+                            class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                        >
                             Action Taken
                         </label>
                         <input
                             v-model="form.actionTaken"
                             type="text"
-                            class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
+                            class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none disabled:bg-white/70 disabled:text-slate-500"
                             :disabled="!isEditable"
                             placeholder="Add notes…"
                         />
                     </div>
                     <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Attachments
                             </label>
-                            <div class="flex min-h-8 flex-wrap items-center gap-1.5 rounded border border-white/20 bg-slate-100/80 px-2 py-1.5">
+                            <div
+                                class="flex min-h-8 flex-wrap items-center gap-1.5 rounded border border-white/20 bg-slate-100/80 px-2 py-1.5"
+                            >
                                 <template v-if="attachments.length">
                                     <a
                                         v-for="attachment in attachments"
                                         :key="attachment.name"
                                         :href="attachment.url || undefined"
-                                        :target="attachment.url ? '_blank' : undefined"
-                                        :rel="attachment.url ? 'noreferrer' : undefined"
+                                        :target="
+                                            attachment.url
+                                                ? '_blank'
+                                                : undefined
+                                        "
+                                        :rel="
+                                            attachment.url
+                                                ? 'noreferrer'
+                                                : undefined
+                                        "
                                         class="inline-flex items-center rounded bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-600 shadow-sm transition hover:bg-white"
                                     >
                                         {{ attachment.name }}
                                     </a>
                                 </template>
-                                <span v-else class="text-[10px] text-slate-400">None</span>
+                                <span v-else class="text-[10px] text-slate-400"
+                                    >None</span
+                                >
                             </div>
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Category
                             </label>
                             <select
                                 v-model="form.categoryId"
-                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
+                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none disabled:bg-white/70 disabled:text-slate-500"
                                 :disabled="!isEditable"
                             >
-                                <option value="" disabled>Choose category</option>
-                                <option v-for="option in categoryList" :key="option.id" :value="String(option.id)">
+                                <option value="" disabled>
+                                    Choose category
+                                </option>
+                                <option
+                                    v-for="option in categoryList"
+                                    :key="option.id"
+                                    :value="String(option.id)"
+                                >
                                     {{ option.name }}
                                 </option>
                             </select>
-                            <p v-if="fieldError('categoryId')" class="mt-0.5 text-[10px] text-red-300">
+                            <p
+                                v-if="fieldError('categoryId')"
+                                class="mt-0.5 text-[10px] text-red-300"
+                            >
                                 {{ fieldError('categoryId') }}
                             </p>
                         </div>
                         <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                            <label
+                                class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                            >
                                 Status
                             </label>
                             <select
                                 v-model="form.statusId"
-                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
+                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none disabled:bg-white/70 disabled:text-slate-500"
                                 :disabled="!isEditable"
                             >
                                 <option value="" disabled>Choose status</option>
-                                <option v-for="option in statusList" :key="option.id" :value="String(option.id)">
+                                <option
+                                    v-for="option in statusList"
+                                    :key="option.id"
+                                    :value="String(option.id)"
+                                >
                                     {{ option.name }}
                                 </option>
                             </select>
-                            <p v-if="fieldError('statusId')" class="mt-0.5 text-[10px] text-red-300">
+                            <p
+                                v-if="fieldError('statusId')"
+                                class="mt-0.5 text-[10px] text-red-300"
+                            >
                                 {{ fieldError('statusId') }}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div class="mt-4 rounded-lg border border-white/20 bg-white/[0.07] px-4 py-3 shadow-sm">
-                    <h2 class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/70">
-                        Equipment / Network Details (IT Use)
-                    </h2>
-                    <p class="mb-3 text-[9px] italic text-white/60">
-                        For network-related requests, additional fields shall be accomplished by IT staff.
-                    </p>
-                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                RJ45
-                            </label>
-                            <input
-                                v-model="form.equipmentNetworkDetails.rj45"
-                                type="text"
-                                placeholder="No. of pcs"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                            />
+                <div
+                    class="mt-4 rounded-lg border border-white/20 bg-white/[0.07] px-4 py-3 shadow-sm"
+                >
+                    <div
+                        class="mb-3 flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3"
+                    >
+                        <div class="min-w-0 flex-1">
+                            <h2
+                                class="text-[10px] font-semibold tracking-widest text-white/70 uppercase"
+                            >
+                                Equipment / Network Details (IT Use)
+                            </h2>
+                            <p class="mt-1 max-w-xl text-[9px] leading-relaxed text-white/55">
+                                Use the switch to show or hide the RJ45, fiber, and hardware fields. Your choice is saved
+                                with the request.
+                            </p>
                         </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Fiber Optic – Heat Shrink Sleeve
-                            </label>
-                            <input
-                                v-model="form.equipmentNetworkDetails.fiberOpticHeatShrink"
-                                type="text"
-                                placeholder="No. of pcs"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Fiber Optic S-Clamp
-                            </label>
-                            <input
-                                v-model="form.equipmentNetworkDetails.fiberOpticSClamp"
-                                type="text"
-                                placeholder="No. of pcs"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                SC Connector
-                            </label>
-                            <input
-                                v-model="form.equipmentNetworkDetails.scConnector"
-                                type="text"
-                                placeholder="No. of pcs"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                NAP Box
-                            </label>
-                            <input
-                                v-model="form.equipmentNetworkDetails.napBox"
-                                type="text"
-                                placeholder="No. of pcs"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                            />
+                        <div
+                            v-if="isEditable"
+                            class="flex shrink-0 items-center gap-2.5 rounded-md border border-white/15 bg-white/5 px-2.5 py-1.5"
+                        >
+                            <span class="text-[10px] font-medium text-white/85">Show fields</span>
+                            <button
+                                type="button"
+                                role="switch"
+                                :aria-checked="Boolean(form.equipmentNetworkDetails.itUseSectionOpen)"
+                                class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-white/25 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+                                :class="
+                                    form.equipmentNetworkDetails.itUseSectionOpen
+                                        ? 'bg-emerald-500/90'
+                                        : 'bg-white/15'
+                                "
+                                @click="
+                                    form.equipmentNetworkDetails.itUseSectionOpen =
+                                        !Boolean(form.equipmentNetworkDetails.itUseSectionOpen)
+                                "
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    class="pointer-events-none absolute top-0.5 left-0.5 block size-5 rounded-full bg-white shadow transition-transform duration-200 ease-out"
+                                    :class="
+                                        form.equipmentNetworkDetails.itUseSectionOpen
+                                            ? 'translate-x-[1.375rem]'
+                                            : 'translate-x-0'
+                                    "
+                                />
+                            </button>
                         </div>
                     </div>
-                    <div class="mt-3 rounded-lg border border-white/20 bg-white/5 px-4 py-3 shadow-sm">
-                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div v-show="showItUseEquipmentFields">
+                        <p class="mb-3 text-[9px] text-white/60 italic">
+                            For network-related requests, additional fields
+                            shall be accomplished by IT staff.
+                        </p>
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                             <div class="grid gap-0.5">
-                                <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                    Fiber Optic
+                                <label
+                                    class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                >
+                                    RJ45
                                 </label>
-                                <div class="flex flex-wrap gap-1.5">
-                                    <input
-                                        v-model="form.equipmentNetworkDetails.fiberOpticMeters"
-                                        type="text"
-                                        placeholder="No. of Meters"
-                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                    />
-                                    <input
-                                        v-model="form.equipmentNetworkDetails.fiberOpticType"
-                                        type="text"
-                                        placeholder="Type"
-                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                    />
-                                </div>
+                                <input
+                                    v-model="form.equipmentNetworkDetails.rj45"
+                                    type="text"
+                                    placeholder="No. of pcs"
+                                    class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                />
                             </div>
                             <div class="grid gap-0.5">
-                                <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                    UTP Cable
+                                <label
+                                    class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                >
+                                    Fiber Optic – Heat Shrink Sleeve
                                 </label>
-                                <div class="flex flex-wrap gap-1.5">
-                                    <input
-                                        v-model="form.equipmentNetworkDetails.utpCableMeters"
-                                        type="text"
-                                        placeholder="No. of Meters"
-                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                    />
-                                    <input
-                                        v-model="form.equipmentNetworkDetails.utpCableType"
-                                        type="text"
-                                        placeholder="Type"
-                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                    />
-                                </div>
+                                <input
+                                    v-model="
+                                        form.equipmentNetworkDetails
+                                            .fiberOpticHeatShrink
+                                    "
+                                    type="text"
+                                    placeholder="No. of pcs"
+                                    class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                />
                             </div>
                             <div class="grid gap-0.5">
-                                <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                    SFPT/SFP module
+                                <label
+                                    class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                >
+                                    Fiber Optic S-Clamp
+                                </label>
+                                <input
+                                    v-model="
+                                        form.equipmentNetworkDetails
+                                            .fiberOpticSClamp
+                                    "
+                                    type="text"
+                                    placeholder="No. of pcs"
+                                    class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                />
+                            </div>
+                            <div class="grid gap-0.5">
+                                <label
+                                    class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                >
+                                    SC Connector
+                                </label>
+                                <input
+                                    v-model="
+                                        form.equipmentNetworkDetails.scConnector
+                                    "
+                                    type="text"
+                                    placeholder="No. of pcs"
+                                    class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                />
+                            </div>
+                            <div class="grid gap-0.5">
+                                <label
+                                    class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                >
+                                    NAP Box
+                                </label>
+                                <input
+                                    v-model="
+                                        form.equipmentNetworkDetails.napBox
+                                    "
+                                    type="text"
+                                    placeholder="No. of pcs"
+                                    class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                />
+                            </div>
+                        </div>
+                        <div
+                            class="mt-3 rounded-lg border border-white/20 bg-white/5 px-4 py-3 shadow-sm"
+                        >
+                            <div
+                                class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                            >
+                                <div class="grid gap-0.5">
+                                    <label
+                                        class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                    >
+                                        Fiber Optic
+                                    </label>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <input
+                                            v-model="
+                                                form.equipmentNetworkDetails
+                                                    .fiberOpticMeters
+                                            "
+                                            type="text"
+                                            placeholder="No. of Meters"
+                                            class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                        />
+                                        <input
+                                            v-model="
+                                                form.equipmentNetworkDetails
+                                                    .fiberOpticType
+                                            "
+                                            type="text"
+                                            placeholder="Type"
+                                            class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="grid gap-0.5">
+                                    <label
+                                        class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                    >
+                                        UTP Cable
+                                    </label>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <input
+                                            v-model="
+                                                form.equipmentNetworkDetails
+                                                    .utpCableMeters
+                                            "
+                                            type="text"
+                                            placeholder="No. of Meters"
+                                            class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                        />
+                                        <input
+                                            v-model="
+                                                form.equipmentNetworkDetails
+                                                    .utpCableType
+                                            "
+                                            type="text"
+                                            placeholder="Type"
+                                            class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="grid gap-0.5">
+                                    <label
+                                        class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                    >
+                                        SFPT/SFP module
+                                    </label>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <input
+                                            v-model="
+                                                form.equipmentNetworkDetails
+                                                    .sfpModuleQty
+                                            "
+                                            type="text"
+                                            placeholder="Qty"
+                                            class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                        />
+                                        <input
+                                            v-model="
+                                                form.equipmentNetworkDetails
+                                                    .sfpModuleBrand
+                                            "
+                                            type="text"
+                                            placeholder="Brand"
+                                            class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                        />
+                                        <input
+                                            v-model="
+                                                form.equipmentNetworkDetails
+                                                    .sfpModuleType
+                                            "
+                                            type="text"
+                                            placeholder="Type"
+                                            class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                        />
+                                        <input
+                                            v-model="
+                                                form.equipmentNetworkDetails
+                                                    .sfpModuleSerial
+                                            "
+                                            type="text"
+                                            placeholder="Serial"
+                                            class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                        >
+                            <div class="grid gap-0.5">
+                                <label
+                                    class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                >
+                                    WiFi Router / UNO
                                 </label>
                                 <div class="flex flex-wrap gap-1.5">
                                     <input
-                                        v-model="form.equipmentNetworkDetails.sfpModuleQty"
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .wifiRouterQty
+                                        "
                                         type="text"
                                         placeholder="Qty"
-                                        class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                        class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
                                     />
                                     <input
-                                        v-model="form.equipmentNetworkDetails.sfpModuleBrand"
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .wifiRouterBrand
+                                        "
                                         type="text"
                                         placeholder="Brand"
-                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                        class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
                                     />
                                     <input
-                                        v-model="form.equipmentNetworkDetails.sfpModuleType"
-                                        type="text"
-                                        placeholder="Type"
-                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                    />
-                                    <input
-                                        v-model="form.equipmentNetworkDetails.sfpModuleSerial"
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .wifiRouterSerial
+                                        "
                                         type="text"
                                         placeholder="Serial"
-                                        class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                        class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                    />
+                                    <input
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .wifiRouterModel
+                                        "
+                                        type="text"
+                                        placeholder="Model"
+                                        class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
                                     />
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                WiFi Router / UNO
-                            </label>
-                            <div class="flex flex-wrap gap-1.5">
-                                <input
-                                    v-model="form.equipmentNetworkDetails.wifiRouterQty"
-                                    type="text"
-                                    placeholder="Qty"
-                                    class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    v-model="form.equipmentNetworkDetails.wifiRouterBrand"
-                                    type="text"
-                                    placeholder="Brand"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    v-model="form.equipmentNetworkDetails.wifiRouterSerial"
-                                    type="text"
-                                    placeholder="Serial"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    v-model="form.equipmentNetworkDetails.wifiRouterModel"
-                                    type="text"
-                                    placeholder="Model"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
+                            <div class="grid gap-0.5">
+                                <label
+                                    class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                >
+                                    Network Switch
+                                </label>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <input
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .networkSwitchQty
+                                        "
+                                        type="text"
+                                        placeholder="Qty"
+                                        class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                    />
+                                    <input
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .networkSwitchBrand
+                                        "
+                                        type="text"
+                                        placeholder="Brand"
+                                        class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                    />
+                                    <input
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .networkSwitchSerial
+                                        "
+                                        type="text"
+                                        placeholder="Serial"
+                                        class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                    />
+                                    <input
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .networkSwitchModel
+                                        "
+                                        type="text"
+                                        placeholder="Model"
+                                        class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Network Switch
-                            </label>
-                            <div class="flex flex-wrap gap-1.5">
-                                <input
-                                    v-model="form.equipmentNetworkDetails.networkSwitchQty"
-                                    type="text"
-                                    placeholder="Qty"
-                                    class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    v-model="form.equipmentNetworkDetails.networkSwitchBrand"
-                                    type="text"
-                                    placeholder="Brand"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    v-model="form.equipmentNetworkDetails.networkSwitchSerial"
-                                    type="text"
-                                    placeholder="Serial"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    v-model="form.equipmentNetworkDetails.networkSwitchModel"
-                                    type="text"
-                                    placeholder="Model"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                            </div>
-                        </div>
-                        <div class="grid gap-0.5 sm:col-span-2 lg:col-span-1">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                AP Beam
-                            </label>
-                            <div class="flex flex-wrap gap-1.5">
-                                <input
-                                    v-model="form.equipmentNetworkDetails.apBeamQty"
-                                    type="text"
-                                    placeholder="Qty"
-                                    class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    v-model="form.equipmentNetworkDetails.apBeamBrand"
-                                    type="text"
-                                    placeholder="Brand"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    v-model="form.equipmentNetworkDetails.apBeamSerial"
-                                    type="text"
-                                    placeholder="Serial"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
-                                <input
-                                    v-model="form.equipmentNetworkDetails.apBeamModel"
-                                    type="text"
-                                    placeholder="Model"
-                                    class="h-8 flex-1 min-w-0 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20"
-                                />
+                            <div
+                                class="grid gap-0.5 sm:col-span-2 lg:col-span-1"
+                            >
+                                <label
+                                    class="text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                >
+                                    AP Beam
+                                </label>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <input
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .apBeamQty
+                                        "
+                                        type="text"
+                                        placeholder="Qty"
+                                        class="h-8 w-14 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                    />
+                                    <input
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .apBeamBrand
+                                        "
+                                        type="text"
+                                        placeholder="Brand"
+                                        class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                    />
+                                    <input
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .apBeamSerial
+                                        "
+                                        type="text"
+                                        placeholder="Serial"
+                                        class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                    />
+                                    <input
+                                        v-model="
+                                            form.equipmentNetworkDetails
+                                                .apBeamModel
+                                        "
+                                        type="text"
+                                        placeholder="Model"
+                                        class="h-8 min-w-0 flex-1 rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -898,12 +1294,15 @@ function submitForm() {
                     <button
                         v-if="isEditable"
                         type="submit"
-                        class="rounded-md bg-blue-500 px-6 py-2 text-xs font-semibold uppercase tracking-wider text-white shadow-md transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-blue-500"
+                        class="rounded-md bg-blue-500 px-6 py-2 text-xs font-semibold tracking-wider text-white uppercase shadow-md transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-blue-500"
                         :disabled="form.processing"
                     >
                         {{ form.processing ? 'Saving…' : 'Save' }}
                     </button>
-                    <p v-if="form.recentlySuccessful" class="text-[10px] text-emerald-300">
+                    <p
+                        v-if="form.recentlySuccessful"
+                        class="text-[10px] text-emerald-300"
+                    >
                         Updates saved successfully.
                     </p>
                 </div>

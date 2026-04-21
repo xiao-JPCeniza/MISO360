@@ -150,7 +150,7 @@ class ServiceTimerTest extends TestCase
             ->patch(route('requests.it-governance.update', $ticket), [
                 '_token' => 'test-token',
                 'remarksId' => (string) $remarks->id,
-                'assignedStaffId' => (string) $admin->id,
+                'assignedStaffIds' => [(string) $admin->id],
                 'dateReceived' => now()->toDateString(),
                 'dateStarted' => '',
                 'estimatedCompletionDate' => '',

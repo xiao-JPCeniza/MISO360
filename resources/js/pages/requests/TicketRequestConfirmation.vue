@@ -21,7 +21,6 @@ defineProps<{
         qrCodeNumber?: string | null;
         attachments: Attachment[];
         systemDevelopmentSurvey?: Record<string, unknown> | null;
-        systemChangeRequestForm?: Record<string, unknown> | null;
         systemIssueReport?: Record<string, unknown> | null;
         systemIssueReportPdfUrl?: string | null;
         systemIssueReportAttachments?: Array<{ name: string; url?: string | null; size?: number | null; mime?: string | null }>;

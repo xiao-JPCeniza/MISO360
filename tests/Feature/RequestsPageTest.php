@@ -117,6 +117,61 @@ class RequestsPageTest extends TestCase
         );
     }
 
+    public function test_admin_can_update_request_description_via_it_governance(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $ticket = TicketRequest::factory()->create([
+            'description' => 'Original description.',
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => now()->timestamp,
+            ])
+            ->patch(route('requests.it-governance.update', $ticket), [
+                '_token' => 'test-token',
+                'requestDescription' => 'Updated by admin for clarity.',
+                'remarksId' => '',
+                'assignedStaffIds' => [(string) $admin->id],
+                'dateReceived' => now()->toDateString(),
+                'dateStarted' => '',
+                'estimatedCompletionDate' => '',
+                'actionTaken' => '',
+                'categoryId' => '',
+                'statusId' => '',
+            ]);
+
+        $response->assertRedirect();
+        $ticket->refresh();
+        $this->assertSame('Updated by admin for clarity.', $ticket->description);
+    }
+
+    public function test_admin_request_show_uses_root_relative_urls_for_file_attachments(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $ticket = TicketRequest::factory()->create([
+            'attachments' => [
+                [
+                    'name' => 'spec.pdf',
+                    'path' => 'ticket-requests/1/spec.pdf',
+                    'mime' => 'application/pdf',
+                ],
+            ],
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->get(route('requests.show', $ticket));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('requests/ItGovernanceRequest')
+            ->where('ticket.attachments.0.url', '/storage/ticket-requests/1/spec.pdf')
+        );
+    }
+
     public function test_admin_can_generate_qr_for_request_and_assigns_unit(): void
     {
         $admin = User::factory()->admin()->create();
@@ -165,7 +220,7 @@ class RequestsPageTest extends TestCase
             ->patch(route('requests.it-governance.update', $ticket), [
                 '_token' => 'test-token',
                 'remarksId' => '',
-                'assignedStaffId' => (string) $admin->id,
+                'assignedStaffIds' => [(string) $admin->id],
                 'dateReceived' => now()->toDateString(),
                 'dateStarted' => '',
                 'estimatedCompletionDate' => '',
@@ -203,7 +258,7 @@ class RequestsPageTest extends TestCase
             ->post(route('requests.it-governance.update', $ticket), [
                 '_token' => 'test-token',
                 'remarksId' => '',
-                'assignedStaffId' => (string) $admin->id,
+                'assignedStaffIds' => [(string) $admin->id],
                 'dateReceived' => now()->toDateString(),
                 'dateStarted' => '',
                 'estimatedCompletionDate' => '',
@@ -248,7 +303,7 @@ class RequestsPageTest extends TestCase
                 '_token' => 'test-token',
                 'natureOfRequestId' => (string) $natureNew->id,
                 'remarksId' => '',
-                'assignedStaffId' => (string) $admin->id,
+                'assignedStaffIds' => [(string) $admin->id],
                 'dateReceived' => now()->toDateString(),
                 'dateStarted' => '',
                 'estimatedCompletionDate' => '',
@@ -351,7 +406,7 @@ class RequestsPageTest extends TestCase
             ->patch(route('requests.equipment-network.update', $ticket), [
                 '_token' => 'test-token',
                 'remarksId' => '',
-                'assignedStaffId' => '',
+                'assignedStaffIds' => [(string) $admin->id],
                 'dateReceived' => '',
                 'dateStarted' => '',
                 'estimatedCompletionDate' => '',
@@ -371,6 +426,34 @@ class RequestsPageTest extends TestCase
         $this->assertNull($ticket->action_taken);
     }
 
+    public function test_admin_can_update_request_description_via_equipment_and_network(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $ticket = TicketRequest::factory()->create([
+            'description' => 'Equipment scope original.',
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->withSession(['_token' => 'test-token', 'two_factor.verified_at' => now()->timestamp])
+            ->patch(route('requests.equipment-network.update', $ticket), [
+                '_token' => 'test-token',
+                'requestDescription' => 'Equipment scope revised.',
+                'remarksId' => '',
+                'assignedStaffIds' => [(string) $admin->id],
+                'dateReceived' => '',
+                'dateStarted' => '',
+                'estimatedCompletionDate' => '',
+                'actionTaken' => '',
+                'categoryId' => '',
+                'statusId' => '',
+            ]);
+
+        $response->assertRedirect();
+        $ticket->refresh();
+        $this->assertSame('Equipment scope revised.', $ticket->description);
+    }
+
     public function test_regular_user_sees_confirmation_not_edit_at_show_page(): void
     {
         $user = User::factory()->create();
@@ -385,6 +468,37 @@ class RequestsPageTest extends TestCase
             ->component('requests/TicketRequestConfirmation')
             ->has('ticket')
         );
+    }
+
+    public function test_it_governance_update_syncs_multiple_assigned_staff(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $otherAdmin = User::factory()->admin()->create();
+        $ticket = TicketRequest::factory()->create();
+
+        $response = $this
+            ->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => now()->timestamp,
+            ])
+            ->patch(route('requests.it-governance.update', $ticket), [
+                '_token' => 'test-token',
+                'remarksId' => '',
+                'assignedStaffIds' => [(string) $admin->id, (string) $otherAdmin->id],
+                'dateReceived' => now()->toDateString(),
+                'dateStarted' => '',
+                'estimatedCompletionDate' => '',
+                'actionTaken' => '',
+                'categoryId' => '',
+                'statusId' => '',
+            ]);
+
+        $response->assertRedirect();
+        $ticket->refresh();
+        $ticket->load('assignedStaffMembers');
+        $this->assertCount(2, $ticket->assignedStaffMembers);
+        $this->assertSame($admin->id, $ticket->assigned_staff_id);
     }
 
     public function test_it_governance_route_redirects_to_show_for_admin(): void

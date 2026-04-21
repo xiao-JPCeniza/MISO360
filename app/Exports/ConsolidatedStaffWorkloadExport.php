@@ -106,6 +106,10 @@ class ConsolidatedStaffWorkloadExport implements FromCollection, WithColumnWidth
             return $fromEnrollment;
         }
 
+        if ($ticket->relationLoaded('assignedStaffMembers') && $ticket->assignedStaffMembers->isNotEmpty()) {
+            return $ticket->assignedStaffMembers->pluck('name')->filter()->join(', ') ?: null;
+        }
+
         return $ticket->assignedStaff?->name;
     }
 

@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\NatureOfRequest;
+use App\Models\TicketRequest;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -11,6 +12,17 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class TicketRequestFactory extends Factory
 {
+    public function configure(): static
+    {
+        return $this->afterCreating(function (TicketRequest $ticket): void {
+            if ($ticket->assigned_staff_id === null) {
+                return;
+            }
+
+            $ticket->assignedStaffMembers()->sync([$ticket->assigned_staff_id]);
+        });
+    }
+
     /**
      * Define the model's default state.
      *

@@ -37,6 +37,20 @@ class TicketRequestController extends Controller
     private const BORROW_UNIT_NATURE_NAME = 'Borrow Unit';
 
     /**
+     * Root-relative URL so attachment links work regardless of APP_URL host (e.g. localhost vs 127.0.0.1).
+     */
+    private function publicStorageRelativeUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        $normalized = str_replace('\\', '/', $path);
+
+        return '/storage/'.ltrim($normalized, '/');
+    }
+
+    /**
      * Downloadable form templates used in Submit Request.
      *
      * `paths` are checked on the public disk first (allows server-specific overrides).
@@ -98,7 +112,7 @@ class TicketRequestController extends Controller
                 'status:id,name',
                 'category:id,name',
                 'remarks:id,name',
-                'assignedStaff:id,name',
+                'assignedStaffMembers:id,name',
                 'requestedForUser:id,name,position_title',
                 'user:id,name,position_title',
             ]);
@@ -113,8 +127,11 @@ class TicketRequestController extends Controller
         } elseif ($user && $isAdmin && ! $isSuperAdmin) {
             // Standard Admins: only unassigned or assigned to themselves.
             $query->where(function ($q) use ($user) {
-                $q->whereNull('assigned_staff_id')
-                    ->orWhere('assigned_staff_id', $user->id);
+                $q->whereDoesntHave('assignedStaffMembers')
+                    ->orWhereHas(
+                        'assignedStaffMembers',
+                        fn ($staffQuery) => $staffQuery->where('users.id', $user->id)
+                    );
             });
         }
 
@@ -144,7 +161,7 @@ class TicketRequestController extends Controller
                 'status:id,name',
                 'category:id,name',
                 'remarks:id,name',
-                'assignedStaff:id,name',
+                'assignedStaffMembers:id,name',
                 'requestedForUser:id,name,position_title',
                 'user:id,name,position_title',
             ])
@@ -178,7 +195,7 @@ class TicketRequestController extends Controller
             'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
             'requestDescription' => $ticketRequest->description,
             'remarks' => $ticketRequest->remarks?->name,
-            'assignedStaff' => $ticketRequest->assignedStaff?->name,
+            'assignedStaff' => $this->formatAssignedStaffNames($ticketRequest),
             'status' => $ticketRequest->status?->name,
             'category' => $ticketRequest->category?->name,
             'estimatedCompletionDate' => $ticketRequest->estimated_completion_date?->toDateString(),
@@ -646,10 +663,7 @@ class TicketRequestController extends Controller
 
         $ticketRequest->load('natureOfRequest');
 
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('public');
-
-        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
+        [$fileAttachments, $systemDevelopmentSurvey, , $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
 
         return Inertia::render('requests/TicketRequestConfirmation', [
             'ticket' => [
@@ -663,13 +677,10 @@ class TicketRequestController extends Controller
                         'name' => $attachment['name'] ?? basename($attachment['path'] ?? ''),
                         'size' => $attachment['size'] ?? null,
                         'mime' => $attachment['mime'] ?? null,
-                        'url' => isset($attachment['path'])
-                            ? $disk->url($attachment['path'])
-                            : null,
+                        'url' => $this->publicStorageRelativeUrl($attachment['path'] ?? null),
                     ])
                     ->values(),
                 'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
-                'systemChangeRequestForm' => $systemChangeRequestForm,
                 'systemIssueReport' => $systemIssueReport,
                 'systemIssueReportPdfUrl' => is_array($systemIssueReport)
                     ? $this->systemIssueReportPdfUrl($ticketRequest)
@@ -679,7 +690,7 @@ class TicketRequestController extends Controller
                         'name' => $a['name'] ?? basename($a['path'] ?? ''),
                         'size' => $a['size'] ?? null,
                         'mime' => $a['mime'] ?? null,
-                        'url' => isset($a['path']) ? $disk->url($a['path']) : null,
+                        'url' => $this->publicStorageRelativeUrl($a['path'] ?? null),
                     ])
                     ->values()
                     ->all(),
@@ -701,13 +712,10 @@ class TicketRequestController extends Controller
      */
     private function renderRequestEditPage(TicketRequest $ticketRequest): Response
     {
-        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaff', 'requestedForUser', 'user']);
-
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('public');
+        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaffMembers', 'requestedForUser', 'user']);
 
         $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
-        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
+        [$fileAttachments, $systemDevelopmentSurvey, , $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
 
         $ticket = [
             'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -722,12 +730,11 @@ class TicketRequestController extends Controller
             'attachments' => collect($fileAttachments)
                 ->map(fn (array $attachment) => [
                     'name' => $attachment['name'] ?? basename($attachment['path'] ?? ''),
-                    'url' => isset($attachment['path']) ? $disk->url($attachment['path']) : null,
+                    'url' => $this->publicStorageRelativeUrl($attachment['path'] ?? null),
                 ])
                 ->values()
                 ->all(),
             'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
-            'systemChangeRequestForm' => $systemChangeRequestForm,
             'systemIssueReport' => $systemIssueReport,
             'systemIssueReportPdfUrl' => is_array($systemIssueReport)
                 ? $this->systemIssueReportPdfUrl($ticketRequest)
@@ -735,12 +742,16 @@ class TicketRequestController extends Controller
             'systemIssueReportAttachments' => collect($issueReportAttachments)
                 ->map(fn (array $a) => [
                     'name' => $a['name'] ?? basename($a['path'] ?? ''),
-                    'url' => isset($a['path']) ? $disk->url($a['path']) : null,
+                    'url' => $this->publicStorageRelativeUrl($a['path'] ?? null),
                 ])
                 ->values()
                 ->all(),
             'remarksId' => $ticketRequest->remarks_id != null ? (string) $ticketRequest->remarks_id : null,
-            'assignedStaffId' => $ticketRequest->assigned_staff_id != null ? (string) $ticketRequest->assigned_staff_id : null,
+            'assignedStaffIds' => $ticketRequest->assignedStaffMembers
+                ->pluck('id')
+                ->map(fn (int $id) => (string) $id)
+                ->values()
+                ->all(),
             'dateReceived' => $ticketRequest->date_received?->toDateString(),
             'dateStarted' => $ticketRequest->date_started?->toDateString(),
             'estimatedCompletionDate' => $ticketRequest->estimated_completion_date?->toDateString(),
@@ -829,8 +840,8 @@ class TicketRequestController extends Controller
                 'integer',
                 Rule::exists('reference_values', 'id')->where('group_key', ReferenceValueGroup::Remarks->value),
             ],
-            'assignedStaffId' => [
-                'nullable',
+            'assignedStaffIds' => ['required', 'array', 'min:1'],
+            'assignedStaffIds.*' => [
                 'integer',
                 Rule::exists('users', 'id')->where(fn ($query) => $query->where('is_active', true)),
             ],
@@ -838,6 +849,7 @@ class TicketRequestController extends Controller
             'dateStarted' => ['nullable', 'date'],
             'estimatedCompletionDate' => ['nullable', 'date'],
             'actionTaken' => ['nullable', 'string', 'max:500'],
+            'requestDescription' => ['sometimes', 'required', 'string', 'min:1', 'max:5000'],
             'categoryId' => [
                 'nullable',
                 'integer',
@@ -875,7 +887,8 @@ class TicketRequestController extends Controller
         $this->validateRequestDateOrder($validated, 'dateReceived', 'dateStarted', 'estimatedCompletionDate');
 
         $remarksId = isset($validated['remarksId']) && $validated['remarksId'] !== '' ? (int) $validated['remarksId'] : null;
-        $assignedStaffId = isset($validated['assignedStaffId']) && $validated['assignedStaffId'] !== '' ? (int) $validated['assignedStaffId'] : null;
+        $assignedStaffUserIds = $this->validatedAssignedStaffUserIds($validated['assignedStaffIds'] ?? []);
+        $primaryAssignedStaffId = $assignedStaffUserIds[0] ?? null;
         $natureOfRequestId = array_key_exists('natureOfRequestId', $validated)
             ? (isset($validated['natureOfRequestId']) && $validated['natureOfRequestId'] !== '' ? (int) $validated['natureOfRequestId'] : null)
             : $ticketRequest->nature_of_request_id;
@@ -898,7 +911,7 @@ class TicketRequestController extends Controller
         $updatePayload = [
             'nature_of_request_id' => $natureOfRequestId,
             'remarks_id' => $remarksId,
-            'assigned_staff_id' => $assignedStaffId,
+            'assigned_staff_id' => $primaryAssignedStaffId,
             'date_received' => $dateReceived,
             'date_started' => $dateStarted,
             'estimated_completion_date' => $estimatedCompletionDate,
@@ -906,6 +919,10 @@ class TicketRequestController extends Controller
             'status_id' => $statusId,
             'category_id' => $categoryId,
         ];
+
+        if (array_key_exists('requestDescription', $validated)) {
+            $updatePayload['description'] = trim((string) $validated['requestDescription']);
+        }
 
         if (array_key_exists('qrCodeNumber', $validated)) {
             $qrCodeNumber = trim((string) ($validated['qrCodeNumber'] ?? '')) !== ''
@@ -949,7 +966,9 @@ class TicketRequestController extends Controller
         }
         $ticketRequest->update($updatePayload);
 
-        $ticketRequest->load(['natureOfRequest', 'status', 'remarks', 'assignedStaff']);
+        $ticketRequest->assignedStaffMembers()->sync($assignedStaffUserIds);
+
+        $ticketRequest->load(['natureOfRequest', 'status', 'remarks', 'assignedStaffMembers']);
         $this->syncTicketRequestToEnrollment($ticketRequest);
         $this->notifyTicketCompletedIfTransitioned($ticketRequest, $previousStatus);
 
@@ -1004,7 +1023,7 @@ class TicketRequestController extends Controller
                 'qr_code_number' => $uid,
             ]);
 
-            $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'remarks', 'assignedStaff']);
+            $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'remarks', 'assignedStaffMembers']);
             $this->syncTicketRequestToEnrollment($ticketRequest);
 
             return $uid;
@@ -1028,13 +1047,10 @@ class TicketRequestController extends Controller
 
         $canEdit = $user->isAdmin();
 
-        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaff', 'requestedForUser', 'user']);
-
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('public');
+        $ticketRequest->load(['natureOfRequest', 'officeDesignation', 'status', 'category', 'remarks', 'assignedStaffMembers', 'requestedForUser', 'user']);
 
         $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
-        [$fileAttachments, $systemDevelopmentSurvey, $systemChangeRequestForm, $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
+        [$fileAttachments, $systemDevelopmentSurvey, , $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
 
         $ticket = [
             'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -1049,12 +1065,11 @@ class TicketRequestController extends Controller
             'attachments' => collect($fileAttachments)
                 ->map(fn (array $attachment) => [
                     'name' => $attachment['name'] ?? basename($attachment['path'] ?? ''),
-                    'url' => isset($attachment['path']) ? $disk->url($attachment['path']) : null,
+                    'url' => $this->publicStorageRelativeUrl($attachment['path'] ?? null),
                 ])
                 ->values()
                 ->all(),
             'systemDevelopmentSurvey' => $systemDevelopmentSurvey,
-            'systemChangeRequestForm' => $systemChangeRequestForm,
             'systemIssueReport' => $systemIssueReport,
             'systemIssueReportPdfUrl' => is_array($systemIssueReport)
                 ? $this->systemIssueReportPdfUrl($ticketRequest)
@@ -1062,12 +1077,16 @@ class TicketRequestController extends Controller
             'systemIssueReportAttachments' => collect($issueReportAttachments)
                 ->map(fn (array $a) => [
                     'name' => $a['name'] ?? basename($a['path'] ?? ''),
-                    'url' => isset($a['path']) ? $disk->url($a['path']) : null,
+                    'url' => $this->publicStorageRelativeUrl($a['path'] ?? null),
                 ])
                 ->values()
                 ->all(),
             'remarksId' => $ticketRequest->remarks_id != null ? (string) $ticketRequest->remarks_id : null,
-            'assignedStaffId' => $ticketRequest->assigned_staff_id != null ? (string) $ticketRequest->assigned_staff_id : null,
+            'assignedStaffIds' => $ticketRequest->assignedStaffMembers
+                ->pluck('id')
+                ->map(fn (int $id) => (string) $id)
+                ->values()
+                ->all(),
             'dateReceived' => $ticketRequest->date_received?->toDateString(),
             'dateStarted' => $ticketRequest->date_started?->toDateString(),
             'timeStarted' => $ticketRequest->time_started?->toIso8601String(),
@@ -1160,8 +1179,8 @@ class TicketRequestController extends Controller
                 'integer',
                 Rule::exists('reference_values', 'id')->where('group_key', ReferenceValueGroup::Remarks->value),
             ],
-            'assignedStaffId' => [
-                'nullable',
+            'assignedStaffIds' => ['required', 'array', 'min:1'],
+            'assignedStaffIds.*' => [
                 'integer',
                 Rule::exists('users', 'id')->where(fn ($query) => $query->where('is_active', true)),
             ],
@@ -1169,6 +1188,7 @@ class TicketRequestController extends Controller
             'dateStarted' => ['nullable', 'date'],
             'estimatedCompletionDate' => ['nullable', 'date'],
             'actionTaken' => ['nullable', 'string', 'max:500'],
+            'requestDescription' => ['sometimes', 'required', 'string', 'min:1', 'max:5000'],
             'categoryId' => [
                 'nullable',
                 'integer',
@@ -1205,13 +1225,15 @@ class TicketRequestController extends Controller
             'equipmentNetworkDetails.apBeamBrand' => ['nullable', 'string', 'max:255'],
             'equipmentNetworkDetails.apBeamSerial' => ['nullable', 'string', 'max:255'],
             'equipmentNetworkDetails.apBeamModel' => ['nullable', 'string', 'max:255'],
+            'equipmentNetworkDetails.itUseSectionOpen' => ['nullable', 'boolean'],
             'qrCodeNumber' => ['nullable', 'string', 'max:20', 'regex:/^MIS-UID-\d{5}$/'],
         ]);
 
         $this->validateRequestDateOrder($validated, 'dateReceived', 'dateStarted', 'estimatedCompletionDate');
 
         $remarksId = isset($validated['remarksId']) && $validated['remarksId'] !== '' ? (int) $validated['remarksId'] : null;
-        $assignedStaffId = isset($validated['assignedStaffId']) && $validated['assignedStaffId'] !== '' ? (int) $validated['assignedStaffId'] : null;
+        $assignedStaffUserIds = $this->validatedAssignedStaffUserIds($validated['assignedStaffIds'] ?? []);
+        $primaryAssignedStaffId = $assignedStaffUserIds[0] ?? null;
         $natureOfRequestId = array_key_exists('natureOfRequestId', $validated)
             ? (isset($validated['natureOfRequestId']) && $validated['natureOfRequestId'] !== '' ? (int) $validated['natureOfRequestId'] : null)
             : $ticketRequest->nature_of_request_id;
@@ -1244,7 +1266,7 @@ class TicketRequestController extends Controller
         $updatePayload = [
             'nature_of_request_id' => $natureOfRequestId,
             'remarks_id' => $remarksId,
-            'assigned_staff_id' => $assignedStaffId,
+            'assigned_staff_id' => $primaryAssignedStaffId,
             'date_received' => $dateReceived,
             'date_started' => $dateStarted,
             'time_started' => $timeStarted,
@@ -1255,6 +1277,10 @@ class TicketRequestController extends Controller
             'category_id' => $categoryId,
             'equipment_network_details' => $this->normalizeEquipmentNetworkDetails($validated['equipmentNetworkDetails'] ?? []),
         ];
+
+        if (array_key_exists('requestDescription', $validated)) {
+            $updatePayload['description'] = trim((string) $validated['requestDescription']);
+        }
 
         if (array_key_exists('qrCodeNumber', $validated)) {
             $qrCodeNumber = trim((string) ($validated['qrCodeNumber'] ?? '')) !== ''
@@ -1302,7 +1328,9 @@ class TicketRequestController extends Controller
         }
         $ticketRequest->update($updatePayload);
 
-        $ticketRequest->load(['natureOfRequest', 'status', 'remarks', 'assignedStaff']);
+        $ticketRequest->assignedStaffMembers()->sync($assignedStaffUserIds);
+
+        $ticketRequest->load(['natureOfRequest', 'status', 'remarks', 'assignedStaffMembers']);
         $this->syncTicketRequestToEnrollment($ticketRequest);
         $this->notifyTicketCompletedIfTransitioned($ticketRequest, $previousStatus);
 
@@ -1398,7 +1426,39 @@ class TicketRequestController extends Controller
             $out[$key] = isset($details[$key]) && is_string($details[$key]) ? $details[$key] : '';
         }
 
+        $flag = $details['itUseSectionOpen'] ?? false;
+        $out['itUseSectionOpen'] = is_bool($flag)
+            ? $flag
+            : filter_var($flag, FILTER_VALIDATE_BOOLEAN);
+
         return $out;
+    }
+
+    private function formatAssignedStaffNames(TicketRequest $ticketRequest): ?string
+    {
+        $ticketRequest->loadMissing('assignedStaffMembers:id,name');
+
+        if ($ticketRequest->assignedStaffMembers->isNotEmpty()) {
+            $joined = $ticketRequest->assignedStaffMembers->pluck('name')->filter()->join(', ');
+
+            return $joined !== '' ? $joined : null;
+        }
+
+        return $ticketRequest->assignedStaff?->name;
+    }
+
+    /**
+     * @param  array<mixed>  $rawIds
+     * @return array<int>
+     */
+    private function validatedAssignedStaffUserIds(array $rawIds): array
+    {
+        return collect($rawIds)
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -1431,7 +1491,7 @@ class TicketRequestController extends Controller
         }
 
         $remarksName = $ticketRequest->remarks?->name;
-        $assignedStaffName = $ticketRequest->assignedStaff?->name;
+        $assignedStaffName = $this->formatAssignedStaffNames($ticketRequest);
         $officeName = $ticketRequest->officeDesignation?->name;
 
         $enrollment->update([

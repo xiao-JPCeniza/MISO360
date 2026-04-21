@@ -45,10 +45,14 @@ class TicketCompletedNotificationTest extends TestCase
         $csrfToken = 'test-token';
 
         $this->actingAs($admin)
-            ->withSession(['_token' => $csrfToken])
+            ->withSession([
+                '_token' => $csrfToken,
+                'two_factor.verified_at' => now()->timestamp,
+            ])
             ->patch(route('requests.it-governance.update', $ticket), [
                 '_token' => $csrfToken,
                 'statusId' => $completedStatus->id,
+                'assignedStaffIds' => [$admin->id],
             ])
             ->assertRedirect();
 

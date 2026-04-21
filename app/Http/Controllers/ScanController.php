@@ -154,12 +154,18 @@ class ScanController extends Controller
             ]);
         }
 
+        $acceptingUserId = $request->user()?->id;
+
         $linkedRequest->forceFill([
             'status_id' => $pendingStatusId,
             'remarks_id' => $forPickupRemarksId,
             'category_id' => $complexCategoryId,
-            'assigned_staff_id' => $request->user()?->id,
+            'assigned_staff_id' => $acceptingUserId,
         ])->save();
+
+        if ($acceptingUserId) {
+            $linkedRequest->assignedStaffMembers()->sync([$acceptingUserId]);
+        }
 
         $enrollment->forceFill([
             'repair_status' => 'accepted',

@@ -2,7 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-import Icon from '@/components/Icon.vue';
+import AssignedStaffMultiSelect from '@/components/AssignedStaffMultiSelect.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -13,11 +13,6 @@ type SelectOption = {
 };
 
 type Attachment = {
-    name: string;
-    url?: string | null;
-};
-
-type SystemIssueReportAttachment = {
     name: string;
     url?: string | null;
 };
@@ -50,52 +45,6 @@ type SystemDevelopmentSurveyData = {
     headOfOffice?: string;
 };
 
-type SystemChangeRequestFormData = {
-    controlNumber?: string;
-    date?: string;
-    officeDivision?: string;
-    requestedByName?: string;
-    nameOfSoftware?: string;
-    typeOfRequest?: string;
-    descriptionOfRequest?: string;
-    purposeObjectiveOfModification?: string;
-    detailedDescriptionOfRequestedChange?: string;
-    evaluatedBy?: string;
-    approvedBy?: string;
-    notedBy?: string;
-    remarks?: string;
-};
-
-type SystemIssueReportData = {
-    controlNumber?: string;
-    requestingDepartment?: string;
-    dateFiled?: string;
-    requestingEmployee?: string;
-    employeeContactNo?: string;
-    employeeId?: string;
-    signatureOfEmployee?: string;
-    natureOfAppointment?: string;
-    natureOfAppointmentOthersSpecify?: string;
-    coTerminusUntilDate?: string;
-    nameOfSoftware?: string;
-    typeOfRequest?: string[];
-    typeOfRequestOthersSpecify?: string;
-    errorSummaryTitle?: string;
-    detailedDescription?: string;
-    reportedBy?: string;
-    reportedByDate?: string;
-    reportedBySignature?: string;
-    acceptedBy?: string;
-    acceptedByDate?: string;
-    acceptedBySignature?: string;
-    evaluatedBy?: string;
-    evaluatedByDate?: string;
-    evaluatedBySignature?: string;
-    approvedBy?: string;
-    approvedByDate?: string;
-    approvedBySignature?: string;
-};
-
 type TicketDetails = {
     controlTicketNumber: string;
     requestedBy: string | null;
@@ -108,12 +57,8 @@ type TicketDetails = {
     requestDescription: string | null;
     attachments: Attachment[];
     systemDevelopmentSurvey?: SystemDevelopmentSurveyData | null;
-    systemChangeRequestForm?: SystemChangeRequestFormData | null;
-    systemIssueReport?: SystemIssueReportData | null;
-    systemIssueReportPdfUrl?: string | null;
-    systemIssueReportAttachments?: SystemIssueReportAttachment[];
     remarksId?: number | string | null;
-    assignedStaffId?: number | string | null;
+    assignedStaffIds?: string[];
     dateReceived?: string | null;
     dateStarted?: string | null;
     estimatedCompletionDate?: string | null;
@@ -185,20 +130,8 @@ const statusList = computed(() =>
 );
 const attachments = computed(() => props.ticket.attachments ?? []);
 const systemDevelopmentSurvey = computed(() => props.ticket.systemDevelopmentSurvey ?? null);
-const systemChangeRequestForm = computed(() => props.ticket.systemChangeRequestForm ?? null);
-const systemIssueReport = computed(() => props.ticket.systemIssueReport ?? null);
-const systemIssueReportAttachments = computed(() => props.ticket.systemIssueReportAttachments ?? []);
 const isSystemDevelopment = computed(() => {
     return (props.ticket.natureOfRequest ?? '').trim().toLowerCase() === 'system development';
-});
-const isSystemChangeRequestNature = computed(() => {
-    const n = (props.ticket.natureOfRequest ?? '').trim().toLowerCase();
-    return (
-        n === 'system modification' || n === 'request for new system module or enhancement'
-    );
-});
-const isSystemErrorBugReport = computed(() => {
-    return (props.ticket.natureOfRequest ?? '').trim().toLowerCase() === 'system error / bug report';
 });
 const isEditable = computed(() => props.canEdit);
 const natureList = computed(() => props.natureOfRequests ?? []);
@@ -206,7 +139,8 @@ const natureList = computed(() => props.natureOfRequests ?? []);
 type FormFields = {
     natureOfRequestId: number | string;
     remarksId: number | string;
-    assignedStaffId: number | string;
+    assignedStaffIds: string[];
+    requestDescription: string;
     dateReceived: string;
     dateStarted: string;
     estimatedCompletionDate: string;
@@ -217,26 +151,6 @@ type FormFields = {
         targetCompletion: string;
         assignedSystemsEngineer: string;
     };
-    systemChangeRequestForm: {
-        evaluatedBy: string;
-        approvedBy: string;
-        notedBy: string;
-        remarks: string;
-    };
-    systemIssueReport: {
-        reportedBy: string;
-        reportedByDate: string;
-        reportedBySignature: string;
-        acceptedBy: string;
-        acceptedByDate: string;
-        acceptedBySignature: string;
-        evaluatedBy: string;
-        evaluatedByDate: string;
-        evaluatedBySignature: string;
-        approvedBy: string;
-        approvedByDate: string;
-        approvedBySignature: string;
-    };
 };
 
 type FieldName = keyof FormFields;
@@ -245,7 +159,8 @@ const form = useForm<FormFields>({
     natureOfRequestId:
         props.ticket.natureOfRequestId != null ? String(props.ticket.natureOfRequestId) : '',
     remarksId: props.ticket.remarksId != null ? String(props.ticket.remarksId) : '',
-    assignedStaffId: props.ticket.assignedStaffId != null ? String(props.ticket.assignedStaffId) : '',
+    assignedStaffIds: [...(props.ticket.assignedStaffIds ?? [])],
+    requestDescription: props.ticket.requestDescription ?? '',
     dateReceived: props.ticket.dateReceived ?? '',
     dateStarted: props.ticket.dateStarted ?? '',
     estimatedCompletionDate: props.ticket.estimatedCompletionDate ?? '',
@@ -255,26 +170,6 @@ const form = useForm<FormFields>({
     systemDevelopmentSurvey: {
         targetCompletion: String(systemDevelopmentSurvey.value?.targetCompletion ?? ''),
         assignedSystemsEngineer: String(systemDevelopmentSurvey.value?.assignedSystemsEngineer ?? ''),
-    },
-    systemChangeRequestForm: {
-        evaluatedBy: String(systemChangeRequestForm.value?.evaluatedBy ?? ''),
-        approvedBy: String(systemChangeRequestForm.value?.approvedBy ?? ''),
-        notedBy: String(systemChangeRequestForm.value?.notedBy ?? ''),
-        remarks: String(systemChangeRequestForm.value?.remarks ?? ''),
-    },
-    systemIssueReport: {
-        reportedBy: String(systemIssueReport.value?.reportedBy ?? ''),
-        reportedByDate: String(systemIssueReport.value?.reportedByDate ?? ''),
-        reportedBySignature: String(systemIssueReport.value?.reportedBySignature ?? ''),
-        acceptedBy: String(systemIssueReport.value?.acceptedBy ?? ''),
-        acceptedByDate: String(systemIssueReport.value?.acceptedByDate ?? ''),
-        acceptedBySignature: String(systemIssueReport.value?.acceptedBySignature ?? ''),
-        evaluatedBy: String(systemIssueReport.value?.evaluatedBy ?? ''),
-        evaluatedByDate: String(systemIssueReport.value?.evaluatedByDate ?? ''),
-        evaluatedBySignature: String(systemIssueReport.value?.evaluatedBySignature ?? ''),
-        approvedBy: String(systemIssueReport.value?.approvedBy ?? ''),
-        approvedByDate: String(systemIssueReport.value?.approvedByDate ?? ''),
-        approvedBySignature: String(systemIssueReport.value?.approvedBySignature ?? ''),
     },
 });
 
@@ -290,8 +185,11 @@ function validateForm() {
     if (!form.remarksId) {
         localErrors.value.remarksId = 'Remarks is required.';
     }
-    if (!form.assignedStaffId) {
-        localErrors.value.assignedStaffId = 'Assigned IT staff is required.';
+    if (!form.assignedStaffIds.length) {
+        localErrors.value.assignedStaffIds = 'Select at least one assigned IT staff member.';
+    }
+    if (isEditable.value && !String(form.requestDescription ?? '').trim()) {
+        localErrors.value.requestDescription = 'Description of request is required.';
     }
     if (!form.categoryId) {
         localErrors.value.categoryId = 'Category is required.';
@@ -446,14 +344,24 @@ function submitForm() {
 
                     <div class="mt-3 border-t border-white/10 pt-3">
                         <label class="mb-1 block text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                            Request Description
+                            Description of Request
                         </label>
                         <textarea
+                            v-if="isEditable"
+                            v-model="form.requestDescription"
+                            rows="4"
+                            class="max-h-56 min-h-0 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md border border-white/30 bg-white px-3 py-2 text-[11px] leading-relaxed text-slate-900 shadow-inner outline-none focus:border-white/60 focus:ring-2 focus:ring-white/20 [field-sizing:content] disabled:bg-white/70 disabled:text-slate-500"
+                        />
+                        <textarea
+                            v-else
                             readonly
                             rows="3"
                             :value="props.ticket.requestDescription ?? ''"
                             class="max-h-56 min-h-0 w-full cursor-default resize-y overflow-y-auto whitespace-pre-wrap rounded-md border border-white/15 bg-slate-100/95 px-3 py-2 text-[11px] leading-relaxed text-slate-700 shadow-inner outline-none [field-sizing:content] dark:text-slate-600"
                         />
+                        <p v-if="fieldError('requestDescription')" class="mt-0.5 text-[10px] text-red-300">
+                            {{ fieldError('requestDescription') }}
+                        </p>
                     </div>
                 </div>
 
@@ -625,407 +533,11 @@ function submitForm() {
                     </div>
                 </div>
 
-                <div
-                    v-if="isSystemChangeRequestNature && systemChangeRequestForm"
-                    class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm"
-                >
-                    <h2 class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/70">
-                        System Change Request Form
-                    </h2>
-
-                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Control Number
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemChangeRequestForm.controlNumber ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Date
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemChangeRequestForm.date ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Office/Division
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemChangeRequestForm.officeDivision ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Requested by
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemChangeRequestForm.requestedByName ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                        <div class="grid gap-0.5 sm:col-span-2">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Name of Software
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemChangeRequestForm.nameOfSoftware ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                        <div class="grid gap-0.5 sm:col-span-2">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Type of Request
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemChangeRequestForm.typeOfRequest ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="mt-3 grid gap-3">
-                        <div class="rounded border border-white/15 bg-white/5 px-3 py-2">
-                            <p class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Description of Request
-                            </p>
-                            <p class="mt-2 whitespace-pre-wrap text-[11px] text-white/90">
-                                {{ String(systemChangeRequestForm.descriptionOfRequest ?? '') }}
-                            </p>
-                        </div>
-
-                        <div class="rounded border border-white/15 bg-white/5 px-3 py-2">
-                            <p class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Purpose/Objective of Modification
-                            </p>
-                            <p class="mt-2 whitespace-pre-wrap text-[11px] text-white/90">
-                                {{ String(systemChangeRequestForm.purposeObjectiveOfModification ?? '') }}
-                            </p>
-                        </div>
-
-                        <div class="rounded border border-white/15 bg-white/5 px-3 py-2">
-                            <p class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Detailed Description of Requested Change
-                            </p>
-                            <p class="mt-2 whitespace-pre-wrap text-[11px] text-white/90">
-                                {{ String(systemChangeRequestForm.detailedDescriptionOfRequestedChange ?? '') }}
-                            </p>
-                        </div>
-
-                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                            <div class="grid gap-0.5">
-                                <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                    Evaluated by
-                                </label>
-                                <input
-                                    v-model="form.systemChangeRequestForm.evaluatedBy"
-                                    type="text"
-                                    class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                    :disabled="!isEditable"
-                                />
-                            </div>
-                            <div class="grid gap-0.5">
-                                <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                    Approved by
-                                </label>
-                                <input
-                                    v-model="form.systemChangeRequestForm.approvedBy"
-                                    type="text"
-                                    class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                    :disabled="!isEditable"
-                                />
-                            </div>
-                            <div class="grid gap-0.5">
-                                <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                    Noted by
-                                </label>
-                                <input
-                                    v-model="form.systemChangeRequestForm.notedBy"
-                                    type="text"
-                                    class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                    :disabled="!isEditable"
-                                />
-                            </div>
-                            <div class="grid gap-0.5 lg:col-span-4">
-                                <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                    Remarks
-                                </label>
-                                <input
-                                    v-model="form.systemChangeRequestForm.remarks"
-                                    type="text"
-                                    class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                    :disabled="!isEditable"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    v-if="isSystemErrorBugReport && systemIssueReport"
-                    class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm"
-                >
-                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <h2 class="text-[10px] font-semibold uppercase tracking-widest text-white/70">
-                            System Issue Report
-                        </h2>
-                     
-                    </div>
-                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Control Number
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemIssueReport.controlNumber ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Requesting Department
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemIssueReport.requestingDepartment ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Date Filed
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemIssueReport.dateFiled ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Requesting Employee
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemIssueReport.requestingEmployee ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Name of Software
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="String(systemIssueReport.nameOfSoftware ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                        <div class="grid gap-0.5 sm:col-span-2">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Type of Request
-                            </label>
-                            <input
-                                type="text"
-                                readonly
-                                :value="Array.isArray(systemIssueReport.typeOfRequest) ? systemIssueReport.typeOfRequest.join(', ') : String(systemIssueReport.typeOfRequest ?? '')"
-                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
-                            />
-                        </div>
-                    </div>
-                    <div class="mt-3 rounded border border-white/15 bg-white/5 px-3 py-2">
-                        <p class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                            Error Summary/Title
-                        </p>
-                        <p class="mt-2 text-[11px] text-white/90">
-                            {{ String(systemIssueReport.errorSummaryTitle ?? '') }}
-                        </p>
-                    </div>
-                    <div class="mt-3 rounded border border-white/15 bg-white/5 px-3 py-2">
-                        <p class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                            Detailed Description
-                        </p>
-                        <p class="mt-2 whitespace-pre-wrap text-[11px] text-white/90">
-                            {{ String(systemIssueReport.detailedDescription ?? '') }}
-                        </p>
-                    </div>
-                    <div v-if="systemIssueReportAttachments.length" class="mt-3 flex flex-wrap gap-2">
-                        <a
-                            v-for="att in systemIssueReportAttachments"
-                            :key="att.name"
-                            :href="att.url ?? undefined"
-                            :target="att.url ? '_blank' : undefined"
-                            :rel="att.url ? 'noreferrer' : undefined"
-                            class="inline-flex rounded bg-white/90 px-2 py-1 text-[10px] font-medium text-slate-600 hover:bg-white"
-                        >
-                            {{ att.name }}
-                        </a>
-                    </div>
-                    <div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Reported By
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.reportedBy"
-                                type="text"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Reported By Date
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.reportedByDate"
-                                type="date"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Reported By Signature
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.reportedBySignature"
-                                type="text"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Accepted By
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.acceptedBy"
-                                type="text"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Accepted By Date
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.acceptedByDate"
-                                type="date"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Accepted By Signature
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.acceptedBySignature"
-                                type="text"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Evaluated By
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.evaluatedBy"
-                                type="text"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Evaluated By Date
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.evaluatedByDate"
-                                type="date"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Evaluated By Signature
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.evaluatedBySignature"
-                                type="text"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Approved By
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.approvedBy"
-                                type="text"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Approved By Date
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.approvedByDate"
-                                type="date"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Approved By Signature
-                            </label>
-                            <input
-                                v-model="form.systemIssueReport.approvedBySignature"
-                                type="text"
-                                class="h-8 w-full rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 placeholder:text-slate-400 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            />
-                        </div>
-                    </div>
-                </div>
-
                 <div class="mt-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3 shadow-sm">
                     <h2 class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/70">
                         IT processing
                     </h2>
-                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <div class="grid gap-0.5">
                             <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
                                 Remarks
@@ -1046,40 +558,18 @@ function submitForm() {
                         </div>
                         <div class="grid gap-0.5">
                             <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
-                                Assigned IT Staff
-                            </label>
-                            <select
-                                v-model="form.assignedStaffId"
-                                class="h-8 w-full appearance-none rounded border border-white/30 bg-white px-2 text-[11px] text-slate-900 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
-                                :disabled="!isEditable"
-                            >
-                                <option value="" disabled>Select staff</option>
-                                <option v-for="staff in props.staffOptions" :key="staff.id" :value="String(staff.id)">
-                                    {{ staff.name }}
-                                </option>
-                            </select>
-                            <p v-if="fieldError('assignedStaffId')" class="mt-0.5 text-[10px] text-red-300">
-                                {{ fieldError('assignedStaffId') }}
-                            </p>
-                        </div>
-                        <div class="grid gap-0.5">
-                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
                                 Date Received
                             </label>
                             <div
-                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white pr-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
+                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white px-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
                                 :class="{ 'cursor-not-allowed opacity-70': !isEditable }"
                             >
                                 <input
                                     v-model="form.dateReceived"
                                     type="date"
-                                    class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-2 py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                                    class="min-w-0 w-full cursor-pointer border-0 bg-transparent py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
                                     :disabled="!isEditable"
                                     @keydown.prevent
-                                />
-                                <Icon
-                                    name="calendar"
-                                    class="h-4 w-4 shrink-0 text-slate-500 pointer-events-none"
                                 />
                             </div>
                         </div>
@@ -1088,43 +578,35 @@ function submitForm() {
                                 Date Started
                             </label>
                             <div
-                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white pr-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
+                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white px-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
                                 :class="{ 'cursor-not-allowed opacity-70': !isEditable }"
                             >
                                 <input
                                     v-model="form.dateStarted"
                                     type="date"
-                                    class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-2 py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                                    class="min-w-0 w-full cursor-pointer border-0 bg-transparent py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
                                     :disabled="!isEditable"
                                     @keydown.prevent
-                                />
-                                <Icon
-                                    name="calendar"
-                                    class="h-4 w-4 shrink-0 text-slate-500 pointer-events-none"
                                 />
                             </div>
                             <p v-if="fieldError('dateStarted')" class="mt-0.5 text-[10px] text-red-300">
                                 {{ fieldError('dateStarted') }}
                             </p>
                         </div>
-                        <div class="grid gap-0.5 sm:col-span-2 lg:col-span-1">
+                        <div class="grid gap-0.5">
                             <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
                                 Estimated Completion Date
                             </label>
                             <div
-                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white pr-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
+                                class="flex h-8 w-full items-center rounded border border-white/30 bg-white px-2 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/20 disabled:bg-white/70"
                                 :class="{ 'cursor-not-allowed opacity-70': !isEditable }"
                             >
                                 <input
                                     v-model="form.estimatedCompletionDate"
                                     type="date"
-                                    class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-2 py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                                    class="min-w-0 w-full cursor-pointer border-0 bg-transparent py-0 text-[11px] text-slate-900 scheme-light focus:outline-none disabled:cursor-not-allowed disabled:text-slate-500"
                                     :disabled="!isEditable"
                                     @keydown.prevent
-                                />
-                                <Icon
-                                    name="calendar"
-                                    class="h-4 w-4 shrink-0 text-slate-500 pointer-events-none"
                                 />
                             </div>
                             <p v-if="fieldError('estimatedCompletionDate')" class="mt-0.5 text-[10px] text-red-300">
@@ -1132,6 +614,26 @@ function submitForm() {
                             </p>
                         </div>
                     </div>
+
+                    <div class="mt-4 grid gap-2 border-t border-white/10 pt-4">
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Assigned IT Staff
+                            </label>
+                            <p class="mb-1 max-w-2xl text-[10px] leading-relaxed text-white/55">
+                                Open the list to choose one or more IT staff. At least one selection is required.
+                            </p>
+                            <AssignedStaffMultiSelect
+                                v-model="form.assignedStaffIds"
+                                :staff-options="props.staffOptions"
+                                :disabled="!isEditable"
+                            />
+                            <p v-if="fieldError('assignedStaffIds')" class="mt-0.5 text-[10px] text-red-300">
+                                {{ fieldError('assignedStaffIds') }}
+                            </p>
+                        </div>
+                    </div>
+
                     <div class="mt-3 grid gap-0.5">
                         <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
                             Action Taken

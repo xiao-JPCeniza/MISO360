@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class TicketRequest extends Model
 {
@@ -96,6 +97,15 @@ class TicketRequest extends Model
     }
 
     /**
+     * IT staff assigned to process this request (one or more).
+     */
+    public function assignedStaffMembers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'ticket_request_assigned_staff')
+            ->withTimestamps();
+    }
+
+    /**
      * QR/asset enrollment record when this request has a linked QR code.
      */
     public function enrollment(): BelongsTo
@@ -164,8 +174,11 @@ class TicketRequest extends Model
 
         if ($viewer->isAdmin()) {
             return $query->where(function (Builder $q) use ($viewer) {
-                $q->whereNull('assigned_staff_id')
-                    ->orWhere('assigned_staff_id', $viewer->id);
+                $q->whereDoesntHave('assignedStaffMembers')
+                    ->orWhereHas(
+                        'assignedStaffMembers',
+                        fn (Builder $staffQuery) => $staffQuery->where('users.id', $viewer->id)
+                    );
             });
         }
 

@@ -98,6 +98,7 @@ class InventoryBorrowedFilterTest extends TestCase
             ->patch(route('requests.equipment-network.update', $ticket), [
                 '_token' => 'test-token',
                 'statusId' => $completedStatus->id,
+                'assignedStaffIds' => [$admin->id],
             ]);
 
         $response->assertRedirect(route('inventory', ['status' => 'borrowed']));
