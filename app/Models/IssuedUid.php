@@ -6,8 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class IssuedUid extends Model
 {
-    protected $fillable = [
-        'uid',
-        'sequence',
-    ];
+    protected $fillable = ['uid', 'sequence'];
 }

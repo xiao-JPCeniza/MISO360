@@ -14,12 +14,7 @@ class ReferenceValue extends Model
     /**
      * @var list<string>
      */
-    protected $fillable = [
-        'group_key',
-        'name',
-        'system_seeded',
-        'is_active',
-    ];
+    protected $fillable = ['group_key', 'name', 'system_seeded', 'is_active'];
 
     /**
      * @return array<string, string>

@@ -16,6 +16,8 @@ class StoreTicketRequestRequest extends FormRequest
 {
     private const PASSWORD_RESET_ACCOUNT_RECOVERY_NATURE = 'password reset or account recovery (gov mail)';
 
+    private const CREATION_OF_GOV_MAIL_ACC_NATURE = 'creation of gov mail acc';
+
     private const SYSTEM_ACCOUNT_CREATION_NATURE = 'system account creation';
 
     private const REQUEST_NEW_SYSTEM_MODULE_OR_ENHANCEMENT_NATURE = 'request for new system module or enhancement';
@@ -81,6 +83,21 @@ class StoreTicketRequestRequest extends FormRequest
                 'qrCodeNumber' => strtoupper(trim($this->input('qrCodeNumber'))),
             ]);
         }
+
+        if ($this->isCreationOfGovMailAcc()) {
+            $this->merge([
+                'description' => 'Government mail account creation request.',
+            ]);
+        }
+
+        if ($this->isPasswordResetOrAccountRecovery()) {
+            $contact = trim((string) ($this->input('contactNumber') ?? ''));
+            if ($contact !== '') {
+                $this->merge([
+                    'description' => 'Contact number: '.$contact,
+                ]);
+            }
+        }
     }
 
     /**
@@ -136,7 +153,9 @@ class StoreTicketRequestRequest extends FormRequest
                 'string',
                 'email:rfc',
                 'max:255',
-                Rule::requiredIf($this->isPasswordResetOrAccountRecovery()),
+                Rule::requiredIf(
+                    $this->isPasswordResetOrAccountRecovery() || $this->isCreationOfGovMailAcc(),
+                ),
             ],
             'officeEmail' => [
                 'nullable',
@@ -144,6 +163,29 @@ class StoreTicketRequestRequest extends FormRequest
                 'email:rfc',
                 'max:255',
                 Rule::requiredIf($this->isSystemAccountCreation()),
+            ],
+            'emailRecovery' => [
+                'nullable',
+                'string',
+                'email:rfc',
+                'max:255',
+                Rule::requiredIf($this->isPasswordResetOrAccountRecovery()),
+            ],
+            'cellphoneNumber' => [
+                'nullable',
+                'string',
+                'max:50',
+                'regex:/^[\d\s+\-()]{10,50}$/',
+                Rule::requiredIf($this->isCreationOfGovMailAcc()),
+            ],
+            'contactNumber' => [
+                'nullable',
+                'string',
+                'max:50',
+                'regex:/^[\d\s+\-()]{10,50}$/',
+                Rule::requiredIf(
+                    $this->isPasswordResetOrAccountRecovery() || $this->isSystemAccountCreation(),
+                ),
             ],
             'description' => ['required', 'string', 'min:10', 'max:5000'],
             'hasQrCode' => ['required', 'boolean'],
@@ -334,10 +376,16 @@ class StoreTicketRequestRequest extends FormRequest
             'officeDesignationId.required' => 'Please select an office designation.',
             'requestedForUserId.required' => 'Please select a user for this request.',
             'requestedForUserId.exists' => 'Please select a valid user for the selected office.',
-            'personalEmail.required' => 'Personal email is required for password reset/account recovery requests.',
+            'personalEmail.required' => 'Personal email is required for this type of request.',
             'personalEmail.email' => 'Please enter a valid personal email address.',
-            'officeEmail.required' => 'Office email is required for system account creation requests.',
-            'officeEmail.email' => 'Please enter a valid office email address.',
+            'officeEmail.required' => 'Email is required for system account creation requests.',
+            'officeEmail.email' => 'Please enter a valid email address.',
+            'emailRecovery.required' => 'Email recovery is required for password reset or account recovery (gov mail) requests.',
+            'emailRecovery.email' => 'Please enter a valid email recovery address.',
+            'cellphoneNumber.required' => 'Cellphone number is required for government mail account creation requests.',
+            'cellphoneNumber.regex' => 'Enter a valid cellphone number (at least 10 digits).',
+            'contactNumber.required' => 'Contact number is required for this type of request.',
+            'contactNumber.regex' => 'Enter a valid contact number (at least 10 digits).',
             'qrCodeNumber.required' => 'QR Code Number is required when a QR code is provided.',
             'qrCodeNumber.regex' => 'QR Code Number must match MIS-UID-00000 format.',
             'description.min' => 'Description must be at least 10 characters.',
@@ -376,6 +424,21 @@ class StoreTicketRequestRequest extends FormRequest
 
         return is_string($name)
             && strtolower(trim($name)) === self::SYSTEM_ACCOUNT_CREATION_NATURE;
+    }
+
+    private function isCreationOfGovMailAcc(): bool
+    {
+        $natureId = $this->integer('natureOfRequestId');
+        if (! $natureId) {
+            return false;
+        }
+
+        $name = NatureOfRequest::query()
+            ->whereKey($natureId)
+            ->value('name');
+
+        return is_string($name)
+            && strtolower(trim($name)) === self::CREATION_OF_GOV_MAIL_ACC_NATURE;
     }
 
     private function isSystemDevelopment(): bool

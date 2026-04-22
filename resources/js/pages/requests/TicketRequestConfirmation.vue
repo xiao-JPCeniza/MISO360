@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
@@ -12,10 +13,12 @@ type Attachment = {
     mime?: string | null;
 };
 
-defineProps<{
+const props = defineProps<{
     ticket: {
         controlTicketNumber: string;
         natureOfRequest: string | null;
+        personalEmail?: string | null;
+        officeEmail?: string | null;
         description: string;
         hasQrCode: boolean;
         qrCodeNumber?: string | null;
@@ -26,6 +29,16 @@ defineProps<{
         systemIssueReportAttachments?: Array<{ name: string; url?: string | null; size?: number | null; mime?: string | null }>;
     };
 }>();
+
+const normalizedNature = computed(() => (props.ticket.natureOfRequest ?? '').trim().toLowerCase());
+
+const isCreationOfGovMailAcc = computed(() => normalizedNature.value === 'creation of gov mail acc');
+
+const isPasswordResetGovMail = computed(
+    () => normalizedNature.value === 'password reset or account recovery (gov mail)',
+);
+
+const isSystemAccountCreation = computed(() => normalizedNature.value === 'system account creation');
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -100,7 +113,96 @@ function formatSize(size?: number | null) {
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-slate-200 px-5 py-4">
+                        <div
+                            v-if="isCreationOfGovMailAcc"
+                            class="grid gap-4 md:grid-cols-2"
+                        >
+                            <div class="rounded-2xl border border-slate-200 px-5 py-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    Personal Email
+                                </p>
+                                <p class="mt-2 text-sm font-semibold text-slate-800">
+                                    {{ ticket.personalEmail ?? '—' }}
+                                </p>
+                            </div>
+                            <div class="rounded-2xl border border-slate-200 px-5 py-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    Cellphone Number
+                                </p>
+                                <p class="mt-2 text-sm font-semibold text-slate-800">
+                                    {{ ticket.officeEmail ?? '—' }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="isPasswordResetGovMail"
+                            class="grid gap-4 md:grid-cols-3"
+                        >
+                            <div class="rounded-2xl border border-slate-200 px-5 py-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    Email Recovery
+                                </p>
+                                <p class="mt-2 text-sm font-semibold text-slate-800">
+                                    {{ ticket.officeEmail ?? '—' }}
+                                </p>
+                            </div>
+                            <div class="rounded-2xl border border-slate-200 px-5 py-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    Personal Email
+                                </p>
+                                <p class="mt-2 text-sm font-semibold text-slate-800">
+                                    {{ ticket.personalEmail ?? '—' }}
+                                </p>
+                            </div>
+                            <div class="rounded-2xl border border-slate-200 px-5 py-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    Contact number
+                                </p>
+                                <p class="mt-2 text-sm font-semibold text-slate-800">
+                                    {{ ticket.description }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="isSystemAccountCreation"
+                            class="grid gap-4 md:grid-cols-2"
+                        >
+                            <div class="rounded-2xl border border-slate-200 px-5 py-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    Email
+                                </p>
+                                <p class="mt-2 text-sm font-semibold text-slate-800">
+                                    {{ ticket.officeEmail ?? '—' }}
+                                </p>
+                            </div>
+                            <div class="rounded-2xl border border-slate-200 px-5 py-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    Contact number
+                                </p>
+                                <p class="mt-2 text-sm font-semibold text-slate-800">
+                                    {{ ticket.personalEmail ?? '—' }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="isSystemAccountCreation"
+                            class="rounded-2xl border border-slate-200 px-5 py-4"
+                        >
+                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                Description of Request
+                            </p>
+                            <p class="mt-2 text-sm text-slate-700">
+                                {{ ticket.description }}
+                            </p>
+                        </div>
+
+                        <div
+                            v-if="!isCreationOfGovMailAcc && !isPasswordResetGovMail && !isSystemAccountCreation"
+                            class="rounded-2xl border border-slate-200 px-5 py-4"
+                        >
                             <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                                 Description of Request
                             </p>

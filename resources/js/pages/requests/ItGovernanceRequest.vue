@@ -54,6 +54,8 @@ type TicketDetails = {
     email: string | null;
     natureOfRequest: string | null;
     natureOfRequestId?: number | string | null;
+    personalEmail?: string | null;
+    officeEmail?: string | null;
     requestDescription: string | null;
     attachments: Attachment[];
     systemDevelopmentSurvey?: SystemDevelopmentSurveyData | null;
@@ -133,6 +135,25 @@ const systemDevelopmentSurvey = computed(() => props.ticket.systemDevelopmentSur
 const isSystemDevelopment = computed(() => {
     return (props.ticket.natureOfRequest ?? '').trim().toLowerCase() === 'system development';
 });
+
+const GOV_MAIL_CREATION_NATURE = 'creation of gov mail acc';
+
+const PASSWORD_RESET_GOV_MAIL_NATURE = 'password reset or account recovery (gov mail)';
+
+const isCreationOfGovMailAcc = computed(() => {
+    return (props.ticket.natureOfRequest ?? '').trim().toLowerCase() === GOV_MAIL_CREATION_NATURE;
+});
+
+const isPasswordResetGovMail = computed(() => {
+    return (props.ticket.natureOfRequest ?? '').trim().toLowerCase() === PASSWORD_RESET_GOV_MAIL_NATURE;
+});
+
+const SYSTEM_ACCOUNT_CREATION_NATURE = 'system account creation';
+
+const isSystemAccountCreation = computed(() => {
+    return (props.ticket.natureOfRequest ?? '').trim().toLowerCase() === SYSTEM_ACCOUNT_CREATION_NATURE;
+});
+
 const isEditable = computed(() => props.canEdit);
 const natureList = computed(() => props.natureOfRequests ?? []);
 
@@ -337,6 +358,101 @@ function submitForm() {
                                 type="text"
                                 readonly
                                 :value="props.ticket.natureOfRequest ?? ''"
+                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="isCreationOfGovMailAcc"
+                        class="mt-3 grid gap-2 border-t border-white/10 pt-3 sm:grid-cols-2"
+                    >
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Personal Email
+                            </label>
+                            <input
+                                type="text"
+                                readonly
+                                :value="props.ticket.personalEmail ?? ''"
+                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            />
+                        </div>
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Cellphone Number
+                            </label>
+                            <input
+                                type="text"
+                                readonly
+                                :value="props.ticket.officeEmail ?? ''"
+                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="isPasswordResetGovMail"
+                        class="mt-3 grid gap-2 border-t border-white/10 pt-3 sm:grid-cols-2 lg:grid-cols-3"
+                    >
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Email Recovery
+                            </label>
+                            <input
+                                type="text"
+                                readonly
+                                :value="props.ticket.officeEmail ?? ''"
+                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            />
+                        </div>
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Personal Email
+                            </label>
+                            <input
+                                type="text"
+                                readonly
+                                :value="props.ticket.personalEmail ?? ''"
+                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            />
+                        </div>
+                        <div class="grid gap-0.5 sm:col-span-2 lg:col-span-1">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Contact number
+                            </label>
+                            <input
+                                type="text"
+                                readonly
+                                :value="props.ticket.requestDescription ?? ''"
+                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="isSystemAccountCreation"
+                        class="mt-3 grid gap-2 border-t border-white/10 pt-3 sm:grid-cols-2"
+                    >
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Email
+                            </label>
+                            <input
+                                type="text"
+                                readonly
+                                :value="props.ticket.officeEmail ?? ''"
+                                class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
+                            />
+                        </div>
+                        <div class="grid gap-0.5">
+                            <label class="text-[9px] font-semibold uppercase tracking-widest text-white/60">
+                                Contact number
+                            </label>
+                            <input
+                                type="text"
+                                readonly
+                                :value="props.ticket.personalEmail ?? ''"
                                 class="h-8 w-full cursor-not-allowed rounded border border-white/20 bg-slate-100/90 px-2 text-[11px] text-slate-600"
                             />
                         </div>

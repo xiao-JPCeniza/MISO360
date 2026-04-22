@@ -10,15 +10,7 @@ class ProfileSlide extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'image_path',
-        'title',
-        'subtitle',
-        'text_position',
-        'sort_order',
-        'is_active',
-        'archived_at',
-    ];
+    protected $fillable = ['image_path', 'title', 'subtitle', 'text_position', 'sort_order', 'is_active', 'archived_at'];
 
     /**
      * @return array<string, string>

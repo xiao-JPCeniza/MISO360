@@ -16,6 +16,7 @@ class NatureOfRequestSeeder extends Seeder
             'System account creation',
             'System modification',
             'Password reset or account recovery (gov mail)',
+            'Creation of Gov Mail Acc',
             'System error / bug report',
             'Request for new system module or enhancement',
             'Data release request and approval',

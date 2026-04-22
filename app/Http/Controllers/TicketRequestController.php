@@ -560,11 +560,32 @@ class TicketRequestController extends Controller
             $this->validateQrNotAssignedToAnotherRequest($qrCodeNumber);
         }
 
+        $natureName = NatureOfRequest::query()
+            ->whereKey((int) $validated['natureOfRequestId'])
+            ->value('name');
+        $normalizedNature = is_string($natureName) ? strtolower(trim($natureName)) : '';
+
+        $officeEmailForDb = match ($normalizedNature) {
+            'system account creation' => $validated['officeEmail'] ?? null,
+            'creation of gov mail acc' => $validated['cellphoneNumber'] ?? null,
+            'password reset or account recovery (gov mail)' => $validated['emailRecovery'] ?? null,
+            default => $validated['officeEmail'] ?? null,
+        };
+
+        $personalEmailForDb = match ($normalizedNature) {
+            'password reset or account recovery (gov mail)' => $validated['personalEmail'] ?? null,
+            'creation of gov mail acc' => $validated['personalEmail'] ?? null,
+            'system account creation' => isset($validated['contactNumber'])
+                ? trim((string) $validated['contactNumber'])
+                : null,
+            default => $validated['personalEmail'] ?? null,
+        };
+
         $ticketRequest = TicketRequest::create([
             'control_ticket_number' => $resolvedControlTicketNumber,
             'nature_of_request_id' => (int) $validated['natureOfRequestId'],
-            'personal_email' => $validated['personalEmail'] ?? null,
-            'office_email' => $validated['officeEmail'] ?? null,
+            'personal_email' => $personalEmailForDb !== '' ? $personalEmailForDb : null,
+            'office_email' => $officeEmailForDb,
             'description' => $validated['description'],
             'has_qr_code' => $hasQr && $qrCodeNumber !== null,
             'qr_code_number' => $qrCodeNumber,
@@ -669,6 +690,8 @@ class TicketRequestController extends Controller
             'ticket' => [
                 'controlTicketNumber' => $ticketRequest->control_ticket_number,
                 'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
+                'personalEmail' => $ticketRequest->personal_email,
+                'officeEmail' => $ticketRequest->office_email,
                 'description' => $ticketRequest->description,
                 'hasQrCode' => $ticketRequest->has_qr_code,
                 'qrCodeNumber' => $ticketRequest->qr_code_number,
@@ -726,6 +749,8 @@ class TicketRequestController extends Controller
             'email' => $requestedByUser?->email,
             'natureOfRequest' => $ticketRequest->natureOfRequest?->name,
             'natureOfRequestId' => $ticketRequest->nature_of_request_id != null ? (string) $ticketRequest->nature_of_request_id : null,
+            'personalEmail' => $ticketRequest->personal_email,
+            'officeEmail' => $ticketRequest->office_email,
             'requestDescription' => $ticketRequest->description,
             'attachments' => collect($fileAttachments)
                 ->map(fn (array $attachment) => [

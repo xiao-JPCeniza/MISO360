@@ -6,10 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class QrBatch extends Model
 {
-    protected $fillable = [
-        'start_sequence',
-        'end_sequence',
-    ];
+    protected $fillable = ['start_sequence', 'end_sequence'];
 
     public function getIdsAttribute(): array
     {

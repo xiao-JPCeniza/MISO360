@@ -133,6 +133,11 @@ class NatureOfRequestManagementTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->assertDatabaseCount('nature_of_requests', 23);
+        $this->assertDatabaseHas('nature_of_requests', [
+            'name' => 'Creation of Gov Mail Acc',
+            'is_active' => true,
+        ]);
+
+        $this->assertDatabaseCount('nature_of_requests', 24);
     }
 }

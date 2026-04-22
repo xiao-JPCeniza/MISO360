@@ -10,15 +10,7 @@ class TwoFactorChallenge extends Model
     /**
      * @var list<string>
      */
-    protected $fillable = [
-        'user_id',
-        'purpose',
-        'code_hash',
-        'expires_at',
-        'consumed_at',
-        'ip_address',
-        'user_agent',
-    ];
+    protected $fillable = ['user_id', 'purpose', 'code_hash', 'expires_at', 'consumed_at', 'ip_address', 'user_agent'];
 
     /**
      * @return array<string, string>

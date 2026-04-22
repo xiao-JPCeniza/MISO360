@@ -10,15 +10,7 @@ class AuditLog extends Model
     /**
      * @var list<string>
      */
-    protected $fillable = [
-        'actor_id',
-        'action',
-        'target_type',
-        'target_id',
-        'metadata',
-        'ip_address',
-        'user_agent',
-    ];
+    protected $fillable = ['actor_id', 'action', 'target_type', 'target_id', 'metadata', 'ip_address', 'user_agent'];
 
     /**
      * @return array<string, string>

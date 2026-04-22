@@ -312,10 +312,12 @@ class TicketRequestSubmissionTest extends TestCase
                 'controlTicketNumber' => $controlTicketNumber,
                 'natureOfRequestId' => $natureOfRequest->id,
                 'personalEmail' => '',
+                'emailRecovery' => '',
+                'contactNumber' => '',
                 'description' => 'Password reset needed for my account.',
                 'hasQrCode' => false,
             ])
-            ->assertSessionHasErrors(['personalEmail']);
+            ->assertSessionHasErrors(['personalEmail', 'emailRecovery', 'contactNumber']);
     }
 
     public function test_password_reset_or_account_recovery_saves_personal_email(): void
@@ -336,6 +338,8 @@ class TicketRequestSubmissionTest extends TestCase
                 'controlTicketNumber' => $controlTicketNumber,
                 'natureOfRequestId' => $natureOfRequest->id,
                 'personalEmail' => 'personal@example.com',
+                'emailRecovery' => 'recovery@agency.gov.ph',
+                'contactNumber' => '09171234567',
                 'description' => 'Password reset needed for my account.',
                 'hasQrCode' => false,
             ])
@@ -344,6 +348,65 @@ class TicketRequestSubmissionTest extends TestCase
         $this->assertDatabaseHas('ticket_requests', [
             'control_ticket_number' => $controlTicketNumber,
             'personal_email' => 'personal@example.com',
+            'office_email' => 'recovery@agency.gov.ph',
+            'description' => 'Contact number: 09171234567',
+        ]);
+    }
+
+    public function test_creation_of_gov_mail_acc_requires_personal_email_and_cellphone(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Creation of Gov Mail Acc',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00150', now()->format('Y'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'personalEmail' => '',
+                'cellphoneNumber' => '',
+                'description' => '',
+                'hasQrCode' => false,
+            ])
+            ->assertSessionHasErrors(['personalEmail', 'cellphoneNumber']);
+    }
+
+    public function test_creation_of_gov_mail_acc_saves_personal_email_and_cellphone(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Creation of Gov Mail Acc',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00151', now()->format('Y'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'personalEmail' => 'applicant@example.com',
+                'cellphoneNumber' => '09179876543',
+                'description' => '',
+                'hasQrCode' => false,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('ticket_requests', [
+            'control_ticket_number' => $controlTicketNumber,
+            'personal_email' => 'applicant@example.com',
+            'office_email' => '09179876543',
+            'description' => 'Government mail account creation request.',
         ]);
     }
 
@@ -365,10 +428,11 @@ class TicketRequestSubmissionTest extends TestCase
                 'controlTicketNumber' => $controlTicketNumber,
                 'natureOfRequestId' => $natureOfRequest->id,
                 'officeEmail' => '',
+                'contactNumber' => '',
                 'description' => 'Request for new system account.',
                 'hasQrCode' => false,
             ])
-            ->assertSessionHasErrors(['officeEmail']);
+            ->assertSessionHasErrors(['officeEmail', 'contactNumber']);
     }
 
     public function test_system_account_creation_saves_office_email(): void
@@ -389,6 +453,7 @@ class TicketRequestSubmissionTest extends TestCase
                 'controlTicketNumber' => $controlTicketNumber,
                 'natureOfRequestId' => $natureOfRequest->id,
                 'officeEmail' => 'newuser@agency.gov.ph',
+                'contactNumber' => '09171234567',
                 'description' => 'Request for new system account.',
                 'hasQrCode' => false,
             ])
@@ -397,6 +462,7 @@ class TicketRequestSubmissionTest extends TestCase
         $this->assertDatabaseHas('ticket_requests', [
             'control_ticket_number' => $controlTicketNumber,
             'office_email' => 'newuser@agency.gov.ph',
+            'personal_email' => '09171234567',
         ]);
     }
 

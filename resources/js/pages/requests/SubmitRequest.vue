@@ -84,6 +84,12 @@ type FormDownloadUrls = {
     dataRequestApproval: string;
 };
 
+const PASSWORD_RESET_GOV_MAIL_NATURE = 'password reset or account recovery (gov mail)';
+
+const CREATION_OF_GOV_MAIL_ACC_NATURE = 'creation of gov mail acc';
+
+const CONTACT_PHONE_PATTERN = /^[\d\s+\-()]{10,50}$/;
+
 type SystemIssueReport = {
     controlNumber: string;
     requestingDepartment: string;
@@ -158,6 +164,9 @@ const form = useForm({
     requestedForUserId: '',
     personalEmail: '',
     officeEmail: '',
+    emailRecovery: '',
+    cellphoneNumber: '',
+    contactNumber: '',
     description: '',
     hasQrCode: false,
     qrCodeNumber: '',
@@ -224,22 +233,6 @@ const maxSizeBytes = computed(() => props.maxAttachmentSizeMb * 1024 * 1024);
 const descriptionLength = computed(() => form.description.length);
 
 const descriptionMaxLength = 5000;
-
-const descriptionError = computed(() => {
-    if (!descriptionTouched.value && !submitAttempted.value) {
-        return '';
-    }
-    if (!form.description.trim()) {
-        return 'Description is required.';
-    }
-    if (descriptionLength.value < 10) {
-        return 'Description must be at least 10 characters.';
-    }
-    if (descriptionLength.value > descriptionMaxLength) {
-        return `Description may not exceed ${descriptionMaxLength} characters.`;
-    }
-    return '';
-});
 
 const serverDescriptionError = computed(() => form.errors.description ?? '');
 const natureError = computed(() => {
@@ -316,26 +309,99 @@ const isDataReleaseRequestAndApproval = computed(() => {
 });
 
 const isPasswordResetOrAccountRecovery = computed(() => {
-    const normalized = selectedNatureName.value.trim().toLowerCase();
-    return normalized.includes('password reset') || normalized.includes('account recovery');
+    return selectedNatureName.value.trim().toLowerCase() === PASSWORD_RESET_GOV_MAIL_NATURE;
+});
+
+const isCreationOfGovMailAcc = computed(() => {
+    return selectedNatureName.value.trim().toLowerCase() === CREATION_OF_GOV_MAIL_ACC_NATURE;
 });
 
 const isSystemAccountCreation = computed(() => {
     return selectedNatureName.value.trim().toLowerCase() === 'system account creation';
 });
 
+const descriptionError = computed(() => {
+    if (isPasswordResetOrAccountRecovery.value || isCreationOfGovMailAcc.value) {
+        return '';
+    }
+    if (!descriptionTouched.value && !submitAttempted.value) {
+        return '';
+    }
+    if (!form.description.trim()) {
+        return 'Description is required.';
+    }
+    if (descriptionLength.value < 10) {
+        return 'Description must be at least 10 characters.';
+    }
+    if (descriptionLength.value > descriptionMaxLength) {
+        return `Description may not exceed ${descriptionMaxLength} characters.`;
+    }
+    return '';
+});
+
 /** No longer used for System Development (upload-only workflow). */
 const surveyErrors = computed(() => ({}));
 
 const personalEmailError = computed(() => {
-    if (!isPasswordResetOrAccountRecovery.value) {
+    if (!isPasswordResetOrAccountRecovery.value && !isCreationOfGovMailAcc.value) {
         return '';
     }
     if (!submitAttempted.value) {
         return '';
     }
     if (!form.personalEmail.trim()) {
-        return 'Personal email is required for password reset/account recovery requests.';
+        return 'Personal email is required for this type of request.';
+    }
+    return '';
+});
+
+const emailRecoveryError = computed(() => {
+    if (!isPasswordResetOrAccountRecovery.value) {
+        return '';
+    }
+    if (!submitAttempted.value) {
+        return '';
+    }
+    if (!form.emailRecovery.trim()) {
+        return 'Email recovery is required for password reset or account recovery (gov mail) requests.';
+    }
+    return '';
+});
+
+const contactNumberError = computed(() => {
+    if (!isPasswordResetOrAccountRecovery.value && !isSystemAccountCreation.value) {
+        return '';
+    }
+    if (!submitAttempted.value) {
+        return '';
+    }
+    const v = form.contactNumber.trim();
+    if (!v) {
+        if (isPasswordResetOrAccountRecovery.value) {
+            return 'Contact number is required for password reset or account recovery (gov mail) requests.';
+        }
+
+        return 'Contact number is required for system account creation requests.';
+    }
+    if (!CONTACT_PHONE_PATTERN.test(v)) {
+        return 'Enter a valid contact number (at least 10 digits).';
+    }
+    return '';
+});
+
+const cellphoneNumberError = computed(() => {
+    if (!isCreationOfGovMailAcc.value) {
+        return '';
+    }
+    if (!submitAttempted.value) {
+        return '';
+    }
+    const v = form.cellphoneNumber.trim();
+    if (!v) {
+        return 'Cellphone number is required for government mail account creation requests.';
+    }
+    if (!CONTACT_PHONE_PATTERN.test(v)) {
+        return 'Enter a valid cellphone number (at least 10 digits).';
     }
     return '';
 });
@@ -348,7 +414,7 @@ const officeEmailError = computed(() => {
         return '';
     }
     if (!form.officeEmail.trim()) {
-        return 'Office email is required for system account creation requests.';
+        return 'Email is required for system account creation requests.';
     }
     return '';
 });
@@ -467,20 +533,17 @@ watch(
     () => {
         form.personalEmail = '';
         form.officeEmail = '';
+        form.emailRecovery = '';
+        form.cellphoneNumber = '';
+        form.contactNumber = '';
         form.clearErrors('personalEmail');
         form.clearErrors('officeEmail');
+        form.clearErrors('emailRecovery');
+        form.clearErrors('cellphoneNumber');
+        form.clearErrors('contactNumber');
         form.clearErrors('systemDevelopmentSurvey');
         form.clearErrors('systemChangeRequestForm');
         form.clearErrors('systemIssueReport');
-    },
-);
-
-watch(
-    () => isPasswordResetOrAccountRecovery.value,
-    (isRecovery) => {
-        if (isRecovery) {
-            form.description = 'Password reset or account recovery request.';
-        }
     },
 );
 
@@ -720,6 +783,9 @@ function submitTicket() {
         natureError.value ||
         personalEmailError.value ||
         officeEmailError.value ||
+        emailRecoveryError.value ||
+        contactNumberError.value ||
+        cellphoneNumberError.value ||
         descriptionError.value ||
         officeError.value ||
         requestedUserError.value ||
@@ -737,6 +803,15 @@ function submitTicket() {
         }
         if (officeEmailError.value) {
             form.setError('officeEmail', officeEmailError.value);
+        }
+        if (emailRecoveryError.value) {
+            form.setError('emailRecovery', emailRecoveryError.value);
+        }
+        if (contactNumberError.value) {
+            form.setError('contactNumber', contactNumberError.value);
+        }
+        if (cellphoneNumberError.value) {
+            form.setError('cellphoneNumber', cellphoneNumberError.value);
         }
         if (descriptionError.value) {
             form.setError('description', descriptionError.value);
@@ -976,46 +1051,134 @@ function submitTicket() {
 
                         <div
                             v-if="isPasswordResetOrAccountRecovery"
-                            class="grid gap-3 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5"
+                            class="grid gap-4 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5"
                         >
-                            <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                Personal Email (Required)
-                            </label>
-                            <input
-                                v-model="form.personalEmail"
-                                type="email"
-                                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                placeholder="you@example.com"
-                                required
-                            />
-                            <p v-if="form.errors.personalEmail || personalEmailError" class="text-xs text-destructive">
-                                {{ form.errors.personalEmail || personalEmailError }}
-                            </p>
-                            <p v-else class="text-xs text-muted-foreground">
-                                We’ll use this to verify and contact you for account recovery.
-                            </p>
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Email Recovery (Required)
+                                </label>
+                                <input
+                                    v-model="form.emailRecovery"
+                                    type="email"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="recovery@example.com"
+                                    autocomplete="email"
+                                />
+                                <p v-if="form.errors.emailRecovery || emailRecoveryError" class="text-xs text-destructive">
+                                    {{ form.errors.emailRecovery || emailRecoveryError }}
+                                </p>
+                            </div>
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Personal Email (Required)
+                                </label>
+                                <input
+                                    v-model="form.personalEmail"
+                                    type="email"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="you@example.com"
+                                    autocomplete="email"
+                                />
+                                <p v-if="form.errors.personalEmail || personalEmailError" class="text-xs text-destructive">
+                                    {{ form.errors.personalEmail || personalEmailError }}
+                                </p>
+                            </div>
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Contact number (Required)
+                                </label>
+                                <input
+                                    v-model="form.contactNumber"
+                                    type="text"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="09XX XXX XXXX"
+                                    autocomplete="tel"
+                                />
+                                <p v-if="form.errors.contactNumber || contactNumberError" class="text-xs text-destructive">
+                                    {{ form.errors.contactNumber || contactNumberError }}
+                                </p>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    Use the number where we can reach you about this request.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="isCreationOfGovMailAcc"
+                            class="grid gap-4 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5"
+                        >
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Personal Email (Required)
+                                </label>
+                                <input
+                                    v-model="form.personalEmail"
+                                    type="email"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="you@example.com"
+                                    autocomplete="email"
+                                />
+                                <p v-if="form.errors.personalEmail || personalEmailError" class="text-xs text-destructive">
+                                    {{ form.errors.personalEmail || personalEmailError }}
+                                </p>
+                            </div>
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Cellphone Number (Required)
+                                </label>
+                                <input
+                                    v-model="form.cellphoneNumber"
+                                    type="text"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="09XX XXX XXXX"
+                                    autocomplete="tel"
+                                />
+                                <p v-if="form.errors.cellphoneNumber || cellphoneNumberError" class="text-xs text-destructive">
+                                    {{ form.errors.cellphoneNumber || cellphoneNumberError }}
+                                </p>
+                            </div>
                         </div>
 
                         <div
                             v-if="isSystemAccountCreation"
-                            class="grid gap-3 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5"
+                            class="grid gap-4 rounded-xl border border-border bg-muted/30 p-4 dark:border-white/10 dark:bg-white/5"
                         >
-                            <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                Office Email (Required)
-                            </label>
-                            <input
-                                v-model="form.officeEmail"
-                                type="email"
-                                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                placeholder="name@agency.gov.ph"
-                                required
-                            />
-                            <p v-if="form.errors.officeEmail || officeEmailError" class="text-xs text-destructive">
-                                {{ form.errors.officeEmail || officeEmailError }}
-                            </p>
-                            <p v-else class="text-xs text-muted-foreground">
-                                Enter the office or government email for the new account.
-                            </p>
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Email (Required)
+                                </label>
+                                <input
+                                    v-model="form.officeEmail"
+                                    type="email"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="name@agency.gov.ph"
+                                    autocomplete="email"
+                                />
+                                <p v-if="form.errors.officeEmail || officeEmailError" class="text-xs text-destructive">
+                                    {{ form.errors.officeEmail || officeEmailError }}
+                                </p>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    Enter the office or government email for the new account.
+                                </p>
+                            </div>
+                            <div class="grid gap-3">
+                                <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                    Contact number (Required)
+                                </label>
+                                <input
+                                    v-model="form.contactNumber"
+                                    type="text"
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    placeholder="09XX XXX XXXX"
+                                    autocomplete="tel"
+                                />
+                                <p v-if="form.errors.contactNumber || contactNumberError" class="text-xs text-destructive">
+                                    {{ form.errors.contactNumber || contactNumberError }}
+                                </p>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    Use the number where we can reach you about this request.
+                                </p>
+                            </div>
                         </div>
 
                         <div
@@ -1206,7 +1369,7 @@ function submitTicket() {
                         </div>
 
                         <div
-                            v-if="!requiresSystemChangeRequestPdf && !isPasswordResetOrAccountRecovery"
+                            v-if="!requiresSystemChangeRequestPdf && !isPasswordResetOrAccountRecovery && !isCreationOfGovMailAcc"
                             class="grid gap-3 rounded-2xl border border-border bg-muted/20 p-4 dark:border-white/10 dark:bg-white/5"
                         >
                             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -1237,7 +1400,10 @@ function submitTicket() {
                             </div>
                         </div>
 
-                        <div v-if="!isSystemDevelopment && !isPasswordResetOrAccountRecovery" class="grid gap-3">
+                        <div
+                            v-if="!isSystemDevelopment && !isPasswordResetOrAccountRecovery && !isCreationOfGovMailAcc"
+                            class="grid gap-3"
+                        >
                             <div class="flex items-center justify-between">
                                 <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                     Upload Photo/Videos Here (optional)

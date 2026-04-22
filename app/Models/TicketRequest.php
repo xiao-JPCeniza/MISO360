@@ -13,34 +13,7 @@ class TicketRequest extends Model
     /** @use HasFactory<\Database\Factories\TicketRequestFactory> */
     use HasFactory;
 
-    protected $fillable = [
-        'control_ticket_number',
-        'nature_of_request_id',
-        'personal_email',
-        'office_email',
-        'description',
-        'has_qr_code',
-        'qr_code_number',
-        'attachments',
-        'user_id',
-        'requested_for_user_id',
-        'office_designation_id',
-        'status_id',
-        'archived',
-        'category_id',
-        'remarks_id',
-        'assigned_staff_id',
-        'date_received',
-        'date_started',
-        'time_started',
-        'estimated_completion_date',
-        'time_completed',
-        'service_timer_started_at',
-        'service_timer_paused_at',
-        'service_timer_total_elapsed_seconds',
-        'action_taken',
-        'equipment_network_details',
-    ];
+    protected $fillable = ['control_ticket_number', 'nature_of_request_id', 'personal_email', 'office_email', 'description', 'has_qr_code', 'qr_code_number', 'attachments', 'user_id', 'requested_for_user_id', 'office_designation_id', 'status_id', 'archived', 'category_id', 'remarks_id', 'assigned_staff_id', 'date_received', 'date_started', 'time_started', 'estimated_completion_date', 'time_completed', 'service_timer_started_at', 'service_timer_paused_at', 'service_timer_total_elapsed_seconds', 'action_taken', 'equipment_network_details'];
 
     protected $casts = [
         'attachments' => 'array',
