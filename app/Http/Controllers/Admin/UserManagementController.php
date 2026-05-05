@@ -36,6 +36,7 @@ class UserManagementController extends Controller
             'id',
             'name',
             'email',
+            'avatar',
             'phone',
             'role',
             'is_active',

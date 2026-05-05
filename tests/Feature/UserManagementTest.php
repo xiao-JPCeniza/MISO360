@@ -290,4 +290,28 @@ class UserManagementTest extends TestCase
                 ->where('users.data.0.id', $byOffice->id)
             );
     }
+
+    public function test_admin_users_index_includes_avatar_url(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create([
+            'avatar' => 'avatars/test-user/avatar.jpg',
+        ]);
+        $publicDiskBaseUrl = rtrim((string) config('filesystems.disks.public.url'), '/');
+        $expectedAvatarUrl = $publicDiskBaseUrl.'/avatars/test-user/avatar.jpg';
+
+        $this->actingAs($admin)
+            ->withSession([
+                '_token' => 'test-token',
+                'two_factor.verified_at' => Carbon::now()->timestamp,
+            ])
+            ->get(route('admin.users.index', ['search' => $user->name]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/users/Index')
+                ->has('users.data', 1)
+                ->where('users.data.0.id', $user->id)
+                ->where('users.data.0.avatar_url', $expectedAvatarUrl)
+            );
+    }
 }

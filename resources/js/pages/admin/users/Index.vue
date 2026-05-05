@@ -5,6 +5,8 @@ import { CheckCircle2, Loader2, Search, XCircle } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
 import { toggleAdminVerification as adminVerificationToggle } from '@/actions/App/Http/Controllers/Admin/UserManagementController';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useInitials } from '@/composables/useInitials';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -23,6 +25,7 @@ type UserRow = {
     id: number;
     name: string;
     email: string;
+    avatar_url?: string | null;
     phone?: string | null;
     role: string;
     is_active: boolean;
@@ -53,6 +56,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const togglingUserId = ref<number | null>(null);
+const { getInitials } = useInitials();
 
 const localVerification = ref(props.filters.verification);
 const localSearch = ref(props.filters.search);
@@ -221,12 +225,26 @@ function verificationToggleAriaLabel(row: UserRow): string {
                             class="flex flex-col gap-3 px-4 py-4 text-sm md:grid md:grid-cols-[1.2fr_1.2fr_0.55fr_0.55fr_0.5fr_0.4fr] md:items-center md:gap-4"
                         >
                             <div>
-                                <p class="font-semibold">{{ user.name }}</p>
-                                <p class="text-xs text-muted-foreground">{{ user.email }}</p>
-                                <p v-if="user.office_designation?.name" class="mt-1 text-xs text-muted-foreground">
-                                    Office:
-                                    <span class="font-medium text-foreground/80">{{ user.office_designation.name }}</span>
-                                </p>
+                                <div class="flex items-start gap-3">
+                                    <Avatar class="h-10 w-10 border border-sidebar-border/60">
+                                        <AvatarImage
+                                            v-if="user.avatar_url"
+                                            :src="user.avatar_url"
+                                            :alt="`${user.name} avatar`"
+                                        />
+                                        <AvatarFallback class="text-xs font-semibold text-black dark:text-white">
+                                            {{ getInitials(user.name) }}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p class="font-semibold">{{ user.name }}</p>
+                                        <p class="text-xs text-muted-foreground">{{ user.email }}</p>
+                                        <p v-if="user.office_designation?.name" class="mt-1 text-xs text-muted-foreground">
+                                            Office:
+                                            <span class="font-medium text-foreground/80">{{ user.office_designation.name }}</span>
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                             <div class="text-xs text-muted-foreground">
                                 <p>{{ user.phone || 'No phone on file' }}</p>

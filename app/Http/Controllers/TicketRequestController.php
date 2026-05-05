@@ -21,6 +21,7 @@ use Dompdf\Dompdf;
 use Dompdf\Options as DompdfOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -138,12 +139,18 @@ class TicketRequestController extends Controller
         $ticketRequests = $query
             ->notArchived()
             ->orderBy('created_at', 'asc')
-            ->limit(20)
-            ->get()
-            ->map(fn (TicketRequest $ticketRequest) => $this->mapTicketRequestToRow($ticketRequest));
+            ->paginate(20)
+            ->withQueryString();
+
+        $ticketRequests->setCollection(
+            $ticketRequests->getCollection()->map(
+                fn (TicketRequest $ticketRequest) => $this->mapTicketRequestToRow($ticketRequest)
+            )
+        );
 
         return Inertia::render('requests/Requests', [
-            'requests' => $ticketRequests,
+            'requests' => $ticketRequests->items(),
+            'pagination' => $this->buildPaginationPayload($ticketRequests),
             'isAdmin' => $isAdmin,
         ]);
     }
@@ -202,6 +209,31 @@ class TicketRequestController extends Controller
             'showUrl' => route('requests.show', $ticketRequest),
             'hasQrCode' => $ticketRequest->has_qr_code,
             'qrCodeNumber' => $ticketRequest->qr_code_number,
+        ];
+    }
+
+    /**
+     * @return array{currentPage: int, lastPage: int, perPage: int, total: int, from: int|null, to: int|null, links: array<int, array{url: string|null, label: string, active: bool}>}
+     */
+    private function buildPaginationPayload(LengthAwarePaginator $paginator): array
+    {
+        $links = collect($paginator->toArray()['links'] ?? [])
+            ->map(fn (array $link) => [
+                'url' => isset($link['url']) && is_string($link['url']) ? $link['url'] : null,
+                'label' => trim(strip_tags((string) ($link['label'] ?? ''))),
+                'active' => (bool) ($link['active'] ?? false),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'currentPage' => $paginator->currentPage(),
+            'lastPage' => $paginator->lastPage(),
+            'perPage' => $paginator->perPage(),
+            'total' => $paginator->total(),
+            'from' => $paginator->firstItem(),
+            'to' => $paginator->lastItem(),
+            'links' => $links,
         ];
     }
 

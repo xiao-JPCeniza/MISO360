@@ -601,6 +601,50 @@ class RequestsPageTest extends TestCase
         );
     }
 
+    public function test_active_list_exposes_pagination_and_supports_second_page(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        TicketRequest::factory()->count(21)->sequence(
+            fn ($sequence) => [
+                'archived' => false,
+                'created_at' => now()->subMinutes(30 - $sequence->index),
+                'description' => 'Paginated request '.($sequence->index + 1),
+            ]
+        )->create();
+
+        $firstPageResponse = $this->actingAs($admin)->get(route('requests'));
+
+        $firstPageResponse->assertOk();
+        $firstPageResponse->assertInertia(fn (Assert $page) => $page
+            ->component('requests/Requests')
+            ->has('requests', 20)
+            ->where('pagination.currentPage', 1)
+            ->where('pagination.lastPage', 2)
+            ->where('pagination.perPage', 20)
+            ->where('pagination.total', 21)
+            ->has('pagination.links')
+        );
+
+        $oldestRequestOnSecondPage = TicketRequest::query()
+            ->notArchived()
+            ->orderBy('created_at', 'asc')
+            ->skip(20)
+            ->firstOrFail();
+
+        $secondPageResponse = $this->actingAs($admin)->get(route('requests', ['page' => 2]));
+
+        $secondPageResponse->assertOk();
+        $secondPageResponse->assertInertia(fn (Assert $page) => $page
+            ->component('requests/Requests')
+            ->has('requests', 1)
+            ->where('requests.0.controlTicketNumber', $oldestRequestOnSecondPage->control_ticket_number)
+            ->where('pagination.currentPage', 2)
+            ->where('pagination.lastPage', 2)
+            ->where('pagination.total', 21)
+        );
+    }
+
     public function test_archive_page_displays_archived_requests(): void
     {
         $admin = User::factory()->admin()->create();

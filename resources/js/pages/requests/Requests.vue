@@ -31,8 +31,25 @@ type TicketRequestRow = {
     qrCodeNumber: string | null;
 };
 
+type PaginationLink = {
+    url: string | null;
+    label: string;
+    active: boolean;
+};
+
+type PaginationData = {
+    currentPage: number;
+    lastPage: number;
+    perPage: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    links: PaginationLink[];
+};
+
 const props = defineProps<{
     requests: TicketRequestRow[];
+    pagination: PaginationData;
     isAdmin: boolean;
 }>();
 
@@ -177,6 +194,10 @@ const filteredRequests = computed(() => {
         return haystack.includes(normalized);
     });
 });
+
+const numericPaginationLinks = computed(() =>
+    props.pagination.links.filter((link) => /^[0-9]+$/.test(link.label)),
+);
 </script>
 
 <template>
@@ -207,7 +228,7 @@ const filteredRequests = computed(() => {
                 </label>
             </div>
             <p class="mt-1 shrink-0 text-[11px] text-muted-foreground">
-                Showing {{ filteredRequests.length }} of {{ props.requests.length }} active requests (most recent 20, FIFO).
+                Showing {{ filteredRequests.length }} of {{ props.requests.length }} on this page (20 per page, FIFO).
             </p>
 
             <div class="mt-3 flex min-h-0 flex-1 flex-col w-full rounded-md border border-border bg-card shadow-sm dark:border-white/10">
@@ -274,7 +295,7 @@ const filteredRequests = computed(() => {
                                 </td>
                                 <td class="max-w-[min(18rem,35vw)] align-top px-3 py-2">
                                     <span
-                                        class="line-clamp-2 break-words text-left leading-snug"
+                                        class="line-clamp-2 wrap-break-word text-left leading-snug"
                                         :title="displayText(request.requestDescription)"
                                     >
                                         {{ displayText(request.requestDescription) }}
@@ -331,6 +352,25 @@ const filteredRequests = computed(() => {
                         </tbody>
                     </table>
                 </div>
+                <div v-if="numericPaginationLinks.length > 1" class="flex justify-end border-t border-border px-3 py-2 dark:border-white/10">
+                    <div class="flex items-center gap-1">
+                        <Link
+                            v-for="link in numericPaginationLinks"
+                            :key="`${link.label}-${link.url ?? 'active'}`"
+                            :href="link.url || '#'"
+                            :class="[
+                                'inline-flex h-7 min-w-7 items-center justify-center rounded-md border px-2 text-xs transition',
+                                link.active
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'border-border bg-background text-foreground hover:bg-muted dark:border-white/20 dark:hover:bg-white/10',
+                                !link.url && !link.active ? 'pointer-events-none opacity-50' : '',
+                            ]"
+                            :aria-current="link.active ? 'page' : undefined"
+                        >
+                            {{ link.label }}
+                        </Link>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -370,7 +410,7 @@ const filteredRequests = computed(() => {
                         />
                     </label>
                     <p class="text-xs text-muted-foreground">
-                        Showing {{ filteredRequests.length }} of {{ props.requests.length }} active requests (most recent 20).
+                        Showing {{ filteredRequests.length }} of {{ props.requests.length }} on this page (20 per page).
                     </p>
                 </div>
             </div>
@@ -492,6 +532,25 @@ const filteredRequests = computed(() => {
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                <div v-if="numericPaginationLinks.length > 1" class="flex justify-end border-t border-sidebar-border/60 px-3 py-2">
+                    <div class="flex items-center gap-1">
+                        <Link
+                            v-for="link in numericPaginationLinks"
+                            :key="`${link.label}-${link.url ?? 'active'}`"
+                            :href="link.url || '#'"
+                            :class="[
+                                'inline-flex h-7 min-w-7 items-center justify-center rounded-md border px-2 text-xs transition',
+                                link.active
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'border-sidebar-border/70 bg-background text-foreground hover:bg-muted/30',
+                                !link.url && !link.active ? 'pointer-events-none opacity-50' : '',
+                            ]"
+                            :aria-current="link.active ? 'page' : undefined"
+                        >
+                            {{ link.label }}
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>
