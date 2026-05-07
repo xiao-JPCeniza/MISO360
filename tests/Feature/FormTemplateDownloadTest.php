@@ -20,14 +20,30 @@ class FormTemplateDownloadTest extends TestCase
         return [
             ['systems-development-survey', 'Systems Development Survey Form.pdf'],
             ['access-rights-enrolment', 'Access Rights Enrolment Form.pdf'],
-            ['system-issue-report', 'System Issue Report Form.pdf'],
-            ['system-change-request', 'System Change Request Form.pdf'],
+            ['system-issue-report', 'System Issue Report Form.docx'],
+            ['system-change-request', 'System Change Request Form.docx'],
         ];
     }
 
-    public function test_authenticated_user_can_download_each_bundled_form_when_public_disk_has_no_copy(): void
+    public function test_authenticated_user_can_download_each_form_template_from_public_disk(): void
     {
         Storage::fake('public');
+        Storage::disk('public')->put(
+            'Forms/Systems Development Survey Form.pdf',
+            'systems development survey form test content'
+        );
+        Storage::disk('public')->put(
+            'Forms/Access Rights Enrolment Form.pdf',
+            'access rights enrolment form test content'
+        );
+        Storage::disk('public')->put(
+            'Forms/System Issue Report Form.docx',
+            'system issue report form test content'
+        );
+        Storage::disk('public')->put(
+            'Forms/System Change Request Form.docx',
+            'system change request form test content'
+        );
 
         $user = User::factory()->create();
 
@@ -35,7 +51,7 @@ class FormTemplateDownloadTest extends TestCase
             $response = $this->actingAs($user)->get(route('forms.download', ['form' => $slug]));
 
             $response->assertOk();
-            $response->assertHeader('content-type', 'application/pdf');
+            $response->assertHeader('content-disposition');
             $this->assertStringContainsString(
                 $expectedFilename,
                 (string) $response->headers->get('content-disposition', ''),

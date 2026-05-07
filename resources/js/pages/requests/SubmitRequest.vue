@@ -294,7 +294,7 @@ const isRequestForNewSystemModuleOrEnhancement = computed(() => {
     );
 });
 
-/** System Modification and New Module/Enhancement share the same downloadable SCR PDF workflow. */
+/** System Modification and New Module/Enhancement share the same downloadable SCR form workflow. */
 const requiresSystemChangeRequestPdf = computed(
     () => isSystemModification.value || isRequestForNewSystemModuleOrEnhancement.value,
 );
@@ -1259,13 +1259,13 @@ function submitTicket() {
                                     System Change Request Form (Required)
                                 </p>
                                 <p class="text-sm text-muted-foreground">
-                                    For system modification, or a request for a new system module or enhancement: download the form below, complete it offline, then upload the completed PDF before submitting.
+                                    For system modification, or a request for a new system module or enhancement: download the form below, complete it offline, then upload the completed DOCX before submitting.
                                 </p>
                                 <a
                                     :href="formDownloadUrls.systemChangeRequest"
                                     class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
                                 >
-                                    Download System Change Request Form (PDF)
+                                    Download System Change Request Form (DOCX)
                                 </a>
                             </div>
 
@@ -1357,13 +1357,13 @@ function submitTicket() {
                                     System Issue Report Form (Required)
                                 </p>
                                 <p class="text-sm text-muted-foreground">
-                                    This form must be completed before the ticket can be submitted. You may download the PDF form below for reference.
+                                    This form must be completed before the ticket can be submitted. You may download the DOCX form below for reference.
                                 </p>
                                 <a
                                     :href="formDownloadUrls.systemIssueReport"
                                     class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/10"
                                 >
-                                    Download System Issue Report Form (PDF)
+                                    Download System Issue Report Form (DOCX)
                                 </a>
                             </div>
                         </div>

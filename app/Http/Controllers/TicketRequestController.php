@@ -75,15 +75,18 @@ class TicketRequestController extends Controller
             'bundled_filename' => 'Access Rights Enrolment Form.pdf',
         ],
         'system-issue-report' => [
-            'download_name' => 'System Issue Report Form.pdf',
+            'download_name' => 'System Issue Report Form.docx',
             'paths' => [
+                'Forms/System Issue Report Form.docx',
                 'Forms/System Issue Report Form.pdf',
             ],
             'bundled_filename' => 'System Issue Report Form.pdf',
         ],
         'system-change-request' => [
-            'download_name' => 'System Change Request Form.pdf',
+            'download_name' => 'System Change Request Form.docx',
             'paths' => [
+                'Forms/System Change Request Form.docx',
+                'Forms/System Change Request Form.pdf',
                 'Forms/System Change Request Form .pdf',
                 'Forms/System Change Request Form.docx.pdf',
             ],
@@ -305,13 +308,11 @@ class TicketRequestController extends Controller
             abort(404, 'Form template file is not available.');
         }
 
-        $downloadName = $template['download_name'] ?? basename($absolutePath);
-
         $contentType = mime_content_type($absolutePath) ?: 'application/octet-stream';
 
         return response()->download(
             $absolutePath,
-            is_string($downloadName) && trim($downloadName) !== '' ? $downloadName : basename($absolutePath),
+            basename($absolutePath),
             ['Content-Type' => $contentType],
         );
     }
