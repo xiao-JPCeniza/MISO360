@@ -60,6 +60,20 @@ function buildJsonPostHeaders(): Record<string, string> {
     return headers;
 }
 
+function formatNotificationCreatedAt(value: string | null): string {
+    if (!value) {
+        return '';
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return '';
+    }
+    return new Intl.DateTimeFormat('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(parsed);
+}
+
 function notificationKind(n: NotificationItem): string | undefined {
     const k = n.data.kind;
     return typeof k === 'string' ? k : undefined;
@@ -207,12 +221,21 @@ onMounted(() => {
                                     you open this notification.
                                 </p>
                             </div>
-                            <span
-                                v-if="!n.readAt"
-                                class="inline-flex rounded-full bg-[#2563eb]/10 px-2 py-1 text-xs font-semibold text-[#2563eb] dark:bg-white/10 dark:text-[#93c5fd]"
-                            >
-                                New
-                            </span>
+                            <div class="flex shrink-0 flex-col items-end gap-1 text-right">
+                                <time
+                                    v-if="n.createdAt"
+                                    :datetime="n.createdAt"
+                                    class="text-[11px] leading-tight text-muted-foreground tabular-nums"
+                                >
+                                    {{ formatNotificationCreatedAt(n.createdAt) }}
+                                </time>
+                                <span
+                                    v-if="!n.readAt"
+                                    class="inline-flex rounded-full bg-[#2563eb]/10 px-2 py-1 text-xs font-semibold text-[#2563eb] dark:bg-white/10 dark:text-[#93c5fd]"
+                                >
+                                    New
+                                </span>
+                            </div>
                         </div>
                     </a>
                 </div>

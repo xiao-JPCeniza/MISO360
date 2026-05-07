@@ -153,6 +153,91 @@ class TicketRequestSubmissionTest extends TestCase
         $this->assertTrue(Storage::disk('public')->exists($attachment['path']));
     }
 
+    public function test_user_can_submit_ticket_request_with_20mb_attachment(): void
+    {
+        Storage::fake('public');
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer Repair',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00008', now()->format('Y'));
+
+        $response = $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Submitting a ticket with a 20MB attachment.',
+                'hasQrCode' => false,
+                'attachments' => [
+                    UploadedFile::fake()->create('max-limit.pdf', 20480, 'application/pdf'),
+                ],
+            ]);
+
+        $response->assertRedirect();
+
+        $ticketRequest = TicketRequest::query()
+            ->where('control_ticket_number', $controlTicketNumber)
+            ->firstOrFail();
+        $this->assertNotEmpty($ticketRequest->attachments);
+    }
+
+    public function test_user_cannot_submit_ticket_request_with_attachment_over_20mb(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer Repair',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00009', now()->format('Y'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Submitting a ticket with an oversized attachment.',
+                'hasQrCode' => false,
+                'attachments' => [
+                    UploadedFile::fake()->create('over-limit.pdf', 20481, 'application/pdf'),
+                ],
+            ])
+            ->assertSessionHasErrors(['attachments.0']);
+    }
+
+    public function test_user_cannot_submit_ticket_request_with_unsupported_attachment_type(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $natureOfRequest = NatureOfRequest::create([
+            'name' => 'Computer Repair',
+            'is_active' => true,
+        ]);
+        $csrfToken = 'test-token';
+        $controlTicketNumber = sprintf('CTN-%s-00010', now()->format('Y'));
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->post('/submit-request', [
+                '_token' => $csrfToken,
+                'controlTicketNumber' => $controlTicketNumber,
+                'natureOfRequestId' => $natureOfRequest->id,
+                'description' => 'Submitting a ticket with an unsupported attachment type.',
+                'hasQrCode' => false,
+                'attachments' => [
+                    UploadedFile::fake()->create('installer.exe', 100, 'application/x-msdownload'),
+                ],
+            ])
+            ->assertSessionHasErrors(['attachments.0']);
+    }
+
     public function test_system_development_requires_uploaded_form(): void
     {
         /** @var User $user */

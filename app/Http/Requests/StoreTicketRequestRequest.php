@@ -200,7 +200,7 @@ class StoreTicketRequestRequest extends FormRequest
             'attachments.*' => [
                 'file',
                 'mimes:jpg,jpeg,png,webp,mp4,mov,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,rtf,odt,ods,odp',
-                'max:10240',
+                'max:20480',
             ],
             'systemDevelopmentSurveyFormAttachments' => ['nullable', 'array', 'max:5'],
             'systemDevelopmentSurveyFormAttachments.*' => [

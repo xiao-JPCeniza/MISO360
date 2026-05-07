@@ -288,7 +288,7 @@ class TicketRequestController extends Controller
                     ->get(['id', 'name', 'office_designation_id'])
                 : [],
             'maxAttachments' => 5,
-            'maxAttachmentSizeMb' => 10,
+            'maxAttachmentSizeMb' => 20,
             'qrCodePattern' => '^MIS-UID-\\d{5}$',
         ]);
     }
