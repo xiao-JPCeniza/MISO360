@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
+import ItProcessingOngoingModal from '@/components/ItProcessingOngoingModal.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -27,6 +28,8 @@ const props = defineProps<{
         systemIssueReport?: Record<string, unknown> | null;
         systemIssueReportPdfUrl?: string | null;
         systemIssueReportAttachments?: Array<{ name: string; url?: string | null; size?: number | null; mime?: string | null }>;
+        itProcessingOngoing?: Record<string, unknown> | null;
+        itProcessingOngoingAttachments?: Array<{ id?: string | null; name: string; url?: string | null; size?: number | null; mime?: string | null; uploadedAt?: string | null }>;
     };
 }>();
 
@@ -63,6 +66,23 @@ function formatSize(size?: number | null) {
     }
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+const ongoingModalOpen = ref(false);
+
+const hasOngoing = computed(() => {
+    if (String(props.ticket.itProcessingOngoing?.notes ?? '').trim() !== '') {
+        return true;
+    }
+    return (props.ticket.itProcessingOngoingAttachments ?? []).length > 0;
+});
+
+onMounted(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('modal') === 'it-processing-ongoing') {
+        ongoingModalOpen.value = true;
+    }
+});
 </script>
 
 <template>
@@ -322,6 +342,27 @@ function formatSize(size?: number | null) {
                             </div>
                         </div>
 
+                        <div
+                            v-if="hasOngoing"
+                            class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"
+                        >
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    IT Processing (Processed)
+                                </p>
+                                <button
+                                    type="button"
+                                    class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600 hover:text-blue-500"
+                                    @click="ongoingModalOpen = true"
+                                >
+                                    View
+                                </button>
+                            </div>
+                            <p class="mt-2 text-sm text-slate-700">
+                                View uploaded documents and notes from IT processing.
+                            </p>
+                        </div>
+
                         <div class="flex justify-center pt-2">
                             <Link
                                 :href="dashboard().url"
@@ -335,4 +376,12 @@ function formatSize(size?: number | null) {
             </div>
         </div>
     </AppLayout>
+
+    <ItProcessingOngoingModal
+        v-model:open="ongoingModalOpen"
+        :can-edit="false"
+        save-url=""
+        :notes="(props.ticket.itProcessingOngoing?.notes as string | null) ?? null"
+        :attachments="props.ticket.itProcessingOngoingAttachments ?? []"
+    />
 </template>

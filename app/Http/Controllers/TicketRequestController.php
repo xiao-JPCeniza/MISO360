@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -126,8 +127,11 @@ class TicketRequestController extends Controller
         }
 
         if ($user && ! $isAdmin) {
-            // Regular users: only their own requests.
-            $query->where('user_id', $user->id);
+            // Regular users: requests they submitted OR requests submitted on their behalf.
+            $query->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->orWhere('requested_for_user_id', $user->id);
+            });
         } elseif ($user && $isAdmin && ! $isSuperAdmin) {
             // Standard Admins: only unassigned or assigned to themselves.
             $query->where(function ($q) use ($user) {
@@ -175,7 +179,12 @@ class TicketRequestController extends Controller
                 'requestedForUser:id,name,position_title',
                 'user:id,name,position_title',
             ])
-            ->when(! $isAdmin && $user, fn ($query) => $query->where('user_id', $user->id))
+            ->when(! $isAdmin && $user, function ($query) use ($user) {
+                $query->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                        ->orWhere('requested_for_user_id', $user->id);
+                });
+            })
             ->when($borrowNatureId, fn ($query) => $query->where('nature_of_request_id', '!=', $borrowNatureId))
             ->archived()
             ->latest()
@@ -701,6 +710,142 @@ class TicketRequestController extends Controller
         );
     }
 
+    public function showItProcessingOngoing(Request $request, TicketRequest $ticketRequest)
+    {
+        $user = $request->user();
+        if (! $user) {
+            abort(401, 'Authentication required.');
+        }
+        if (! $user->isAdmin() && $ticketRequest->user_id !== $user->id && $ticketRequest->requested_for_user_id !== $user->id) {
+            abort(403, 'You do not have permission to view this request.');
+        }
+
+        return redirect()->to(route('requests.show', $ticketRequest).'?modal=it-processing-ongoing');
+    }
+
+    public function saveItProcessingOngoing(Request $request, TicketRequest $ticketRequest)
+    {
+        if (! $request->user()?->isAdmin()) {
+            abort(403, 'Only Admin and Super Admin can save IT processing updates.');
+        }
+
+        $validated = $request->validate([
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'deleteAttachmentIds' => ['nullable', 'array'],
+            'deleteAttachmentIds.*' => ['string', 'max:100'],
+            'attachments' => ['nullable', 'array', 'max:20'],
+            'attachments.*' => [
+                'file',
+                'max:20480', // 20MB
+                'mimes:pdf,doc,docx,xls,xlsx',
+            ],
+        ]);
+
+        $attachments = is_array($ticketRequest->attachments) ? $ticketRequest->attachments : [];
+        $deleteIds = collect($validated['deleteAttachmentIds'] ?? [])
+            ->filter(fn (mixed $id): bool => is_string($id) && trim($id) !== '')
+            ->map(fn (string $id): string => trim($id))
+            ->unique()
+            ->values()
+            ->all();
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('public');
+
+        if ($deleteIds !== []) {
+            $attachments = collect($attachments)
+                ->reject(function (mixed $attachment) use ($deleteIds, $disk): bool {
+                    if (! is_array($attachment)) {
+                        return false;
+                    }
+                    if (($attachment['type'] ?? null) !== 'it_processing_ongoing_attachment') {
+                        return false;
+                    }
+
+                    $id = $attachment['id'] ?? null;
+                    if (! is_string($id) || ! in_array($id, $deleteIds, true)) {
+                        return false;
+                    }
+
+                    $path = $attachment['path'] ?? null;
+                    if (is_string($path) && $path !== '' && $disk->exists($path)) {
+                        $disk->delete($path);
+                    }
+
+                    return true;
+                })
+                ->values()
+                ->all();
+        }
+
+        $incomingFiles = Arr::wrap($request->file('attachments', []));
+        foreach ($incomingFiles as $file) {
+            if (! $file || ! $file->isValid()) {
+                continue;
+            }
+
+            $path = $file->store('ticket-requests/it-processing-ongoing', 'public');
+
+            $attachments[] = [
+                'type' => 'it_processing_ongoing_attachment',
+                'id' => (string) Str::uuid(),
+                'uploadedAt' => now()->toIso8601String(),
+                'path' => $path,
+                'name' => $file->getClientOriginalName(),
+                'size' => $file->getSize() ?: 0,
+                'mime' => $file->getMimeType() ?: 'application/octet-stream',
+            ];
+        }
+
+        $notes = isset($validated['notes']) && trim((string) $validated['notes']) !== ''
+            ? trim((string) $validated['notes'])
+            : null;
+
+        $payloadIndex = null;
+        $existingPayload = null;
+        foreach ($attachments as $i => $attachment) {
+            if (! is_array($attachment)) {
+                continue;
+            }
+            if (($attachment['type'] ?? null) !== 'it_processing_ongoing') {
+                continue;
+            }
+            $payloadIndex = $i;
+            $payload = $attachment['payload'] ?? null;
+            $existingPayload = is_array($payload) ? $payload : [];
+            break;
+        }
+
+        $newPayload = array_merge($existingPayload ?? [], [
+            'notes' => $notes,
+            'updatedAt' => now()->toIso8601String(),
+        ]);
+        if ($existingPayload === null) {
+            $newPayload['createdAt'] = now()->toIso8601String();
+        } else {
+            $newPayload['createdAt'] = $existingPayload['createdAt'] ?? now()->toIso8601String();
+        }
+
+        $payloadEntry = [
+            'type' => 'it_processing_ongoing',
+            'payload' => $newPayload,
+        ];
+
+        if ($payloadIndex !== null) {
+            $attachments[$payloadIndex] = $payloadEntry;
+        } else {
+            array_unshift($attachments, $payloadEntry);
+        }
+
+        $ticketRequest->update([
+            'attachments' => $attachments,
+        ]);
+
+        return redirect()
+            ->to(route('requests.show', $ticketRequest).'?modal=it-processing-ongoing')
+            ->with('success', 'IT processing ongoing details saved.');
+    }
+
     public function show(Request $request, TicketRequest $ticketRequest)
     {
         $user = $request->user();
@@ -718,6 +863,7 @@ class TicketRequestController extends Controller
         $ticketRequest->load('natureOfRequest');
 
         [$fileAttachments, $systemDevelopmentSurvey, , $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
+        [$ongoingPayload, $ongoingAttachments] = $this->extractItProcessingOngoing(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
 
         return Inertia::render('requests/TicketRequestConfirmation', [
             'ticket' => [
@@ -750,6 +896,18 @@ class TicketRequestController extends Controller
                     ])
                     ->values()
                     ->all(),
+                'itProcessingOngoing' => $ongoingPayload,
+                'itProcessingOngoingAttachments' => collect($ongoingAttachments)
+                    ->map(fn (array $a) => [
+                        'id' => $a['id'] ?? null,
+                        'name' => $a['name'] ?? basename($a['path'] ?? ''),
+                        'size' => $a['size'] ?? null,
+                        'mime' => $a['mime'] ?? null,
+                        'url' => $this->publicStorageRelativeUrl($a['path'] ?? null),
+                        'uploadedAt' => $a['uploadedAt'] ?? null,
+                    ])
+                    ->values()
+                    ->all(),
             ],
         ]);
     }
@@ -772,6 +930,7 @@ class TicketRequestController extends Controller
 
         $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
         [$fileAttachments, $systemDevelopmentSurvey, , $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
+        [$ongoingPayload, $ongoingAttachments] = $this->extractItProcessingOngoing(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
 
         $ticket = [
             'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -827,6 +986,20 @@ class TicketRequestController extends Controller
                 ? route('inventory.edit', ['uniqueId' => $ticketRequest->qr_code_number])
                 : null,
             'serviceTimer' => $this->buildServiceTimerPayload($ticketRequest),
+            'itProcessingOngoing' => $ongoingPayload,
+            'itProcessingOngoingAttachments' => collect($ongoingAttachments)
+                ->map(fn (array $a) => [
+                    'id' => $a['id'] ?? null,
+                    'name' => $a['name'] ?? basename($a['path'] ?? ''),
+                    'url' => $this->publicStorageRelativeUrl($a['path'] ?? null),
+                    'size' => $a['size'] ?? null,
+                    'mime' => $a['mime'] ?? null,
+                    'uploadedAt' => $a['uploadedAt'] ?? null,
+                ])
+                ->values()
+                ->all(),
+            'itProcessingOngoingSaveUrl' => route('requests.it-processing.ongoing.save', $ticketRequest),
+            'itProcessingOngoingShowUrl' => route('requests.it-processing.ongoing.show', $ticketRequest),
         ];
 
         $staffOptions = User::query()
@@ -883,6 +1056,41 @@ class TicketRequestController extends Controller
             'statusOptions' => $statusOptions,
             'canEdit' => true,
         ]);
+    }
+
+    /**
+     * Extract IT processing "Ongoing" modal data from attachments JSON.
+     *
+     * @param  array<int, mixed>|null  $attachments
+     * @return array{0: array<string, mixed>|null, 1: array<int, array<string, mixed>>}
+     */
+    private function extractItProcessingOngoing(?array $attachments): array
+    {
+        if (! is_array($attachments) || $attachments === []) {
+            return [null, []];
+        }
+
+        $payload = null;
+        $files = [];
+
+        foreach ($attachments as $attachment) {
+            if (! is_array($attachment)) {
+                continue;
+            }
+
+            if (($attachment['type'] ?? null) === 'it_processing_ongoing') {
+                $p = $attachment['payload'] ?? null;
+                $payload = is_array($p) ? $p : [];
+
+                continue;
+            }
+
+            if (($attachment['type'] ?? null) === 'it_processing_ongoing_attachment') {
+                $files[] = $attachment;
+            }
+        }
+
+        return [$payload, $files];
     }
 
     public function updateItGovernance(Request $request, TicketRequest $ticketRequest, AuditLogger $auditLogger)
@@ -1109,6 +1317,7 @@ class TicketRequestController extends Controller
 
         $requestedByUser = $ticketRequest->requestedForUser ?? $ticketRequest->user;
         [$fileAttachments, $systemDevelopmentSurvey, , $systemIssueReport, $issueReportAttachments] = $this->splitAttachments(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
+        [$ongoingPayload, $ongoingAttachments] = $this->extractItProcessingOngoing(is_array($ticketRequest->attachments) ? $ticketRequest->attachments : []);
 
         $ticket = [
             'controlTicketNumber' => $ticketRequest->control_ticket_number,
@@ -1163,6 +1372,20 @@ class TicketRequestController extends Controller
                 ? route('inventory.edit', ['uniqueId' => $ticketRequest->qr_code_number])
                 : null,
             'serviceTimer' => $this->buildServiceTimerPayload($ticketRequest),
+            'itProcessingOngoing' => $ongoingPayload,
+            'itProcessingOngoingAttachments' => collect($ongoingAttachments)
+                ->map(fn (array $a) => [
+                    'id' => $a['id'] ?? null,
+                    'name' => $a['name'] ?? basename($a['path'] ?? ''),
+                    'url' => $this->publicStorageRelativeUrl($a['path'] ?? null),
+                    'size' => $a['size'] ?? null,
+                    'mime' => $a['mime'] ?? null,
+                    'uploadedAt' => $a['uploadedAt'] ?? null,
+                ])
+                ->values()
+                ->all(),
+            'itProcessingOngoingSaveUrl' => route('requests.it-processing.ongoing.save', $ticketRequest),
+            'itProcessingOngoingShowUrl' => route('requests.it-processing.ongoing.show', $ticketRequest),
         ];
 
         $staffOptions = User::query()

@@ -272,6 +272,11 @@ Route::middleware([
         ->name('forms.download');
     Route::get('requests/{ticketRequest}/system-issue-report/pdf', [TicketRequestController::class, 'downloadSystemIssueReportPdf'])
         ->name('requests.system-issue-report.pdf');
+    Route::get('requests/{ticketRequest}/it-processing/ongoing', [TicketRequestController::class, 'showItProcessingOngoing'])
+        ->name('requests.it-processing.ongoing.show');
+    Route::post('requests/{ticketRequest}/it-processing/ongoing', [TicketRequestController::class, 'saveItProcessingOngoing'])
+        ->middleware('admin')
+        ->name('requests.it-processing.ongoing.save');
     Route::get('requests/{ticketRequest}', [TicketRequestController::class, 'show'])
         ->name('requests.show');
 

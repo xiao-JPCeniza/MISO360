@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import AssignedStaffMultiSelect from '@/components/AssignedStaffMultiSelect.vue';
+import ItProcessingOngoingModal from '@/components/ItProcessingOngoingModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import Icon from '@/components/Icon.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -46,6 +48,16 @@ type TicketDetails = {
     qrCodePattern?: string;
     generateQrUrl?: string;
     inventoryEditUrl?: string | null;
+    itProcessingOngoing?: Record<string, unknown> | null;
+    itProcessingOngoingAttachments?: Array<{
+        id?: string | null;
+        name: string;
+        url?: string | null;
+        size?: number | null;
+        mime?: string | null;
+        uploadedAt?: string | null;
+    }>;
+    itProcessingOngoingSaveUrl?: string;
 };
 
 const props = defineProps<{
@@ -104,6 +116,29 @@ const statusList = computed(() =>
 const attachments = computed(() => props.ticket.attachments ?? []);
 const isEditable = computed(() => props.canEdit);
 const natureList = computed(() => props.natureOfRequests ?? []);
+const ongoingModalOpen = ref(false);
+
+const statusNameForSelected = computed(() => {
+    const id = String(form.statusId ?? '');
+    const opt = statusList.value.find((o) => String(o.id) === id);
+    return opt?.name ?? props.ticket.statusName ?? null;
+});
+
+const showOngoingLink = computed(() => {
+    return String(statusNameForSelected.value ?? '').trim().toLowerCase() === 'ongoing';
+});
+
+function openOngoingModal(): void {
+    ongoingModalOpen.value = true;
+}
+
+onMounted(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('modal') === 'it-processing-ongoing') {
+        ongoingModalOpen.value = true;
+    }
+});
 
 const equipmentDetailKeys = [
     'rj45',
@@ -493,14 +528,14 @@ function submitForm() {
                             v-if="isEditable"
                             v-model="form.requestDescription"
                             rows="4"
-                            class="[field-sizing:content] max-h-56 min-h-0 w-full resize-y overflow-y-auto rounded-md border border-white/30 bg-white px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap text-slate-900 shadow-inner outline-none focus:border-white/60 focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
+                            class="field-sizing-content max-h-56 min-h-0 w-full resize-y overflow-y-auto rounded-md border border-white/30 bg-white px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap text-slate-900 shadow-inner outline-none focus:border-white/60 focus:ring-2 focus:ring-white/20 disabled:bg-white/70 disabled:text-slate-500"
                         />
                         <textarea
                             v-else
                             readonly
                             rows="3"
                             :value="props.ticket.requestDescription ?? ''"
-                            class="[field-sizing:content] max-h-56 min-h-0 w-full cursor-default resize-y overflow-y-auto rounded-md border border-white/15 bg-slate-100/95 px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap text-slate-700 shadow-inner outline-none dark:text-slate-600"
+                            class="field-sizing-content max-h-56 min-h-0 w-full cursor-default resize-y overflow-y-auto rounded-md border border-white/15 bg-slate-100/95 px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap text-slate-700 shadow-inner outline-none dark:text-slate-600"
                         />
                         <p
                             v-if="fieldError('requestDescription')"
@@ -904,6 +939,15 @@ function submitForm() {
                             >
                                 {{ fieldError('statusId') }}
                             </p>
+                            <button
+                                v-if="showOngoingLink"
+                                type="button"
+                                class="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-200 underline underline-offset-4 hover:text-blue-100"
+                                @click="openOngoingModal"
+                            >
+                                <Icon name="link2" class="h-3.5 w-3.5" />
+                                Ongoing documents & notes
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -950,7 +994,7 @@ function submitForm() {
                                     class="pointer-events-none absolute top-0.5 left-0.5 block size-5 rounded-full bg-white shadow transition-transform duration-200 ease-out"
                                     :class="
                                         form.equipmentNetworkDetails.itUseSectionOpen
-                                            ? 'translate-x-[1.375rem]'
+                                            ? 'translate-x-5.5'
                                             : 'translate-x-0'
                                     "
                                 />
@@ -1309,4 +1353,12 @@ function submitForm() {
             </form>
         </div>
     </AppLayout>
+
+    <ItProcessingOngoingModal
+        v-model:open="ongoingModalOpen"
+        :can-edit="isEditable"
+        :save-url="props.ticket.itProcessingOngoingSaveUrl ?? ''"
+        :notes="(props.ticket.itProcessingOngoing?.notes as string | null) ?? null"
+        :attachments="props.ticket.itProcessingOngoingAttachments ?? []"
+    />
 </template>

@@ -15,7 +15,7 @@ class RequestsPageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_regular_user_only_sees_their_requests(): void
+    public function test_regular_user_sees_requests_they_submitted_or_were_requested_for(): void
     {
         $user = User::factory()->create();
         $otherUser = User::factory()->create();
@@ -23,6 +23,11 @@ class RequestsPageTest extends TestCase
         $userRequest = TicketRequest::factory()->create([
             'user_id' => $user->id,
             'description' => 'Replace the office keyboard.',
+        ]);
+        $requestedForUser = TicketRequest::factory()->create([
+            'user_id' => $otherUser->id,
+            'requested_for_user_id' => $user->id,
+            'description' => 'Submitted by admin for employee.',
         ]);
         TicketRequest::factory()->create([
             'user_id' => $otherUser->id,
@@ -36,10 +41,12 @@ class RequestsPageTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('requests/Requests')
             ->where('isAdmin', false)
-            ->has('requests', 1)
+            ->has('requests', 2)
             ->where('requests.0.controlTicketNumber', $userRequest->control_ticket_number)
             ->where('requests.0.positionTitle', $user->position_title)
             ->where('requests.0.requestDescription', 'Replace the office keyboard.')
+            ->where('requests.1.controlTicketNumber', $requestedForUser->control_ticket_number)
+            ->where('requests.1.requestDescription', 'Submitted by admin for employee.')
         );
     }
 
@@ -665,7 +672,7 @@ class RequestsPageTest extends TestCase
         );
     }
 
-    public function test_regular_user_sees_only_own_archived_requests(): void
+    public function test_regular_user_sees_archived_requests_they_submitted_or_were_requested_for(): void
     {
         $user = User::factory()->create();
         $otherUser = User::factory()->create();
@@ -674,9 +681,17 @@ class RequestsPageTest extends TestCase
             'archived' => true,
             'description' => 'Other user archived',
         ]);
+        $requestedForUserArchived = TicketRequest::factory()->create([
+            'user_id' => $otherUser->id,
+            'requested_for_user_id' => $user->id,
+            'archived' => true,
+            'created_at' => now(),
+            'description' => 'Archived submitted on behalf',
+        ]);
         $ownArchived = TicketRequest::factory()->create([
             'user_id' => $user->id,
             'archived' => true,
+            'created_at' => now()->subMinute(),
             'description' => 'My archived request',
         ]);
 
@@ -686,8 +701,9 @@ class RequestsPageTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('requests/Archive')
             ->where('isAdmin', false)
-            ->has('requests', 1)
-            ->where('requests.0.controlTicketNumber', $ownArchived->control_ticket_number)
+            ->has('requests', 2)
+            ->where('requests.0.controlTicketNumber', $requestedForUserArchived->control_ticket_number)
+            ->where('requests.1.controlTicketNumber', $ownArchived->control_ticket_number)
         );
     }
 }

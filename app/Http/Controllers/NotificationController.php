@@ -8,6 +8,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -16,7 +17,7 @@ class NotificationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user) {
+        if (! $user instanceof User) {
             abort(401);
         }
 
@@ -29,9 +30,15 @@ class NotificationController extends Controller
 
         $unreadCount = $this->unreadNotificationsVisibleToUser($user)->count();
 
-        $items = $this->notificationsVisibleToUser($user)
-            ->limit(8)
-            ->get()
+        $perPage = 8;
+        $page = max(1, (int) $request->query('page', 1));
+
+        /** @var LengthAwarePaginator $paginator */
+        $paginator = $this->notificationsVisibleToUser($user)
+            ->paginate(perPage: $perPage, page: $page);
+
+        $items = $paginator
+            ->getCollection()
             ->map(function (DatabaseNotification $n): array {
                 return [
                     'id' => $n->id,
@@ -46,13 +53,21 @@ class NotificationController extends Controller
         return response()->json([
             'unreadCount' => $unreadCount,
             'items' => $items,
+            'pagination' => [
+                'currentPage' => $paginator->currentPage(),
+                'lastPage' => $paginator->lastPage(),
+                'perPage' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
         ]);
     }
 
     public function markAllRead(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user) {
+        if (! $user instanceof User) {
             abort(401);
         }
 
@@ -70,7 +85,7 @@ class NotificationController extends Controller
     public function markRead(Request $request, DatabaseNotification $notification): JsonResponse
     {
         $user = $request->user();
-        if (! $user) {
+        if (! $user instanceof User) {
             abort(401);
         }
 
@@ -78,7 +93,7 @@ class NotificationController extends Controller
             abort(404);
         }
 
-        if ($user instanceof User && $user->isAdmin() && ! AdminInAppNotificationKinds::contains($notification->data['kind'] ?? null)) {
+        if ($user->isAdmin() && ! AdminInAppNotificationKinds::contains($notification->data['kind'] ?? null)) {
             abort(404);
         }
 
@@ -89,26 +104,20 @@ class NotificationController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /**
-     * @param  \Illuminate\Contracts\Auth\Authenticatable&object  $user
-     */
-    private function notificationsVisibleToUser(object $user)
+    private function notificationsVisibleToUser(User $user)
     {
         $query = $user->notifications()->latest();
-        if ($user instanceof User && $user->isAdmin()) {
+        if ($user->isAdmin()) {
             $query->whereIn('data->kind', AdminInAppNotificationKinds::all());
         }
 
         return $query;
     }
 
-    /**
-     * @param  \Illuminate\Contracts\Auth\Authenticatable&object  $user
-     */
-    private function unreadNotificationsVisibleToUser(object $user)
+    private function unreadNotificationsVisibleToUser(User $user)
     {
         $query = $user->unreadNotifications();
-        if ($user instanceof User && $user->isAdmin()) {
+        if ($user->isAdmin()) {
             $query->whereIn('data->kind', AdminInAppNotificationKinds::all());
         }
 

@@ -30,6 +30,7 @@ class TicketCompletedNotification extends Notification
             'title' => 'Ticket completed',
             'message' => 'Your ticket ('.$this->ticketRequest->control_ticket_number.') has been completed. Please complete our customer satisfaction feedback.',
             'url' => route('requests.show', $this->ticketRequest),
+            'actionUrl' => route('requests.it-processing.ongoing.show', $this->ticketRequest),
             'ticketRequestId' => $this->ticketRequest->id,
             'controlTicketNumber' => $this->ticketRequest->control_ticket_number,
         ];

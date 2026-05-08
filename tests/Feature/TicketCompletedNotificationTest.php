@@ -70,6 +70,7 @@ class TicketCompletedNotificationTest extends TestCase
 
         $this->assertSame('ticket_completed', $notification->data['kind'] ?? null);
         $this->assertStringContainsString('customer satisfaction feedback', (string) ($notification->data['message'] ?? ''));
+        $this->assertNotEmpty($notification->data['actionUrl'] ?? null);
     }
 
     public function test_notification_mark_read_marks_notification_as_read(): void

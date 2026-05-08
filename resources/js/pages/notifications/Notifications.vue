@@ -3,6 +3,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { onMounted, ref } from 'vue';
 
 import HeadingSmall from '@/components/HeadingSmall.vue';
+import Icon from '@/components/Icon.vue';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/composables/useNotifications';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -17,11 +18,21 @@ type NotificationItem = {
     data: Record<string, unknown>;
 };
 
+type Pagination = {
+    currentPage: number;
+    lastPage: number;
+    perPage: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+};
+
 const toast = useNotifications();
 const page = usePage();
 const items = ref<NotificationItem[]>([]);
 const unreadCount = ref<number>(0);
 const loading = ref(true);
+const pagination = ref<Pagination | null>(null);
 
 /**
  * Prefer Inertia shared `csrf_token` — the root HTML meta tag is not updated on client-side
@@ -106,6 +117,29 @@ function notificationReturnPath(n: NotificationItem): string {
     return '/dashboard';
 }
 
+function notificationActionPath(n: NotificationItem): string | null {
+    const raw = n.data.actionUrl;
+    if (typeof raw !== 'string' || raw.trim() === '') {
+        return null;
+    }
+
+    const u = raw.trim();
+    if (u.startsWith('/')) {
+        return u;
+    }
+
+    try {
+        const parsed = new URL(u);
+        if (parsed.origin === window.location.origin) {
+            return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        }
+    } catch {
+        /* ignore invalid URL */
+    }
+
+    return null;
+}
+
 function openNotification(n: NotificationItem): void {
     if (isTicketCompletedNotification(n)) {
         window.open(FEEDBACK_URL, '_blank', 'noopener,noreferrer');
@@ -119,19 +153,41 @@ function openNotification(n: NotificationItem): void {
     router.visit(notificationReturnPath(n));
 }
 
-async function load(): Promise<void> {
+function openNotificationAction(n: NotificationItem): void {
+    const actionPath = notificationActionPath(n);
+    if (!actionPath) {
+        openNotification(n);
+        return;
+    }
+
+    void fetch(`/notifications/${n.id}/mark-read`, {
+        method: 'POST',
+        headers: buildJsonPostHeaders(),
+        credentials: 'same-origin',
+        body: '{}',
+    });
+
+    router.visit(actionPath);
+}
+
+async function load(pageNumber = 1): Promise<void> {
     loading.value = true;
     try {
-        const res = await fetch('/notifications/data', {
+        const res = await fetch(`/notifications/data?page=${pageNumber}`, {
             headers: { Accept: 'application/json' },
             credentials: 'same-origin',
         });
         if (!res.ok) {
             throw new Error('Failed to load notifications.');
         }
-        const payload = (await res.json()) as { unreadCount: number; items: NotificationItem[] };
+        const payload = (await res.json()) as {
+            unreadCount: number;
+            items: NotificationItem[];
+            pagination?: Pagination;
+        };
         unreadCount.value = payload.unreadCount ?? 0;
         items.value = Array.isArray(payload.items) ? payload.items : [];
+        pagination.value = payload.pagination ?? null;
     } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Failed to load notifications.');
     } finally {
@@ -153,11 +209,42 @@ async function markAllRead(): Promise<void> {
             }
             throw new Error('Failed to mark notifications as read.');
         }
-        await load();
+        await load(pagination.value?.currentPage ?? 1);
         toast.success('All notifications marked as read.');
     } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Failed to mark notifications as read.');
     }
+}
+
+function canGoPrev(): boolean {
+    return (pagination.value?.currentPage ?? 1) > 1 && !loading.value;
+}
+
+function canGoNext(): boolean {
+    const p = pagination.value;
+    if (!p) {
+        return false;
+    }
+    return p.currentPage < p.lastPage && !loading.value;
+}
+
+function goPrev(): void {
+    const current = pagination.value?.currentPage ?? 1;
+    if (current <= 1) {
+        return;
+    }
+    void load(current - 1);
+}
+
+function goNext(): void {
+    const p = pagination.value;
+    if (!p) {
+        return;
+    }
+    if (p.currentPage >= p.lastPage) {
+        return;
+    }
+    void load(p.currentPage + 1);
 }
 
 onMounted(() => {
@@ -201,8 +288,12 @@ onMounted(() => {
                         v-for="n in items"
                         :key="n.id"
                         href="#"
-                        class="block cursor-pointer rounded-xl border border-border/70 p-4 transition-colors hover:bg-muted/50"
-                        :class="[n.readAt ? 'opacity-85' : 'ring-1 ring-[#2563eb]/20']"
+                        class="block cursor-pointer rounded-xl border p-4 transition-colors"
+                        :class="[
+                            n.readAt
+                                ? 'border-border/70 hover:bg-muted/50'
+                                : 'border-[#2563eb]/20 bg-[#2563eb]/4 ring-1 ring-[#2563eb]/20 hover:bg-[#2563eb]/6 dark:border-[#93c5fd]/20 dark:bg-[#93c5fd]/8 dark:ring-[#93c5fd]/20 dark:hover:bg-[#93c5fd]/10',
+                        ]"
                         @click.prevent="openNotification(n)"
                     >
                         <div class="flex items-start justify-between gap-4">
@@ -221,7 +312,17 @@ onMounted(() => {
                                     you open this notification.
                                 </p>
                             </div>
-                            <div class="flex shrink-0 flex-col items-end gap-1 text-right">
+                            <div class="flex shrink-0 flex-col items-end gap-2 text-right">
+                                <button
+                                    v-if="notificationActionPath(n)"
+                                    type="button"
+                                    class="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground transition hover:bg-muted/40"
+                                    title="Open"
+                                    @click.prevent.stop="openNotificationAction(n)"
+                                >
+                                    <Icon name="arrowRight" class="h-3.5 w-3.5" />
+                                    Open
+                                </button>
                                 <time
                                     v-if="n.createdAt"
                                     :datetime="n.createdAt"
@@ -238,6 +339,24 @@ onMounted(() => {
                             </div>
                         </div>
                     </a>
+
+                    <div v-if="pagination && pagination.lastPage > 1" class="flex items-center justify-between gap-4 pt-2">
+                        <p class="text-sm text-muted-foreground">
+                            <span class="font-semibold text-foreground">
+                                {{ pagination.from ?? 0 }}–{{ pagination.to ?? 0 }}
+                            </span>
+                            of
+                            <span class="font-semibold text-foreground">{{ pagination.total }}</span>
+                        </p>
+                        <div class="flex items-center gap-2">
+                            <Button variant="outline" :disabled="!canGoPrev()" @click="goPrev">Previous</Button>
+                            <p class="text-sm text-muted-foreground tabular-nums">
+                                Page <span class="font-semibold text-foreground">{{ pagination.currentPage }}</span> /
+                                <span class="font-semibold text-foreground">{{ pagination.lastPage }}</span>
+                            </p>
+                            <Button variant="outline" :disabled="!canGoNext()" @click="goNext">Next</Button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
