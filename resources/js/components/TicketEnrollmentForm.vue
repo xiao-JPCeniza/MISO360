@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import { ATTACHMENT_ACCEPT } from '@/constants/attachmentUpload';
 
 type EnrollmentPayload = {
     uniqueId: string;
@@ -672,11 +673,11 @@ function submit() {
                     </select>
                 </div>
                 <div class="sm:col-span-2 xl:col-span-4">
-                    <label class="enroll-label">Equipment Images/Pictures</label>
+                    <label class="enroll-label">Equipment files / photos</label>
                     <input
                         type="file"
                         class="enroll-input"
-                        accept="image/*"
+                        :accept="ATTACHMENT_ACCEPT"
                         multiple
                         capture="environment"
                         @change="
@@ -686,7 +687,7 @@ function submit() {
                         "
                     />
                     <p class="enroll-footnote">
-                        Upload or take multiple photos. Existing files remain unless replaced.
+                        Photos, documents, or videos (same types as ticket attachments). Up to 20MB each. Existing files remain unless replaced.
                     </p>
                     <div
                         v-if="form.equipmentImageUrls.length"

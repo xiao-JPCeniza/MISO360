@@ -1,0 +1,1 @@
+function i(t){const e=t.split("?")[0].toLowerCase(),r=e.includes(".")?e.split(".").pop()??"":"";return["jpg","jpeg","png","webp","gif"].includes(r)?"image":["mp4","mov","webm"].includes(r)?"video":"other"}function n(t){const e=t.trim();return e===""?"":/^https?:\/\//i.test(e)||e.startsWith("/")?e:`/storage/${e.replace(/^\/+/,"")}`}export{i as e,n as r};

@@ -3,6 +3,7 @@ import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import Icon from '@/components/Icon.vue';
+import { ATTACHMENT_ACCEPT } from '@/constants/attachmentUpload';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -71,8 +72,7 @@ const form = useForm<{
     deleteAttachmentIds: [],
 });
 
-const accept =
-    '.pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const accept = ATTACHMENT_ACCEPT;
 
 function close(): void {
     emit('update:open', false);
@@ -206,6 +206,9 @@ function submit(): void {
                                 class="block w-full text-sm file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-semibold hover:file:bg-muted/70"
                                 @change="onFilesSelected"
                             />
+                            <p class="text-[11px] text-muted-foreground">
+                                Same file types as ticket submissions (e.g. PDF, Office, images, video). Up to 20 MB each.
+                            </p>
                             <p v-if="form.errors.attachments" class="text-xs text-rose-600">
                                 {{ form.errors.attachments }}
                             </p>

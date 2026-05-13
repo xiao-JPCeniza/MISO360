@@ -6,6 +6,7 @@ use App\Enums\ReferenceValueGroup;
 use App\Models\IssuedUid;
 use App\Models\NatureOfRequest;
 use App\Models\TicketArchive;
+use App\Support\AttachmentUploadConstraints;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
@@ -197,29 +198,13 @@ class StoreTicketRequestRequest extends FormRequest
                 'regex:/^MIS-UID-\\d{5}$/',
             ],
             'attachments' => ['nullable', 'array', 'max:5'],
-            'attachments.*' => [
-                'file',
-                'mimes:jpg,jpeg,png,webp,mp4,mov,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,rtf,odt,ods,odp',
-                'max:20480',
-            ],
+            'attachments.*' => AttachmentUploadConstraints::rules(),
             'systemDevelopmentSurveyFormAttachments' => ['nullable', 'array', 'max:5'],
-            'systemDevelopmentSurveyFormAttachments.*' => [
-                'file',
-                'extensions:pdf,doc,docx',
-                'max:10240',
-            ],
+            'systemDevelopmentSurveyFormAttachments.*' => AttachmentUploadConstraints::rules(),
             'systemChangeRequestFormAttachments' => ['nullable', 'array', 'max:5'],
-            'systemChangeRequestFormAttachments.*' => [
-                'file',
-                'extensions:pdf,doc,docx',
-                'max:10240',
-            ],
+            'systemChangeRequestFormAttachments.*' => AttachmentUploadConstraints::rules(),
             'dataReleaseRequestFormAttachments' => ['nullable', 'array', 'max:5'],
-            'dataReleaseRequestFormAttachments.*' => [
-                'file',
-                'extensions:pdf,doc,docx',
-                'max:10240',
-            ],
+            'dataReleaseRequestFormAttachments.*' => AttachmentUploadConstraints::rules(),
             'systemDevelopmentSurvey' => ['nullable', 'array'],
             'systemDevelopmentSurvey.titleOfProposedSystem' => ['nullable', 'string', 'max:255'],
             'systemDevelopmentSurvey.targetCompletion' => ['nullable', 'date'],
@@ -283,11 +268,7 @@ class StoreTicketRequestRequest extends FormRequest
             'systemIssueReport.approvedByDate' => ['nullable', 'string', 'max:50'],
             'systemIssueReport.approvedBySignature' => ['nullable', 'string', 'max:255'],
             'systemIssueReportAttachments' => ['nullable', 'array', 'max:5'],
-            'systemIssueReportAttachments.*' => [
-                'file',
-                'mimes:jpg,jpeg,png,webp,pdf',
-                'max:10240',
-            ],
+            'systemIssueReportAttachments.*' => AttachmentUploadConstraints::rules(),
         ];
     }
 
@@ -303,7 +284,7 @@ class StoreTicketRequestRequest extends FormRequest
                 if (! $hasPdf) {
                     $validator->errors()->add(
                         'systemChangeRequestFormAttachments',
-                        'Completed System Change Request Form (PDF, DOC, or DOCX) is required. Download the form, complete it offline, then upload it here.',
+                        'Completed System Change Request Form is required. Download the form, complete it offline, then upload it here (supported file types match the main attachment list on this page).',
                     );
                 }
                 if (! $hasPdf && is_array($this->input('systemChangeRequestForm'))) {
@@ -317,7 +298,7 @@ class StoreTicketRequestRequest extends FormRequest
                 if (! $this->hasValidUploadedFiles('dataReleaseRequestFormAttachments')) {
                     $validator->errors()->add(
                         'dataReleaseRequestFormAttachments',
-                        'Completed Data Request and Approval Form (PDF, DOC, or DOCX) is required. Download the form, complete it offline, then upload it here.',
+                        'Completed Data Request and Approval Form is required. Download the form, complete it offline, then upload it here (supported file types match the main attachment list on this page).',
                     );
                 }
 
@@ -331,7 +312,7 @@ class StoreTicketRequestRequest extends FormRequest
             if (! $this->hasValidUploadedFiles('systemDevelopmentSurveyFormAttachments')) {
                 $validator->errors()->add(
                     'systemDevelopmentSurveyFormAttachments',
-                    'Completed Systems Development Survey Form (PDF, DOC, or DOCX) is required. Download the form from the submit page, complete it offline, then upload it here.',
+                    'Completed Systems Development Survey Form is required. Download the form from the submit page, complete it offline, then upload it here (supported file types match the main attachment list on this page).',
                 );
             }
         });
@@ -369,9 +350,11 @@ class StoreTicketRequestRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'systemDevelopmentSurveyFormAttachments.*.extensions' => 'Each systems development form attachment must be a PDF, DOC, or DOCX file.',
-            'systemChangeRequestFormAttachments.*.extensions' => 'Each system change request attachment must be a PDF, DOC, or DOCX file.',
-            'dataReleaseRequestFormAttachments.*.extensions' => 'Each data request attachment must be a PDF, DOC, or DOCX file.',
+            'attachments.*.extensions' => 'Each attachment must use an allowed type (JPG, PNG, WEBP, MP4, MOV, PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, RTF, ODT/ODS/ODP).',
+            'systemDevelopmentSurveyFormAttachments.*.extensions' => 'Each systems development form attachment must use an allowed file type (same list as optional attachments on this page).',
+            'systemChangeRequestFormAttachments.*.extensions' => 'Each system change request attachment must use an allowed file type (same list as optional attachments on this page).',
+            'dataReleaseRequestFormAttachments.*.extensions' => 'Each data request attachment must use an allowed file type (same list as optional attachments on this page).',
+            'systemIssueReportAttachments.*.extensions' => 'Each system issue report attachment must use an allowed file type (same list as optional attachments on this page).',
             'natureOfRequestId.required' => 'Please select a nature of request.',
             'officeDesignationId.required' => 'Please select an office designation.',
             'requestedForUserId.required' => 'Please select a user for this request.',

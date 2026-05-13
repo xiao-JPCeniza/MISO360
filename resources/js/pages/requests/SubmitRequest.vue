@@ -3,6 +3,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
+import { ATTACHMENT_ACCEPT, ATTACHMENT_EXTENSIONS, ATTACHMENT_MIME_TYPES } from '@/constants/attachmentUpload';
 import { dashboard, submitRequest } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -431,7 +432,7 @@ const systemDevelopmentFormUploadErrors = computed(() => {
     }
     return {
         'systemDevelopmentSurveyFormAttachments.0':
-            'Completed Systems Development Survey Form (PDF) is required. Download the form above, complete it offline, then upload it here.',
+            'Completed Systems Development Survey Form is required. Download the form above, complete it offline, then upload it here.',
     };
 });
 
@@ -447,7 +448,7 @@ const systemChangeRequestFormUploadErrors = computed(() => {
     }
     return {
         'systemChangeRequestFormAttachments.0':
-            'Completed System Change Request Form (PDF, DOC, or DOCX) is required. Download the form above, complete it offline, then upload it here.',
+            'Completed System Change Request Form is required. Download the form above, complete it offline, then upload it here.',
     };
 });
 
@@ -463,7 +464,7 @@ const dataReleaseRequestFormUploadErrors = computed(() => {
     }
     return {
         'dataReleaseRequestFormAttachments.0':
-            'Completed Data Request and Approval Form (PDF, DOC, or DOCX) is required. Download the form above, complete it offline, then upload it here.',
+            'Completed Data Request and Approval Form is required. Download the form above, complete it offline, then upload it here.',
     };
 });
 
@@ -640,48 +641,9 @@ watch(
     },
 );
 
-const acceptedTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'video/mp4',
-    'video/quicktime',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'text/plain',
-    'text/csv',
-    'application/rtf',
-    'application/vnd.oasis.opendocument.text',
-    'application/vnd.oasis.opendocument.spreadsheet',
-    'application/vnd.oasis.opendocument.presentation',
-];
-const acceptedExtensions = [
-    'jpg',
-    'jpeg',
-    'png',
-    'webp',
-    'mp4',
-    'mov',
-    'pdf',
-    'doc',
-    'docx',
-    'xls',
-    'xlsx',
-    'ppt',
-    'pptx',
-    'txt',
-    'csv',
-    'rtf',
-    'odt',
-    'ods',
-    'odp',
-];
-const acceptAttribute = acceptedExtensions.map((ext) => `.${ext}`).join(',');
+const acceptedTypes = [...ATTACHMENT_MIME_TYPES];
+const acceptedExtensions = [...ATTACHMENT_EXTENSIONS];
+const acceptAttribute = ATTACHMENT_ACCEPT;
 
 function formatSize(size: number) {
     if (size < 1024) {
@@ -1206,7 +1168,7 @@ function submitTicket() {
                                 </label>
                                 <input
                                     type="file"
-                                    accept=".pdf,.doc,.docx"
+                                    :accept="acceptAttribute"
                                     class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
                                     @change="(e) => {
                                         const target = e.target as HTMLInputElement;
@@ -1225,7 +1187,7 @@ function submitTicket() {
                                     {{ form.errors['systemDevelopmentSurveyFormAttachments'] || form.errors['systemDevelopmentSurveyFormAttachments.0'] || systemDevelopmentFormUploadErrors['systemDevelopmentSurveyFormAttachments.0'] }}
                                 </p>
                                 <p v-else class="text-xs text-muted-foreground">
-                                    Upload the completed form. PDF, DOC, or DOCX is accepted.
+                                    JPG, PNG, WEBP, MP4, MOV, PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, RTF, ODT/ODS/ODP up to {{ maxAttachmentSizeMb }}MB each.
                                 </p>
                             </div>
                         </div>
@@ -1275,7 +1237,7 @@ function submitTicket() {
                                 </label>
                                 <input
                                     type="file"
-                                    accept=".pdf,.doc,.docx"
+                                    :accept="acceptAttribute"
                                     class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
                                     @change="(e) => {
                                         const target = e.target as HTMLInputElement;
@@ -1294,7 +1256,7 @@ function submitTicket() {
                                     {{ form.errors['systemChangeRequestFormAttachments'] || form.errors['systemChangeRequestFormAttachments.0'] || systemChangeRequestFormUploadErrors['systemChangeRequestFormAttachments.0'] }}
                                 </p>
                                 <p v-else class="text-xs text-muted-foreground">
-                                    Upload the completed form. PDF, DOC, or DOCX is accepted.
+                                    JPG, PNG, WEBP, MP4, MOV, PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, RTF, ODT/ODS/ODP up to {{ maxAttachmentSizeMb }}MB each.
                                 </p>
                             </div>
                         </div>
@@ -1324,7 +1286,7 @@ function submitTicket() {
                                 </label>
                                 <input
                                     type="file"
-                                    accept=".pdf,.doc,.docx"
+                                    :accept="acceptAttribute"
                                     class="block w-full text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-foreground hover:file:bg-muted/70"
                                     @change="(e) => {
                                         const target = e.target as HTMLInputElement;
@@ -1343,7 +1305,7 @@ function submitTicket() {
                                     {{ form.errors['dataReleaseRequestFormAttachments'] || form.errors['dataReleaseRequestFormAttachments.0'] || dataReleaseRequestFormUploadErrors['dataReleaseRequestFormAttachments.0'] }}
                                 </p>
                                 <p v-else class="text-xs text-muted-foreground">
-                                    Upload the completed form. PDF, DOC, or DOCX is accepted.
+                                    JPG, PNG, WEBP, MP4, MOV, PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, RTF, ODT/ODS/ODP up to {{ maxAttachmentSizeMb }}MB each.
                                 </p>
                             </div>
                         </div>

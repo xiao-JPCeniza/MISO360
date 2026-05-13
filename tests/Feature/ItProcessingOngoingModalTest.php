@@ -93,4 +93,42 @@ class ItProcessingOngoingModalTest extends TestCase
         $this->assertNull(collect($attachments)->firstWhere('id', (string) $fileAttachment['id']));
         Storage::disk('public')->assertMissing((string) $fileAttachment['path']);
     }
+
+    public function test_admin_can_upload_attachment_matching_ticket_attachment_types(): void
+    {
+        Storage::fake('public');
+
+        /** @var User $admin */
+        $admin = User::factory()->admin()->create();
+        /** @var TicketRequest $ticket */
+        $ticket = TicketRequest::factory()->create();
+
+        $csrfToken = 'test-token';
+
+        $file = UploadedFile::fake()->create(
+            'notes.docx',
+            120,
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
+
+        $this->actingAs($admin)
+            ->withSession([
+                '_token' => $csrfToken,
+                'two_factor.verified_at' => now()->timestamp,
+            ])
+            ->post(route('requests.it-processing.ongoing.save', $ticket), [
+                '_token' => $csrfToken,
+                'notes' => 'With doc',
+                'attachments' => [$file],
+            ])
+            ->assertRedirect();
+
+        $ticket->refresh();
+
+        $attachments = is_array($ticket->attachments) ? $ticket->attachments : [];
+        $docAttachment = collect($attachments)->firstWhere('type', 'it_processing_ongoing_attachment');
+
+        $this->assertIsArray($docAttachment);
+        $this->assertStringContainsString('notes.docx', (string) ($docAttachment['name'] ?? ''));
+    }
 }

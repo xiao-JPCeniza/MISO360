@@ -7,6 +7,7 @@ use App\Models\NatureOfRequest;
 use App\Models\ReferenceValue;
 use App\Models\TicketArchive;
 use App\Models\TicketEnrollment;
+use App\Support\AttachmentUploadConstraints;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -127,7 +128,7 @@ class EnrollmentController extends Controller
             'equipmentImageUrls' => ['nullable', 'array'],
             'equipmentImageUrls.*' => ['string', 'max:2048'],
             'equipmentImages' => ['nullable', 'array'],
-            'equipmentImages.*' => ['file', 'image', 'max:5120'],
+            'equipmentImages.*' => AttachmentUploadConstraints::rules(),
             'specification.memory' => ['nullable', 'string', 'max:255'],
             'specification.storage' => ['nullable', 'string', 'max:255'],
             'specification.operatingSystem' => ['nullable', 'string', 'max:255'],

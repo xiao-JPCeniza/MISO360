@@ -16,6 +16,7 @@ use App\Notifications\Admin\NewTicketRequestSubmittedNotification;
 use App\Notifications\TicketCompletedNotification;
 use App\Services\AuditLogger;
 use App\Services\ServiceTimerService;
+use App\Support\AttachmentUploadConstraints;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options as DompdfOptions;
@@ -734,11 +735,7 @@ class TicketRequestController extends Controller
             'deleteAttachmentIds' => ['nullable', 'array'],
             'deleteAttachmentIds.*' => ['string', 'max:100'],
             'attachments' => ['nullable', 'array', 'max:20'],
-            'attachments.*' => [
-                'file',
-                'max:20480', // 20MB
-                'mimes:pdf,doc,docx,xls,xlsx',
-            ],
+            'attachments.*' => AttachmentUploadConstraints::rules(),
         ]);
 
         $attachments = is_array($ticketRequest->attachments) ? $ticketRequest->attachments : [];

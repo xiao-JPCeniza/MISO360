@@ -6,6 +6,7 @@ import { computed } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
+import { equipmentFilePreviewKind } from '@/utils/equipmentFilePreviewKind';
 import { resolveEquipmentImageUrl } from '@/utils/equipmentImageUrl';
 
 type ScanRecord = {
@@ -260,7 +261,7 @@ function submitReview() {
                     </div>
                 </div>
                 <div class="rounded-2xl border border-sidebar-border/60 bg-background p-6">
-                    <h2 class="text-base font-semibold">Equipment image</h2>
+                    <h2 class="text-base font-semibold">Equipment files</h2>
                     <div class="mt-4 rounded-xl border border-dashed border-sidebar-border/70 p-4 text-sm text-muted-foreground">
                         <div v-if="imageUrls.length" class="flex flex-wrap gap-3">
                             <a
@@ -272,13 +273,27 @@ function submitReview() {
                                 class="rounded-xl ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             >
                                 <img
+                                    v-if="equipmentFilePreviewKind(image) === 'image'"
                                     :src="image"
-                                    :alt="`${item.equipmentName} photo ${index + 1}`"
+                                    :alt="`${item.equipmentName} file ${index + 1}`"
                                     class="h-20 w-20 cursor-pointer rounded-xl object-cover"
                                 />
+                                <video
+                                    v-else-if="equipmentFilePreviewKind(image) === 'video'"
+                                    :src="image"
+                                    class="h-20 w-20 cursor-pointer rounded-xl object-cover"
+                                    muted
+                                    playsinline
+                                />
+                                <span
+                                    v-else
+                                    class="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl border border-dashed border-sidebar-border/70 bg-muted/40 px-1 text-center text-[10px] font-medium leading-tight text-foreground"
+                                >
+                                    Open file
+                                </span>
                             </a>
                         </div>
-                        <p v-else>Images not provided.</p>
+                        <p v-else>No files provided.</p>
                     </div>
                     <p v-if="status === 'archived' && item.archivedAt" class="mt-4 text-xs text-amber-600">
                         Archived on {{ item.archivedAt }}

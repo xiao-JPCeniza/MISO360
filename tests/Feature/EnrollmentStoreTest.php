@@ -9,6 +9,8 @@ use App\Models\ReferenceValue;
 use App\Models\TicketEnrollment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class EnrollmentStoreTest extends TestCase
@@ -122,6 +124,43 @@ class EnrollmentStoreTest extends TestCase
         $this->assertSame('2025-02-01', $enrollment->location_date_issued->format('Y-m-d'));
         $this->assertSame('2025-03-01', $enrollment->request_date->format('Y-m-d'));
         $this->assertSame('2026-04-01', $enrollment->maintenance_date->format('Y-m-d'));
+    }
+
+    public function test_admin_enrollment_store_accepts_pdf_equipment_upload(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+
+        IssuedUid::create(['uid' => 'MIS-UID-00050', 'sequence' => 50]);
+
+        $office = ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::OfficeDesignation->value,
+            'name' => 'File Test Office',
+            'is_active' => true,
+        ]);
+        $equipmentType = ReferenceValue::factory()->create([
+            'group_key' => ReferenceValueGroup::EquipmentType->value,
+            'name' => 'Laptop',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.enrollments.store'), [
+                'uniqueId' => 'MIS-UID-00050',
+                'officeId' => $office->id,
+                'equipmentType' => $equipmentType->name,
+                'brand' => 'Dell',
+                'model' => 'Latitude',
+                'equipmentImages' => [
+                    UploadedFile::fake()->create('warranty.pdf', 120, 'application/pdf'),
+                ],
+            ])
+            ->assertRedirect(route('inventory.show', ['uniqueId' => 'MIS-UID-00050']));
+
+        $enrollment = TicketEnrollment::where('unique_id', 'MIS-UID-00050')->firstOrFail();
+        $this->assertNotNull($enrollment->equipment_image);
+        Storage::disk('public')->assertExists((string) $enrollment->equipment_image);
     }
 
     public function test_admin_enrollment_store_persists_identification_and_specification_when_other_sections_empty(): void
